@@ -509,7 +509,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutnode, S_ThreadData* td
 		}
 
 		// razoring
-		if (eval - 63 + 182 * depth <= alpha) {
+		if (eval - 63 + 182 * depth <= alpha && depth <= 5) {
 			return Quiescence<false>(alpha, beta, td, ss);
 		}
 
