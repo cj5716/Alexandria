@@ -625,6 +625,10 @@ moves_loop:
 				// If we didn't successfully extend and our eval is above beta reduce the search depth
 				else if (ttScore >= beta)
 					extension = -2;
+
+                // If we are on a cutnode reduce the search depth
+                else if (cutnode)
+                    extension = -1;
 			}
 
 			else if (pos->checkers)
