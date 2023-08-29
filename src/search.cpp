@@ -401,7 +401,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutnode, S_ThreadData* td
 		}
 
 		// If we reached maxdepth we return a static evaluation of the position
-		if (ss->ply >= MAXDEPTH - 1) {
+		if (ss->ply >= MAXDEPTH - 2) {
 			return in_check ? 0 : EvalPosition(pos);
 		}
 
@@ -478,8 +478,8 @@ int Negamax(int alpha, int beta, int depth, const bool cutnode, S_ThreadData* td
 	
 	// clean killers and excluded move for the next ply
 	(ss + 1)->excludedMove = NOMOVE;
-	(ss + 1)->searchKillers[0] = NOMOVE;
-	(ss + 1)->searchKillers[1] = NOMOVE;
+	(ss + 2)->searchKillers[0] = NOMOVE;
+	(ss + 2)->searchKillers[1] = NOMOVE;
 
 	if (!pv_node) {
 		// Reverse futility pruning
@@ -765,7 +765,7 @@ int Quiescence(int alpha, int beta, S_ThreadData* td, Search_stack* ss) {
 	}
 
 	// If we reached maxdepth we return a static evaluation of the position
-	if (ss->ply >= MAXDEPTH - 1) {
+	if (ss->ply >= MAXDEPTH - 2) {
 		return in_check ? 0 : EvalPosition(pos);
 	}
 	// TThit is true if and only if we find something in the TT
