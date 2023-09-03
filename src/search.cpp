@@ -832,12 +832,13 @@ int Quiescence(int alpha, int beta, S_ThreadData* td, Search_stack* ss) {
 		int score = move_list->moves[count].score;
 		bool isQuiet = !IsCapture(move);
 
-		// See pruning
 		if (BestScore > -mate_score)
 		{
+			// See pruning
 			if (!isQuiet && score < goodCaptureScore)
 				break;
 
+			// Quiet check evasion pruning
 			else if (quiets_searched > 1)
 				break;
 		}
