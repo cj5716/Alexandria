@@ -823,16 +823,23 @@ int Quiescence(int alpha, int beta, S_ThreadData* td, Search_stack* ss) {
 	score_moves(pos, sd, ss, move_list, ttmove);
 
 	int bestmove = NOMOVE;
+	int quiets_searched = 0;
 
 	// loop over moves within the movelist
 	for (int count = 0; count < move_list->count; count++) {
 		PickMove(move_list, count);
 		int move = move_list->moves[count].move;
 		int score = move_list->moves[count].score;
+		bool isQuiet = !IsCapture(move);
+
 		// See pruning
-		if (score < goodCaptureScore 
-			&& BestScore > -mate_score) {
-			break;
+		if (BestScore > -mate_score)
+		{
+			if (!isQuiet && score < goodCaptureScore)
+				break;
+
+			else if (quiets_searched > 1)
+				break;
 		}
 		ss->move = move;
 		MakeMove(move, pos);
@@ -840,6 +847,10 @@ int Quiescence(int alpha, int beta, S_ThreadData* td, Search_stack* ss) {
 		info->nodes++;
 		// Call Quiescence search recursively
 		int Score = -Quiescence<pv_node>(-beta, -alpha, td, ss + 1);
+
+		// increment number of quiets searched
+		if (isQuiet)
+			quiets_searched++;
 
 		// take move back
 		UnmakeMove(move, pos);
