@@ -35,25 +35,15 @@ static bool IsRepetition(const S_Board* pos, const bool pv_node) {
 
 // Returns true if the position is a draw via the 50mr rule
 static bool Is50MrDraw(S_Board* pos) {
-	if(pos->Get50mrCounter() >= 100){
-	// If there's no risk we are being checkmated return true
-	if (!pos->checkers)
-		return true;
-	// if we are in check make sure it's not checkmate 
-	S_MOVELIST move_list[1];
-	// generate moves
-	GenerateMoves(move_list, pos);
-	return move_list->count > 0;
-	}
-	return false;
+	return pos->Get50mrCounter() >= 100;
 }
 
 // If we triggered any of the rules that forces a draw or we know the position is a draw return a draw score
 bool IsDraw(S_Board* pos, const bool pv_node) {
 	// if it's a 3-fold repetition, the fifty moves rule kicked in or there isn't enough material on the board to give checkmate then it's a draw
-	return IsRepetition(pos, pv_node)
-		|| Is50MrDraw(pos)
-		|| MaterialDraw(pos);
+	return  IsRepetition(pos, pv_node)
+		|| (Is50MrDraw(pos) && !pos->checkers) // If there is no risk of checkmate, return true
+		||  MaterialDraw(pos);
 }
 
 // ClearForSearch handles the cleaning of the post and the info parameters to start search from a clean state
@@ -535,6 +525,7 @@ moves_loop:
 
 	// generate moves
 	GenerateMoves(move_list, pos);
+
 	// assign a score to every move based on how promising it is
 	score_moves(pos, sd, ss, move_list, ttmove);
 
