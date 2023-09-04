@@ -526,6 +526,16 @@ moves_loop:
 	// generate moves
 	GenerateMoves(move_list, pos);
 
+	// We don't have any legal moves to make in the current postion
+	if (move_list->count == 0) {
+		// If we are veryfing a singular move return alpha else if the king is in check return mating score (assuming closest distance to mating position) otherwise return stalemate
+		return excludedMove ? alpha : in_check ? (-mate_value + ss->ply) : 0;
+	}
+	// We have confirmed to not be in checkmate, and thus 50 move rule applies.
+	else if (Is50MrDraw(pos))
+		return 8 - (info->nodes & 7);
+
+
 	// assign a score to every move based on how promising it is
 	score_moves(pos, sd, ss, move_list, ttmove);
 
@@ -723,12 +733,6 @@ moves_loop:
 		}
 	}
 
-		// We don't have any legal moves to make in the current postion
-		if (move_list->count == 0) {
-			// If we are veryfing a singular move return alpha else if the king is in check return mating score (assuming closest distance to mating position) otherwise return stalemate
-			return excludedMove ? alpha : in_check ? (-mate_value + ss->ply) : 0;
-		}
-
 	// Set the TT flag based on whether the BestScore is better than beta and if it's not based on if we changed alpha or not
 	int flag = BestScore >= beta ? HFLOWER : (alpha != old_alpha) ? HFEXACT : HFUPPER;
 
@@ -812,6 +816,14 @@ int Quiescence(int alpha, int beta, S_ThreadData* td, Search_stack* ss) {
 	else
 		GenerateMoves(move_list, pos);
 
+	if (move_list->count == 0 && in_check) {
+		// return mate score (assuming closest distance to mating position)
+		return (-mate_value + ss->ply);
+	}
+	// We have confirmed to not be in checkmate, and thus 50 move rule applies.
+	else if (Is50MrDraw(pos))
+		return 1 - (info->nodes & 2);
+
 	// score the generated moves
 	score_moves(pos, sd, ss, move_list, ttmove);
 
@@ -854,11 +866,6 @@ int Quiescence(int alpha, int beta, S_ThreadData* td, Search_stack* ss) {
 				if (Score >= beta) break;
 			}
 		}
-	}
-
-	if (move_list->count == 0 && in_check) {
-		// return mate score (assuming closest distance to mating position)
-		return (-mate_value + ss->ply);
 	}
 
 	// Set the TT flag based on whether the BestScore is better than beta, for qsearch we never use the exact flag
