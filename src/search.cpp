@@ -546,6 +546,8 @@ moves_loop:
 	int moves_searched = 0;
 	bool SkipQuiets = false;
 
+	bool ttCapture = !IsQuiet(ttmove);
+
 	// loop over moves within a movelist
 	for (int count = 0; count < move_list->count; count++) {
 		// take the most promising move that hasn't been played yet
@@ -660,6 +662,8 @@ moves_loop:
 				depth_reduction -= std::clamp(movehistory / 16384, -2, 2);
 				// Fuck
 				depth_reduction += 2 * cutnode;
+				// If our move is quiet but the TT move is a capture, increase reduction
+				depth_reduction += isQuiet && ttCapture;
 				// Decrease the reduction for moves that give check
 				if (pos->checkers) depth_reduction -= 1;
 			}
