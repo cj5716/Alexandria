@@ -334,8 +334,8 @@ int GetPieceType(const int piece) {
 }
 
 // Returns true if side has at least one piece on the board that isn't a pawn or the king, false otherwise
-bool BoardHasNonPawns(const S_Board* pos, const int side) {
-    return pos->Occupancy(side) ^ pos->GetPieceColorBB(PAWN, side) ^ pos->GetPieceColorBB(KING, side);
+int NonPawnCount(const S_Board* pos, const int side) {
+    return CountBits(pos->Occupancy(side) ^ pos->GetPieceColorBB(PAWN, side) ^ pos->GetPieceColorBB(KING, side));
 }
 
 // Get on what square of the board the king of color c resides

@@ -496,7 +496,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 			&& (ss - 1)->move != NOMOVE
 			&& depth >= 3
 			&& ss->ply >= td->nmpPlies
-			&& BoardHasNonPawns(pos, pos->side)) {
+			&& NonPawnCount(pos, pos->side) > (depth > 15)) {
 			ss->move = NOMOVE;
 			MakeNullMove(pos);
 			int R = 3 + depth / 3 + std::min((eval - beta) / 200, 3);
@@ -565,7 +565,7 @@ moves_loop:
 			quiet_moves.count++;
 		}
 		if (!root_node
-			&& BoardHasNonPawns(pos, pos->side)
+			&& NonPawnCount(pos, pos->side)
 			&& BestScore > -mate_found) {
 			// Movecount pruning: if we searched enough moves and we are not in check we skip the rest
 			if (!pvNode

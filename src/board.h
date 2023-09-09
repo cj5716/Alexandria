@@ -235,8 +235,8 @@ void ResetInfo(S_SearchINFO* info);
 [[nodiscard]] int GetPiece(const int piecetype, const int color);
 // Returns the piece_type of a piece
 [[nodiscard]] int GetPieceType(const int piece);
-// Returns true if side has at least one piece on the board that isn't a pawn, false otherwise
-[[nodiscard]] bool BoardHasNonPawns(const S_Board* pos, const int side);
+// Returns the number of non-pawn pieces on the board.
+[[nodiscard]] int NonPawnCount(const S_Board* pos, const int side);
 // Get on what square of the board the king of color c resides
 [[nodiscard]] int KingSQ(const S_Board* pos, const int c);
 // returns if the current side is in check
