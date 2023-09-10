@@ -657,7 +657,7 @@ moves_loop:
 				// Reduce more if we aren't in a pv node
 				depth_reduction += !ttPv;
 				// Decrease the reduction for moves that have a good history score and increase it for moves with a bad score
-				depth_reduction -= std::clamp(movehistory / 16384, -2, 2);
+				depth_reduction -= std::clamp(movehistory / 4096, -2, 2);
 				// Fuck
 				depth_reduction += 2 * cutNode;
 				// Decrease the reduction for moves that give check
