@@ -16,10 +16,10 @@
 #include <iostream>
 #include <algorithm>
 
-// Returns true if the position is a 2-fold repetition, false otherwise
-static bool IsRepetition(const S_Board* pos, const bool pvNode) {
+// Returns number of repetitions depending on whether we are on PV node
+static int GetRepetitions(const S_Board* pos, const bool pvNode, int* count) {
 	assert(pos->hisPly >= pos->fiftyMove);
-	int counter = 1;
+    int counter = *count;
 	// we only need to check for repetition the moves since the last 50mr reset
 	for (int index = std::max(static_cast<int>(pos->played_positions.size()) - pos->Get50mrCounter(), 0);
 		index < static_cast<int>(pos->played_positions.size()); index++)
@@ -27,10 +27,10 @@ static bool IsRepetition(const S_Board* pos, const bool pvNode) {
 		if (pos->played_positions[index] == pos->posKey) {
 			// we found a repetition
 			counter++;
-			if(counter >= 2 + pvNode) return true;
+			if(counter >= 2 + pvNode) return counter;
 		}
 
-	return false;
+	return 0;
 }
 
 // Returns true if the position is a draw via the 50mr rule
@@ -49,10 +49,12 @@ static bool Is50MrDraw(S_Board* pos) {
 }
 
 // If we triggered any of the rules that forces a draw or we know the position is a draw return a draw score
-bool IsDraw(S_Board* pos, const bool pvNode) {
+int IsDraw(S_Board* pos, const bool pvNode) {
 	// if it's a 3-fold repetition, the fifty moves rule kicked in or there isn't enough material on the board to give checkmate then it's a draw
-	return IsRepetition(pos, pvNode)
-		|| Is50MrDraw(pos)
+	int counter = 1;
+	if (GetRepetitions(pos, pvNode, &counter))
+		return counter - 1;
+	return Is50MrDraw(pos)
 		|| MaterialDraw(pos);
 }
 
@@ -369,6 +371,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 	quiet_moves.count = 0;
 	const int root_node = (ss->ply == 0);
 	int eval;
+	int repOrDraw = 0;
 	bool improving = false;
 	int Score = -MAXSCORE;
 	S_HashEntry tte;
@@ -396,7 +399,8 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 	// Check for early return conditions
 	if (!root_node) {
 		// If position is a draw return a randomized draw score to avoid 3-fold blindness
-		if (IsDraw(pos, pvNode)) {
+		repOrDraw = IsDraw(pos, pvNode);
+		if (repOrDraw == 1 + pvNode) {
 			return 8 - (info->nodes & 7);
 		}
 
@@ -660,6 +664,8 @@ moves_loop:
 				depth_reduction -= std::clamp(movehistory / 16384, -2, 2);
 				// Fuck
 				depth_reduction += 2 * cutNode;
+				// Increase the reduction for 2-fold repetitions
+				depth_reduction += repOrDraw;
 				// Decrease the reduction for moves that give check
 				if (pos->checkers) depth_reduction -= 1;
 			}
@@ -764,10 +770,11 @@ int Quiescence(int alpha, int beta, S_ThreadData* td, Search_stack* ss) {
 		td->info.stopped = true;
 	}
 
-	// If position is a draw return a randomized draw score to avoid 3-fold blindness
-	if (IsDraw(pos, pvNode)) {
-		return 1 - (info->nodes & 2);
-	}
+    // If position is a draw return a randomized draw score to avoid 3-fold blindness
+    int repOrDraw = IsDraw(pos, pvNode);
+    if (repOrDraw == 1 + pvNode) {
+        return 1 - (info->nodes & 2);
+    }
 
 	// If we reached maxdepth we return a static evaluation of the position
 	if (ss->ply >= MAXDEPTH - 1) {
