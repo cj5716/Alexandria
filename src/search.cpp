@@ -542,6 +542,7 @@ moves_loop:
 
 	int probCutBeta = beta + 512;
 	if (   in_check
+		&& depth <= 7
 		&& !pvNode
 		&& !IsQuiet(ttMove)
 		&& (ttFlag & HFLOWER)
