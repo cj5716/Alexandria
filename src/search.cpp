@@ -536,6 +536,39 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 			if (razor_score <= alpha)
 				return razor_score;
 		}
+
+		// Probcut
+		int probCutBeta = beta + 128 - 32 * improving;
+		if (depth >= 4
+			&& abs(beta) < mate_found
+			&& !(ttScore != score_none
+				&& tte.depth >= depth - 3
+				&& ttScore < probCutBeta)) 
+		{
+			S_MOVELIST probcut_move_list[1];
+			GenerateCaptures(probcut_move_list, pos);
+			score_moves(pos, sd, ss, probcut_move_list, ttMove);
+			// loop over moves within a movelist
+			for (int count = 0; count < probcut_move_list->count; count++) {
+				// take the most promising move that hasn't been played yet
+				PickMove(probcut_move_list, count);
+				// get the move with the highest score in the move ordering
+				int move = probcut_move_list->moves[count].move;
+				ss->move = move;
+				MakeMove(move, pos);
+				int probcutScore = Quiescence<false>(-probCutBeta, -probCutBeta + 1, td, ss+1);
+
+				if (probcutScore >= probCutBeta)
+					probcutScore = -Negamax<false>(-probCutBeta, -probCutBeta + 1, depth - 4, !cutNode, td, ss + 1);
+
+				UnmakeMove(move, pos);
+
+				if (probcutScore >= probCutBeta)
+					return probcutScore;
+			}
+
+		}
+
 	}
 
 moves_loop:
