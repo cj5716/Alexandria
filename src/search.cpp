@@ -539,6 +539,18 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 	}
 
 moves_loop:
+
+	int probCutBeta = beta + 512;
+	if (   in_check
+		&& !pvNode
+		&& !IsQuiet(ttMove)
+		&& (ttFlag & HFLOWER)
+		&& tte.depth >= depth - 3
+		&& ttScore >= probCutBeta
+		&& abs(ttScore) < mate_found
+		&& abs(beta) < mate_found)
+		return probCutBeta;
+
 	// create move list instance
 	S_MOVELIST move_list[1];
 
