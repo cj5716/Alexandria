@@ -555,6 +555,9 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 				// get the move with the highest score in the move ordering
 				int move = probcut_move_list->moves[count].move;
 				ss->move = move;
+				if (!SEE(pos, move, probCutBeta - ss->static_eval))
+					continue;
+
 				MakeMove(move, pos);
 				int probcutScore = Quiescence<false>(-probCutBeta, -probCutBeta + 1, td, ss+1);
 
