@@ -229,6 +229,46 @@ static inline void score_moves(S_Board* pos, Search_data* sd, Search_stack* ss, 
 	}
 }
 
+static inline void probcut_score_moves(S_Board* pos, S_MOVELIST* move_list, int ttMove, int threshold) {
+	// Loop through all the move in the movelist
+	for (int i = 0; i < move_list->count; i++) {
+		int move = move_list->moves[i].move;
+		if (SEE(pos, move, threshold))
+		{
+			if (move == ttMove)
+				move_list->moves[i].score = INT32_MAX - 100;
+
+			else if (isPromo(move)) {
+				switch (getPromotedPiecetype(move)) {
+				case QUEEN:
+					move_list->moves[i].score = queenPromotionScore;
+					break;
+				case KNIGHT:
+					move_list->moves[i].score = knightPromotionScore;
+					break;
+				case ROOK:
+					move_list->moves[i].score = badPromotionScore;
+					break;
+				case BISHOP:
+					move_list->moves[i].score = badPromotionScore;
+					break;
+				default:
+					break;
+				}
+			}
+			else
+			{
+				int captured_piece = isEnpassant(move) ? PAWN : GetPieceType(pos->PieceOn(To(move)));
+				move_list->moves[i].score =
+					mvv_lva[GetPieceType(Piece(move))][captured_piece] +
+					goodCaptureScore;
+			}
+		}
+		else
+			move_list->moves[i].score = badCaptureScore;
+	}
+}
+
 int GetBestMove(const PvTable* pv_table) {
 	return pv_table->pvArray[0][0];
 }
@@ -451,7 +491,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 		eval = ss->static_eval = (tte.eval != score_none) ? tte.eval : EvalPosition(pos);
 		// We can also use the tt score as a more accurate form of eval
 		if (ttScore != score_none
-		    && ((ttFlag == HFUPPER && ttScore < eval)
+			&& ((ttFlag == HFUPPER && ttScore < eval)
 			|| (ttFlag == HFLOWER && ttScore > eval)
 			|| (ttFlag == HFEXACT)))
 			eval = ttScore;
@@ -461,8 +501,8 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 		eval = ss->static_eval = EvalPosition(pos);
 		if (!excludedMove)
 		{
-	    	// Save the eval into the TT
-	    	StoreHashEntry(pos->posKey, NOMOVE, score_none, eval, HFNONE, 0, pvNode, ttPv);
+			// Save the eval into the TT
+			StoreHashEntry(pos->posKey, NOMOVE, score_none, eval, HFNONE, 0, pvNode, ttPv);
 		}
 	}
 
@@ -547,16 +587,18 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 		{
 			S_MOVELIST probcut_move_list[1];
 			GenerateCaptures(probcut_move_list, pos);
-			score_moves(pos, sd, ss, probcut_move_list, ttMove);
+			probcut_score_moves(pos, probcut_move_list, ttMove, probCutBeta - ss->static_eval);
 			// loop over moves within a movelist
 			for (int count = 0; count < probcut_move_list->count; count++) {
 				// take the most promising move that hasn't been played yet
 				PickMove(probcut_move_list, count);
+
+				if (probcut_move_list->moves[count].score < goodCaptureScore)
+					break;
+
 				// get the move with the highest score in the move ordering
 				int move = probcut_move_list->moves[count].move;
 				ss->move = move;
-				if (!SEE(pos, move, probCutBeta - ss->static_eval))
-					continue;
 
 				MakeMove(move, pos);
 				int probcutScore = Quiescence<false>(-probCutBeta, -probCutBeta + 1, td, ss+1);
@@ -731,7 +773,7 @@ moves_loop:
 				// define the conthist bonus
 				int bonus = std::min(16 * depth * depth, 1200);
 				updateCHScore(sd, ss, move, Score > alpha ? bonus : -bonus);
-            }
+			}
 		}
 
 		// PVS Search: Search the first move and every move that is within bounds with full depth and a full window
@@ -853,7 +895,7 @@ int Quiescence(int alpha, int beta, S_ThreadData* td, Search_stack* ss) {
 	else if (ttHit) {
 		ss->static_eval = BestScore = (tte.eval != score_none) ? tte.eval : EvalPosition(pos);
 		if (ttScore != score_none && 
-		    ((ttFlag == HFUPPER && ttScore < ss->static_eval)
+			((ttFlag == HFUPPER && ttScore < ss->static_eval)
 			|| (ttFlag == HFLOWER && ttScore > ss->static_eval)
 			|| (ttFlag == HFEXACT)))
 			BestScore = ttScore;
