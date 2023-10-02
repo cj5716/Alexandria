@@ -261,7 +261,7 @@ static inline void probcut_score_moves(S_Board* pos, S_MOVELIST* move_list, int 
 				int captured_piece = isEnpassant(move) ? PAWN : GetPieceType(pos->PieceOn(To(move)));
 				move_list->moves[i].score =
 					mvv_lva[GetPieceType(Piece(move))][captured_piece] +
-					goodCaptureScore;
+					goodCaptureScore * (threshold >= -107 || SEE(pos, move, -107));
 			}
 		}
 		else
@@ -593,7 +593,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 				// take the most promising move that hasn't been played yet
 				PickMove(probcut_move_list, count);
 
-				if (probcut_move_list->moves[count].score < goodCaptureScore)
+				if (probcut_move_list->moves[count].score < badCaptureScore + 606) // didn't pass threshold
 					break;
 
 				// get the move with the highest score in the move ordering
