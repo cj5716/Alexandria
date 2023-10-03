@@ -538,11 +538,11 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 		}
 
 		// Probcut
-		int probCutBeta = beta + 192 - 32 * improving;
-		if (depth >= 5
+		int probCutBeta = beta + 320;
+		if (depth >= 4
 			&& abs(beta) < mate_found
 			&& !(ttScore != score_none
-				&& tte.depth >= depth - 2
+				&& tte.depth >= depth - 3
 				&& ttScore < probCutBeta)) 
 		{
 			S_MOVELIST probcut_move_list[1];
@@ -562,12 +562,12 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 				int probcutScore = Quiescence<false>(-probCutBeta, -probCutBeta + 1, td, ss+1);
 
 				if (probcutScore >= probCutBeta)
-					probcutScore = -Negamax<false>(-probCutBeta, -probCutBeta + 1, depth - 3, !cutNode, td, ss + 1);
+					probcutScore = -Negamax<false>(-probCutBeta, -probCutBeta + 1, depth - 4, !cutNode, td, ss + 1);
 
 				UnmakeMove(move, pos);
 
 				if (probcutScore >= probCutBeta) {
-					StoreHashEntry(pos->posKey, MoveToTT(move), ScoreToTT(probcutScore, ss->ply), ss->static_eval, HFLOWER, depth - 2, pvNode, ttPv);
+					StoreHashEntry(pos->posKey, MoveToTT(move), ScoreToTT(probcutScore, ss->ply), ss->static_eval, HFLOWER, depth - 3, pvNode, ttPv);
 					return probcutScore;
 				}
 					
