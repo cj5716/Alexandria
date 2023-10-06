@@ -163,13 +163,13 @@ bool SEE(const S_Board* pos, const int move, const int threshold) {
 }
 
 // score_moves takes a list of move as an argument and assigns a score to each move
-static inline void score_moves(S_Board* pos, Search_data* sd, Search_stack* ss, S_MOVELIST* move_list, int PvMove) {
+static inline void score_moves(S_Board* pos, Search_data* sd, Search_stack* ss, S_MOVELIST* move_list, int PvMove, bool inProbCut = false, int threshold = -107) {
 	// Loop through all the move in the movelist
 	for (int i = 0; i < move_list->count; i++) {
 		int move = move_list->moves[i].move;
 		// If the move is from the TT (aka it's our hashmove) give it the highest score
 		if (move == PvMove) {
-			move_list->moves[i].score = INT32_MAX - 100;
+			move_list->moves[i].score = inProbCut && !SEE(pos, move, threshold) ? badCaptureScore : INT32_MAX - 100;
 			continue;
 		}
 		// Sort promotions based on the promoted piece type
@@ -193,7 +193,7 @@ static inline void score_moves(S_Board* pos, Search_data* sd, Search_stack* ss, 
 		}
 		else if (IsCapture(move)) {
 			// Good captures get played before any move that isn't a promotion or a TT move
-			if (SEE(pos, move, -107)) {
+			if (SEE(pos, move, threshold)) {
 				int captured_piece = isEnpassant(move) ? PAWN : GetPieceType(pos->PieceOn(To(move)));
 				move_list->moves[i].score =
 					mvv_lva[GetPieceType(Piece(move))][captured_piece] +
@@ -547,16 +547,19 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 		{
 			S_MOVELIST probcut_move_list[1];
 			GenerateCaptures(probcut_move_list, pos);
-			score_moves(pos, sd, ss, probcut_move_list, ttMove);
+			score_moves(pos, sd, ss, probcut_move_list, ttMove, true, std::max(probCutBeta - ss->static_eval, -107));
 			// loop over moves within a movelist
 			for (int count = 0; count < probcut_move_list->count; count++) {
 				// take the most promising move that hasn't been played yet
 				PickMove(probcut_move_list, count);
+
+				// If it does not pass the SEE threshold we break (ie only bad captures remaining)
+				if (probcut_move_list->moves[count].score < goodCaptureScore)
+					break;
+
 				// get the move with the highest score in the move ordering
 				int move = probcut_move_list->moves[count].move;
 				ss->move = move;
-				if (!SEE(pos, move, probCutBeta - ss->static_eval))
-					continue;
 
 				MakeMove(move, pos);
 				int probcutScore = Quiescence<false>(-probCutBeta, -probCutBeta + 1, td, ss+1);
