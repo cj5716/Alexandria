@@ -371,6 +371,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 	quiet_moves.count = 0;
 	const bool root_node = (ss->ply == 0);
 	int eval;
+	int probCutBeta;
 	bool improving = false;
 	int Score = -MAXSCORE;
 	S_HashEntry tte;
@@ -538,7 +539,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 		}
 
 		// Probcut
-		int probCutBeta = beta + 256 - 32 * improving;
+		probCutBeta = beta + 256 - 32 * improving;
 		if (   depth >= 4
 			&& abs(beta) < mate_found
 			&& !(ttScore != score_none
@@ -577,6 +578,18 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 	}
 
 moves_loop:
+
+	probCutBeta = beta + 512;
+	if (   in_check
+		&& !pvNode
+		&& !IsQuiet(ttMove)
+		&& (ttFlag & HFLOWER)
+		&& tte.depth >= depth - 3
+		&& ttScore >= probCutBeta
+		&& abs(ttScore) < mate_found
+		&& abs(beta) < mate_found)
+		return probCutBeta;
+
 	// create move list instance
 	S_MOVELIST move_list[1];
 
