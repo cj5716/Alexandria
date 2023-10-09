@@ -565,7 +565,8 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 				UnmakeMove(move, pos);
 
 				if (probcutScore >= probCutBeta) {
-					StoreHashEntry(pos->posKey, MoveToTT(move), ScoreToTT(probcutScore, ss->ply), ss->static_eval, HFLOWER, depth - 3, pvNode, ttPv);
+					if (ttScore == score_none || tte.depth < depth - 3)
+						StoreHashEntry(pos->posKey, MoveToTT(move), ScoreToTT(probcutScore, ss->ply), ss->static_eval, HFLOWER, depth - 3, pvNode, ttPv);
 					return probcutScore;
 				}
 					
