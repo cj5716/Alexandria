@@ -90,8 +90,8 @@ enum {
 };
 
 // Contains the material Values of the pieces
-constexpr int PieceValue[15] = { 100, 300, 300, 450, 900, 0,
-                      100, 300, 300, 450, 900, 0,0,0,0 };
+constexpr int PieceValue[15] = { 106, 353, 373, 509, 1065, 0,
+                      106, 353, 373, 509, 1065, 0,0,0,0 };
 
 enum {
     queenPromotionScore = 2000000001,
