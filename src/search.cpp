@@ -545,7 +545,8 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 		{
 			S_MOVELIST probcut_move_list[1];
 			GenerateCaptures(probcut_move_list, pos);
-			score_moves(pos, sd, ss, probcut_move_list, ttMove && SEE(pos, ttMove, 0) ? ttMove : NOMOVE, 0);
+			int probCutSee = std::max(probCutBeta - ss->static_eval, 0);
+			score_moves(pos, sd, ss, probcut_move_list, ttMove && SEE(pos, ttMove, probCutSee) ? ttMove : NOMOVE, probCutSee);
 			// loop over moves within a movelist
 			for (int count = 0; count < probcut_move_list->count; count++) {
 				// take the most promising move that hasn't been played yet
