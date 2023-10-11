@@ -22,19 +22,17 @@ void updateCHScore(Search_data* sd, const Search_stack* ss, const int move, cons
     // Scale bonus to fix it in a [-32768;32768] range
     int scaled_bonus = bonus - GetCHScore(sd, ss, move) * std::abs(bonus) / 32768;
     // Update move score
-    if (ss->ply > 0) {
-        sd->cont_hist[Piece((ss - 1)->move)][To((ss - 1)->move)]
-            [Piece(move)][To(move)] += scaled_bonus;
-        // Score followup
-        if (ss->ply > 1) {
-            sd->cont_hist[Piece((ss - 2)->move)][To((ss - 2)->move)]
-                [Piece(move)][To(move)] += scaled_bonus;
+    if (ss->ply > 0 && (ss - 1)->move != NOMOVE) {
+        sd->cont_hist[Piece((ss - 1)->move)][To((ss - 1)->move)][Piece(move)][To(move)] += scaled_bonus;
+    }
 
-            if (ss->ply > 3) {
-                sd->cont_hist[Piece((ss - 4)->move)][To((ss - 4)->move)]
-                    [Piece(move)][To(move)] += scaled_bonus;
-            }
-        }
+    // Score followup
+    if (ss->ply > 1 && (ss - 2)->move != NOMOVE) {
+        sd->cont_hist[Piece((ss - 2)->move)][To((ss - 2)->move)][Piece(move)][To(move)] += scaled_bonus;
+    }
+
+    if (ss->ply > 3 && (ss - 4)->move != NOMOVE) {
+        sd->cont_hist[Piece((ss - 4)->move)][To((ss - 4)->move)][Piece(move)][To(move)] += scaled_bonus;
     }
 }
 
@@ -89,11 +87,11 @@ int GetCHScore(const Search_data* sd, const Search_stack* ss, const int move) {
     int previous_move = (ss - 1)->move;
     int previous_previous_move = (ss - 2)->move;
     int previous_previous_previous_previous_move = (ss - 4)->move;
-    if (previous_move)
+    if (previous_move != NOMOVE)
         score += sd->cont_hist[Piece(previous_move)][To(previous_move)][Piece(move)][To(move)];
-    if (previous_previous_move)
+    if (previous_previous_move != NOMOVE)
         score += sd->cont_hist[Piece(previous_previous_move)][To(previous_previous_move)][Piece(move)][To(move)];
-    if (previous_previous_previous_previous_move)
+    if (previous_previous_previous_previous_move != NOMOVE)
         score += sd->cont_hist[Piece(previous_previous_previous_previous_move)][To(previous_previous_previous_previous_move)][Piece(move)][To(move)];
     return score;
 }
