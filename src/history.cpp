@@ -110,7 +110,7 @@ int GetHistoryScore(const S_Board* pos, const Search_data* sd, const int move, c
     if (IsQuiet(move))
         return GetHHScore(pos, sd, move) + 2 * GetCHScore(sd, ss, move);
     else
-        return GetCapthistScore(pos, sd, move);
+        return GetCapthistScore(pos, sd, move) + 2 * GetCHScore(sd, ss, move);
 }
 
 // Resets the history tables
