@@ -786,7 +786,6 @@ int Quiescence(int alpha, int beta, S_ThreadData* td, Search_stack* ss) {
 	// tte is an hashtable entry, it will store the values fetched from the TT
 	S_HashEntry tte;
 	int BestScore;
-	bool ttPv = pvNode;
 
 	// check if more than Maxtime passed and we have to stop
 	if (td->id == 0 && TimeOver(&td->info)) {
@@ -807,6 +806,7 @@ int Quiescence(int alpha, int beta, S_ThreadData* td, Search_stack* ss) {
 	const bool ttHit = ProbeHashEntry(pos, &tte);
 	const int ttScore = ttHit ? ScoreFromTT(tte.score, ss->ply) : score_none;
 	const int ttMove = ttHit ? MoveFromTT(tte.move, pos->PieceOn(From(tte.move))) : NOMOVE;
+	const bool ttPv = ttHit ? (tte.wasPv_flags >> 2) : false;
 	const uint8_t ttFlag = ttHit ? tte.wasPv_flags & 3 : HFNONE;
 	// If we found a value in the TT we can return it
 	if (!pvNode && ttScore != score_none) {
@@ -815,9 +815,6 @@ int Quiescence(int alpha, int beta, S_ThreadData* td, Search_stack* ss) {
 			|| (ttFlag == HFEXACT))
 			return ttScore;
 	}
-
-	if (ttHit)
-		ttPv = pvNode || (tte.wasPv_flags >> 2);
 
 	if (in_check) {
 		ss->static_eval = score_none;
