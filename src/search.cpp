@@ -449,7 +449,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 		eval = ss->static_eval = (tte.eval != score_none) ? tte.eval : EvalPosition(pos);
 		// We can also use the tt score as a more accurate form of eval
 		if (ttScore != score_none
-		    && ((ttFlag == HFUPPER && ttScore < eval)
+			&& ((ttFlag == HFUPPER && ttScore < eval)
 			|| (ttFlag == HFLOWER && ttScore > eval)
 			|| (ttFlag == HFEXACT)))
 			eval = ttScore;
@@ -459,8 +459,8 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 		eval = ss->static_eval = EvalPosition(pos);
 		if (!excludedMove)
 		{
-	    	// Save the eval into the TT
-	    	StoreHashEntry(pos->posKey, NOMOVE, score_none, eval, HFNONE, 0, pvNode, ttPv);
+			// Save the eval into the TT
+			StoreHashEntry(pos->posKey, NOMOVE, score_none, eval, HFNONE, 0, pvNode, ttPv);
 		}
 	}
 
@@ -663,28 +663,36 @@ moves_loop:
 		bool do_full_search = false;
 		// conditions to consider LMR
 		if (moves_searched >= 2 + 2 * pvNode && depth >= 3) {
+			// calculate by how much we should reduce the search depth
+			// Get base reduction value
+			depth_reduction = reductions[isQuiet][depth][moves_searched];
+
+			// Decrease the reduction for moves that give check
+			if (pos->checkers) depth_reduction -= 1;
+
 			if (isQuiet) {
-				// calculate by how much we should reduce the search depth
-				// Get base reduction value
-				depth_reduction = reductions[isQuiet][depth][moves_searched];
 				// Reduce more if we aren't improving
 				depth_reduction += !improving;
+
 				// Reduce more if we aren't in a pv node
 				depth_reduction += !ttPv;
-				// Decrease the reduction for moves that have a good history score and increase it for moves with a bad score
-				depth_reduction -= std::clamp(movehistory / 16384, -2, 2);
+
 				// Fuck
 				depth_reduction += 2 * cutNode;
-				// Decrease the reduction for moves that give check
-				if (pos->checkers) depth_reduction -= 1;
-			}
-			else if (!ttPv) {
-				depth_reduction = reductions[false][depth][moves_searched];
+
 				// Decrease the reduction for moves that have a good history score and increase it for moves with a bad score
 				depth_reduction -= std::clamp(movehistory / 16384, -2, 2);
-				// Decrease the reduction for moves that give check
-				if (pos->checkers) depth_reduction -= 1;
 			}
+			else if (!ttPv) {
+				// Increase the reduction for bad captures
+				depth_reduction += (move_list->moves[count].score < goodCaptureScore);
+
+				// Decrease the reduction for moves that have a good history score and increase it for moves with a bad score
+				depth_reduction -= std::clamp(movehistory / 16384, -2, 2);
+			}
+			else
+				depth_reduction = 0;
+
 			// adjust the reduction so that we can't drop into Qsearch and to prevent extensions
 			depth_reduction = std::clamp(depth_reduction, 0, newDepth - 1);
 			// search current move with reduced depth:
@@ -705,7 +713,7 @@ moves_loop:
 				// define the conthist bonus
 				int bonus = std::min(16 * depth * depth, 1200);
 				updateCHScore(sd, ss, move, Score > alpha ? bonus : -bonus);
-            }
+			}
 		}
 
 		// PVS Search: Search the first move and every move that is within bounds with full depth and a full window
@@ -752,7 +760,7 @@ moves_loop:
 						if (ss->ply >= 1)
 							sd->CounterMoves[From((ss - 1)->move)][To((ss - 1)->move)] = move;
 					}
-                    // Update the history heuristics based on the new best move
+					// Update the history heuristics based on the new best move
 					UpdateHistories(pos, sd, ss, depth, bestmove, &quiet_moves, &noisy_moves);
 
 					// node (move) fails high
@@ -827,7 +835,7 @@ int Quiescence(int alpha, int beta, S_ThreadData* td, Search_stack* ss) {
 	else if (ttHit) {
 		ss->static_eval = BestScore = (tte.eval != score_none) ? tte.eval : EvalPosition(pos);
 		if (ttScore != score_none && 
-		    ((ttFlag == HFUPPER && ttScore < ss->static_eval)
+			((ttFlag == HFUPPER && ttScore < ss->static_eval)
 			|| (ttFlag == HFLOWER && ttScore > ss->static_eval)
 			|| (ttFlag == HFEXACT)))
 			BestScore = ttScore;
