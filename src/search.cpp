@@ -437,14 +437,16 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 		depth--;
 
 	// If we are in check or searching a singular extension we avoid pruning before the move loop
-	if (in_check || excludedMove) {
+	if (in_check) {
 		ss->static_eval = eval = score_none;
 		improving = false;
 		goto moves_loop;
 	}
-
 	// get an evaluation of the position:
-	if (ttHit) {
+	else if (excludedMove)
+		eval = ss->static_eval;
+
+	else if (ttHit) {
 		// If the value in the TT is valid we use that, otherwise we call the static evaluation function
 		eval = ss->static_eval = (tte.eval != score_none) ? tte.eval : EvalPosition(pos);
 		// We can also use the tt score as a more accurate form of eval
@@ -490,8 +492,9 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 			return eval;
 
 		// null move pruning: If we can give our opponent a free move and still be above beta after a reduced search we can return beta, we check if the board has non pawn pieces to avoid zugzwangs
-		if (eval >= ss->static_eval
+		if (!excludedMove
 			&& eval >= beta
+			&& eval >= ss->static_eval
 			&& ss->ply
 			&& (ss - 1)->move != NOMOVE
 			&& depth >= 3
@@ -528,7 +531,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 			}
 		}
 		// Razoring
-		if (depth <= 5 && eval + 256 * depth < alpha)
+		if (!excludedMove && depth <= 5 && eval + 256 * depth < alpha)
 		{
 			int razor_score = Quiescence<false>(alpha, beta, td, ss);
 			if (razor_score <= alpha)
