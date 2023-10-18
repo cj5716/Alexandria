@@ -39,8 +39,8 @@ void updateCHScore(Search_data* sd, const Search_stack* ss, const int move, cons
 }
 
 void updateCapthistScore(const S_Board* pos, Search_data* sd, int move, int bonus) {
-    // Scale bonus to fix it in a [-32768;32768] range
-    int scaled_bonus = bonus - GetCapthistScore(pos, sd, move) * std::abs(bonus) / 32768;
+    // Scale bonus to fix it in a [-16384;16384] range
+    int scaled_bonus = bonus - GetCapthistScore(pos, sd, move) * std::abs(bonus) / 16384;
     int captured_piece = isEnpassant(move) ? PAWN : GetPieceType(pos->PieceOn(To(move)));
     // If we captured an empty piece this means the move is a promotion, we can pretend we captured a pawn to use a slot of the table that would've otherwise went unused (you can't capture pawns on the 1st/8th rank)
     if (captured_piece == EMPTY) captured_piece = PAWN;

@@ -666,7 +666,7 @@ moves_loop:
 			if (isQuiet) {
 				// calculate by how much we should reduce the search depth
 				// Get base reduction value
-				depth_reduction = reductions[isQuiet][depth][moves_searched];
+				depth_reduction = reductions[true][depth][moves_searched];
 				// Reduce more if we aren't improving
 				depth_reduction += !improving;
 				// Reduce more if we aren't in a pv node
@@ -681,7 +681,7 @@ moves_loop:
 			else if (!ttPv) {
 				depth_reduction = reductions[false][depth][moves_searched];
 				// Decrease the reduction for moves that have a good history score and increase it for moves with a bad score
-				depth_reduction -= std::clamp(movehistory / 16384, -2, 2);
+				depth_reduction -= std::clamp(movehistory / 6144, -2, 2);
 				// Decrease the reduction for moves that give check
 				if (pos->checkers) depth_reduction -= 1;
 			}
