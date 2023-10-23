@@ -730,7 +730,6 @@ moves_loop:
 			// found a better move
 			if (Score > alpha) {
 				bestmove = move;
-				alpha = Score;
 				// Update the pv table
 				pv_table->pvArray[ss->ply][ss->ply] = move;
 				for (int next_ply = ss->ply + 1; next_ply < pv_table->pvLength[ss->ply + 1]; next_ply++) {
@@ -758,6 +757,8 @@ moves_loop:
 					// node (move) fails high
 					break;
 				}
+				else
+					alpha = Score;
 			}
 		}
 	}
