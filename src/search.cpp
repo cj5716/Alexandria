@@ -604,6 +604,12 @@ moves_loop:
 				continue;
 			}
 
+			// Continuation history based pruning: for low depth nodes prune quiet moves if they seem to be bad continuations to the previous moves.
+			if (!in_check
+				&& lmrDepth < 5
+				&& GetCHScore(sd, ss, move) < -3072 * depth)
+				continue;
+
 			// See pruning: prune all the moves that have a SEE score that is lower than our threshold
 			if (depth <= 8
 				&& !SEE(pos, move, see_margin[depth][isQuiet])) {
