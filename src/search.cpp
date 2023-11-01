@@ -325,7 +325,7 @@ int AspirationWindowSearch(int prev_eval, int depth, S_ThreadData* td) {
 
 	// Stay at current depth if we fail high/low because of the aspiration windows
 	while (true) {
-		score = Negamax<true>(alpha, beta, depth, false, td, ss);
+		score = Negamax<PV>(alpha, beta, depth, td, ss);
 
 		// Check if more than Maxtime passed and we have to stop
 		if (td->id == 0 && TimeOver(&td->info)) {
@@ -357,8 +357,8 @@ int AspirationWindowSearch(int prev_eval, int depth, S_ThreadData* td) {
 }
 
 // Negamax alpha beta search
-template <bool pvNode>
-int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td, Search_stack* ss) {
+template <int nodeType>
+int Negamax(int alpha, int beta, int depth, S_ThreadData* td, Search_stack* ss) {
 	// Extract data structures from ThreadData
 	S_Board* pos = &td->pos;
 	Search_data* sd = &td->ss;
@@ -368,6 +368,8 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 	// Initialize the node
 	const bool in_check = pos->checkers;
 	const bool root_node = (ss->ply == 0);
+	const bool pvNode = nodeType == PV;
+	const bool cutNode = nodeType == CUT;
 	int eval;
 	bool improving = false;
 	int Score = -MAXSCORE;
@@ -502,7 +504,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 			int R = 3 + depth / 3 + std::min((eval - beta) / 200, 3);
 			/* search moves with reduced depth to find beta cutoffs
 			   depth - 1 - R where R is a reduction limit */
-			int nmpScore = -Negamax<false>(-beta, -beta + 1, depth - R, !cutNode, td, ss + 1);
+			int nmpScore = -Negamax<cutNode ? ALL : CUT>(-beta, -beta + 1, depth - R, td, ss + 1);
 
 			TakeNullMove(pos);
 
@@ -520,7 +522,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 				}
 				// Verification search to avoid zugzwangs: if we are at an high enough depth we perform another reduced search without nmp for at least nmpPlies
 				td->nmpPlies = ss->ply + (depth - R) * 2 / 3;
-				int verification_score = Negamax<false>(beta - 1, beta, depth - R, false, td, ss);
+				int verification_score = Negamax<ALL>(beta - 1, beta, depth - R, td, ss);
 				td->nmpPlies = 0;
 
 				// If the verification search holds return the score
@@ -626,7 +628,7 @@ moves_loop:
 				const int singularDepth = (depth - 1) / 2;
 
 				ss->excludedMove = ttMove;
-				int singularScore = Negamax<false>(singularBeta - 1, singularBeta, singularDepth, cutNode, td, ss);
+				int singularScore = Negamax<cutNode ? CUT : ALL>(singularBeta - 1, singularBeta, singularDepth, td, ss);
 				ss->excludedMove = NOMOVE;
 
 				if (singularScore < singularBeta) {
@@ -666,7 +668,7 @@ moves_loop:
 			if (isQuiet) {
 				// calculate by how much we should reduce the search depth
 				// Get base reduction value
-				depth_reduction = reductions[isQuiet][depth][moves_searched];
+				depth_reduction = reductions[true][depth][moves_searched];
 				// Reduce more if we aren't improving
 				depth_reduction += !improving;
 				// Reduce more if we aren't in a pv node
@@ -688,7 +690,7 @@ moves_loop:
 			// adjust the reduction so that we can't drop into Qsearch and to prevent extensions
 			depth_reduction = std::clamp(depth_reduction, 0, newDepth - 1);
 			// search current move with reduced depth:
-			Score = -Negamax<false>(-alpha - 1, -alpha, newDepth - depth_reduction, true, td, ss + 1);
+			Score = -Negamax<CUT>(-alpha - 1, -alpha, newDepth - depth_reduction, td, ss + 1);
 			// if we failed high on a reduced node we'll search with a reduced window and full depth
 			do_full_search = Score > alpha && depth_reduction;
 		}
@@ -699,7 +701,7 @@ moves_loop:
 		// Search every move (excluding the first of every node) that skipped or failed LMR with full depth but a reduced window
 		if (do_full_search)
 		{
-			Score = -Negamax<false>(-alpha - 1, -alpha, newDepth, !cutNode, td, ss + 1);
+			Score = -Negamax<cutNode ? ALL : CUT>(-alpha - 1, -alpha, newDepth, td, ss + 1);
 			if (depth_reduction)
 			{
 				// define the conthist bonus
@@ -710,7 +712,7 @@ moves_loop:
 
 		// PVS Search: Search the first move and every move that is within bounds with full depth and a full window
 		if (pvNode && (moves_searched == 0 || Score > alpha))
-			Score = -Negamax<true>(-beta, -alpha, newDepth, false, td, ss + 1);
+			Score = -Negamax<PV>(-beta, -alpha, newDepth, td, ss + 1);
 
 		// take move back
 		UnmakeMove(move, pos);

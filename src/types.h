@@ -89,6 +89,11 @@ enum {
     PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING
 };
 
+// node types
+enum {
+    PV, CUT, ALL
+};
+
 // Contains the material Values of the pieces
 constexpr int PieceValue[15] = { 100, 300, 300, 450, 900, 0,
                       100, 300, 300, 450, 900, 0,0,0,0 };
