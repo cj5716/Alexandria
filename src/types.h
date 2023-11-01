@@ -91,7 +91,7 @@ enum {
 
 // node types
 enum {
-    PV, CUT, ALL
+    ALL, CUT, PV
 };
 
 // Contains the material Values of the pieces

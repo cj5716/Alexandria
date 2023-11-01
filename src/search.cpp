@@ -504,7 +504,7 @@ int Negamax(int alpha, int beta, int depth, S_ThreadData* td, Search_stack* ss) 
 			int R = 3 + depth / 3 + std::min((eval - beta) / 200, 3);
 			/* search moves with reduced depth to find beta cutoffs
 			   depth - 1 - R where R is a reduction limit */
-			int nmpScore = -Negamax<cutNode ? ALL : CUT>(-beta, -beta + 1, depth - R, td, ss + 1);
+			int nmpScore = -Negamax<!cutNode>(-beta, -beta + 1, depth - R, td, ss + 1);
 
 			TakeNullMove(pos);
 
@@ -628,7 +628,7 @@ moves_loop:
 				const int singularDepth = (depth - 1) / 2;
 
 				ss->excludedMove = ttMove;
-				int singularScore = Negamax<cutNode ? CUT : ALL>(singularBeta - 1, singularBeta, singularDepth, td, ss);
+				int singularScore = Negamax<cutNode>(singularBeta - 1, singularBeta, singularDepth, td, ss);
 				ss->excludedMove = NOMOVE;
 
 				if (singularScore < singularBeta) {
@@ -701,7 +701,7 @@ moves_loop:
 		// Search every move (excluding the first of every node) that skipped or failed LMR with full depth but a reduced window
 		if (do_full_search)
 		{
-			Score = -Negamax<cutNode ? ALL : CUT>(-alpha - 1, -alpha, newDepth, td, ss + 1);
+			Score = -Negamax<!cutNode>(-alpha - 1, -alpha, newDepth, td, ss + 1);
 			if (depth_reduction)
 			{
 				// define the conthist bonus
