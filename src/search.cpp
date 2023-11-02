@@ -550,7 +550,7 @@ moves_loop:
 	int BestScore = -MAXSCORE;
 	int bestmove = NOMOVE;
 
-	int moves_searched = 0;
+	int move_count = 0;
 	bool SkipQuiets = false;
 
 	// Keep track of the played quiet and noisy moves
@@ -569,6 +569,7 @@ moves_loop:
 		if (isQuiet && SkipQuiets) continue;
 
 		int movehistory = GetHistoryScore(pos, sd, move, ss);
+		move_count++;
 
 		// if the move isn't a quiet move we update the quiet moves list and counter
 		if (isQuiet) {
@@ -587,13 +588,13 @@ moves_loop:
 				&& !in_check
 				&& depth < 9
 				&& isQuiet
-				&& moves_searched > lmp_margin[depth][improving]) {
+				&& move_count > lmp_margin[depth][improving]) {
 				SkipQuiets = true;
 				continue;
 			}
 
 			// lmrDepth is the current depth minus the reduction the move would undergo in lmr, this is helpful because it helps us discriminate the bad moves with more accuracy
-			int lmrDepth = std::max(0, depth - reductions[isQuiet][depth][moves_searched]);
+			int lmrDepth = std::max(0, depth - reductions[isQuiet][depth][move_count]);
 
 			// Futility pruning: if the static eval is so low that even after adding a bonus we are still under alpha we can stop trying quiet moves
 			if (!in_check
@@ -662,11 +663,11 @@ moves_loop:
 		uint64_t nodes_before_search = info->nodes;
 		bool do_full_search = false;
 		// conditions to consider LMR
-		if (moves_searched >= 2 + 2 * pvNode && depth >= 3) {
+		if (move_count >= 2 + 2 * pvNode && depth >= 3) {
 			if (isQuiet) {
 				// calculate by how much we should reduce the search depth
 				// Get base reduction value
-				depth_reduction = reductions[isQuiet][depth][moves_searched];
+				depth_reduction = reductions[true][depth][move_count];
 				// Reduce more if we aren't improving
 				depth_reduction += !improving;
 				// Reduce more if we aren't in a pv node
@@ -679,7 +680,7 @@ moves_loop:
 				if (pos->checkers) depth_reduction -= 1;
 			}
 			else if (!ttPv) {
-				depth_reduction = reductions[false][depth][moves_searched];
+				depth_reduction = reductions[false][depth][move_count];
 				// Decrease the reduction for moves that have a good history score and increase it for moves with a bad score
 				depth_reduction -= std::clamp(movehistory / 16384, -2, 2);
 				// Decrease the reduction for moves that give check
@@ -694,7 +695,7 @@ moves_loop:
 		}
 		else {
 			// If we skipped LMR and this isn't the first move of the node we'll search with a reduced window and full depth
-			do_full_search = !pvNode || moves_searched > 0;
+			do_full_search = !pvNode || move_count > 0;
 		}
 		// Search every move (excluding the first of every node) that skipped or failed LMR with full depth but a reduced window
 		if (do_full_search)
@@ -709,7 +710,7 @@ moves_loop:
 		}
 
 		// PVS Search: Search the first move and every move that is within bounds with full depth and a full window
-		if (pvNode && (moves_searched == 0 || Score > alpha))
+		if (pvNode && (move_count == 0 || Score > alpha))
 			Score = -Negamax<true>(-beta, -alpha, newDepth, false, td, ss + 1);
 
 		// take move back
@@ -721,7 +722,6 @@ moves_loop:
 		if (info->stopped)
 			return 0;
 
-		moves_searched++;
 		// If the Score of the current move is the best we've found until now
 		if (Score > BestScore) {
 			// Update what the best score is
