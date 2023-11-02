@@ -551,6 +551,7 @@ moves_loop:
 	int bestmove = NOMOVE;
 
 	int moves_searched = 0;
+	int move_num = 0;
 	bool SkipQuiets = false;
 
 	// Keep track of the played quiet and noisy moves
@@ -567,6 +568,7 @@ moves_loop:
 		bool isQuiet = IsQuiet(move);
 
 		if (isQuiet && SkipQuiets) continue;
+		move_num++;
 
 		int movehistory = GetHistoryScore(pos, sd, move, ss);
 
@@ -662,11 +664,11 @@ moves_loop:
 		uint64_t nodes_before_search = info->nodes;
 		bool do_full_search = false;
 		// conditions to consider LMR
-		if (moves_searched >= 2 + 2 * pvNode && depth >= 3) {
+		if (move_num >= 2 + 2 * pvNode && depth >= 3) {
 			if (isQuiet) {
 				// calculate by how much we should reduce the search depth
 				// Get base reduction value
-				depth_reduction = reductions[isQuiet][depth][moves_searched];
+				depth_reduction = reductions[true][depth][moves_searched];
 				// Reduce more if we aren't improving
 				depth_reduction += !improving;
 				// Reduce more if we aren't in a pv node
