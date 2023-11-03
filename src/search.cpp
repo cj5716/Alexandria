@@ -163,12 +163,12 @@ bool SEE(const S_Board* pos, const int move, const int threshold) {
 }
 
 // score_moves takes a list of move as an argument and assigns a score to each move
-static inline void score_moves(S_Board* pos, Search_data* sd, Search_stack* ss, S_MOVELIST* move_list, int PvMove) {
+static inline void score_moves(S_Board* pos, Search_data* sd, Search_stack* ss, S_MOVELIST* move_list, int ttMove, bool in_check) {
 	// Loop through all the move in the movelist
 	for (int i = 0; i < move_list->count; i++) {
 		int move = move_list->moves[i].move;
 		// If the move is from the TT (aka it's our hashmove) give it the highest score
-		if (move == PvMove) {
+		if (move == ttMove) {
 			move_list->moves[i].score = INT32_MAX - 100;
 			continue;
 		}
@@ -193,7 +193,7 @@ static inline void score_moves(S_Board* pos, Search_data* sd, Search_stack* ss, 
 		}
 		else if (IsCapture(move)) {
 			// Good captures get played before any move that isn't a promotion or a TT move
-			if (SEE(pos, move, -107)) {
+			if (in_check || SEE(pos, move, -107)) {
 				int captured_piece = isEnpassant(move) ? PAWN : GetPieceType(pos->PieceOn(To(move)));
 				// Sort by most valuable victim and capthist, with LVA as tiebreaks
 				move_list->moves[i].score = mvv_lva[GetPieceType(Piece(move))][captured_piece] + GetCapthistScore(pos, sd, move) + goodCaptureScore;
@@ -543,7 +543,7 @@ moves_loop:
 	// generate moves
 	GenerateMoves(move_list, pos);
 	// assign a score to every move based on how promising it is
-	score_moves(pos, sd, ss, move_list, ttMove);
+	score_moves(pos, sd, ss, move_list, ttMove, in_check);
 
 	// old value of alpha
 	int old_alpha = alpha;
@@ -852,7 +852,7 @@ int Quiescence(int alpha, int beta, S_ThreadData* td, Search_stack* ss) {
 		GenerateMoves(move_list, pos);
 
 	// score the generated moves
-	score_moves(pos, sd, ss, move_list, ttMove);
+	score_moves(pos, sd, ss, move_list, ttMove, in_check);
 
 	int bestmove = NOMOVE;
 
