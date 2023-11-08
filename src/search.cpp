@@ -163,12 +163,12 @@ bool SEE(const S_Board* pos, const int move, const int threshold) {
 }
 
 // score_moves takes a list of move as an argument and assigns a score to each move
-static inline void score_moves(S_Board* pos, Search_data* sd, Search_stack* ss, S_MOVELIST* move_list, int PvMove) {
+static inline void score_moves(S_Board* pos, Search_data* sd, Search_stack* ss, S_MOVELIST* move_list, int ttMove, int threshold = -107) {
 	// Loop through all the move in the movelist
 	for (int i = 0; i < move_list->count; i++) {
 		int move = move_list->moves[i].move;
 		// If the move is from the TT (aka it's our hashmove) give it the highest score
-		if (move == PvMove) {
+		if (move == ttMove) {
 			move_list->moves[i].score = INT32_MAX - 100;
 			continue;
 		}
@@ -193,7 +193,7 @@ static inline void score_moves(S_Board* pos, Search_data* sd, Search_stack* ss, 
 		}
 		else if (IsCapture(move)) {
 			// Good captures get played before any move that isn't a promotion or a TT move
-			if (SEE(pos, move, -107)) {
+			if (SEE(pos, move, threshold)) {
 				int captured_piece = isEnpassant(move) ? PAWN : GetPieceType(pos->PieceOn(To(move)));
 				// Sort by most valuable victim and capthist, with LVA as tiebreaks
 				move_list->moves[i].score = mvv_lva[GetPieceType(Piece(move))][captured_piece] + GetCapthistScore(pos, sd, move) + goodCaptureScore;
@@ -533,6 +533,40 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 			int razor_score = Quiescence<false>(alpha, beta, td, ss);
 			if (razor_score <= alpha)
 				return razor_score;
+		}
+        
+        // Probcut
+		int probCutBeta = beta + 256;
+		if (   depth > 4
+			&& abs(beta) < mate_found
+			&& !(ttScore != score_none
+				&& tte.depth >= depth - 3
+				&& ttScore < probCutBeta)) 
+		{
+			S_MOVELIST probcut_move_list[1];
+			GenerateCaptures(probcut_move_list, pos);
+			score_moves(pos, sd, ss, probcut_move_list, SEE(pos, ttMove, probCutBeta > ss->static_eval) ? ttMove : NOMOVE, probCutBeta > ss->static_eval);
+			// loop over moves within a movelist
+			for (int count = 0; count < probcut_move_list->count; count++) {
+				// take the most promising move that hasn't been played yet
+				PickMove(probcut_move_list, count);
+				if (probcut_move_list->moves[count].score < goodCaptureScore) break;
+				// get the move with the highest score in the move ordering
+				int move = probcut_move_list->moves[count].move;
+				ss->move = move;
+				MakeMove(move, pos);
+				int probcutScore = Quiescence<false>(-probCutBeta, -probCutBeta + 1, td, ss+1);
+				if (probcutScore >= probCutBeta)
+					probcutScore = -Negamax<false>(-probCutBeta, -probCutBeta + 1, depth - 4, !cutNode, td, ss + 1);
+
+				UnmakeMove(move, pos);
+
+				if (probcutScore >= probCutBeta) {
+					StoreHashEntry(pos->posKey, MoveToTT(move), ScoreToTT(probcutScore, ss->ply), ss->static_eval, HFLOWER, depth - 3, pvNode, ttPv);
+					return probcutScore;
+				}
+
+			}
 		}
 	}
 
