@@ -545,17 +545,18 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 		{
 			S_MOVELIST probcut_move_list[1];
 			GenerateCaptures(probcut_move_list, pos);
-			score_moves(pos, sd, ss, probcut_move_list, SEE(pos, ttMove, probCutBeta - ss->static_eval) ? ttMove : NOMOVE, probCutBeta - ss->static_eval);
+			score_moves(pos, sd, ss, probcut_move_list, ttMove, 0);
 			// loop over moves within a movelist
 			for (int count = 0; count < probcut_move_list->count; count++) {
 				// take the most promising move that hasn't been played yet
 				PickMove(probcut_move_list, count);
-				if (probcut_move_list->moves[count].score < goodCaptureScore) break;
 				// get the move with the highest score in the move ordering
 				int move = probcut_move_list->moves[count].move;
 				ss->move = move;
+				if (!SEE(pos, move, probCutBeta - ss->static_eval))
+					continue;
 				MakeMove(move, pos);
-				int probcutScore = Quiescence<false>(-probCutBeta, -probCutBeta + 1, td, ss+1);
+				int probcutScore = Quiescence<false>(-probCutBeta, -probCutBeta + 1, td, ss + 1);
 				if (probcutScore >= probCutBeta)
 					probcutScore = -Negamax<false>(-probCutBeta, -probCutBeta + 1, depth - 4, !cutNode, td, ss + 1);
 
