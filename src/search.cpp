@@ -555,7 +555,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 				int move = probcut_move_list->moves[count].move;
 				ss->move = move;
 				MakeMove(move, pos);
-				int probcutScore = Quiescence<false>(-probCutBeta, -probCutBeta + 1, td, ss+1);
+				int probcutScore = -Quiescence<false>(-probCutBeta, -probCutBeta + 1, td, ss + 1);
 				if (probcutScore >= probCutBeta)
 					probcutScore = -Negamax<false>(-probCutBeta, -probCutBeta + 1, depth - 4, !cutNode, td, ss + 1);
 
