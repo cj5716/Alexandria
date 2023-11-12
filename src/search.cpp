@@ -543,6 +543,13 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 				&& tte.depth >= depth - 3
 				&& ttScore < probCutBeta)) 
 		{
+			if (   ttScore != score_none
+				&& tte.depth >= depth - 3
+				&& ttScore >= probCutBeta
+				&& ttMove
+				&& !IsQuiet(ttMove))
+				return probCutBeta;
+
 			S_MOVELIST probcut_move_list[1];
 			GenerateCaptures(probcut_move_list, pos);
 			score_moves(pos, sd, ss, probcut_move_list, SEE(pos, ttMove, probCutBeta - ss->static_eval) ? ttMove : NOMOVE, probCutBeta - ss->static_eval);
