@@ -869,15 +869,25 @@ int Quiescence(int alpha, int beta, S_ThreadData* td, Search_stack* ss) {
 		}
 		ss->move = move;
 
-		// Futility pruning. If static eval is far below alpha, only search moves that win material.
 		if (BestScore > -mate_found 
 			&& !in_check 
 			&& BoardHasNonPawns(pos, pos->side) 
 			&& !isPromo(move) 
 			&& !isEnpassant(move)) {
+
 				int futilityBase = ss->static_eval + 192;
+
+				// Futility pruning. If static eval is far below alpha, only search moves that win material.
 				if (futilityBase <= alpha && !SEE(pos, move, 1)) {
 					BestScore = std::max(futilityBase, BestScore);
+					continue;
+				}
+
+				// Delta pruning. Despite capturing the opponent piece, we are still far below alpha.
+				// As the move is unlikely to raise alpha, skip searching it.
+				int delta = futilityBase + PieceValue[pos->PieceOn(To(move))];
+				if (delta <= alpha) {
+					BestScore = std::max(delta, BestScore);
 					continue;
 				}
 			}
