@@ -166,7 +166,7 @@ bool SEE(const S_Board* pos, const int move, const int threshold) {
 }
 
 // ScoreMoves takes a list of move as an argument and assigns a score to each move
-static inline void ScoreMoves(S_Board* pos, Search_data* sd, Search_stack* ss, S_MOVELIST* move_list, int ttMove) {
+static inline void ScoreMoves(S_Board* pos, Search_data* sd, Search_stack* ss, S_MOVELIST* move_list, int ttMove, int threshold = -107) {
     // Loop through all the move in the movelist
     for (int i = 0; i < move_list->count; i++) {
         int move = move_list->moves[i].move;
@@ -196,7 +196,7 @@ static inline void ScoreMoves(S_Board* pos, Search_data* sd, Search_stack* ss, S
         }
         else if (IsCapture(move)) {
             // Good captures get played before any move that isn't a promotion or a TT move
-            if (SEE(pos, move, -107)) {
+            if (SEE(pos, move, threshold)) {
                 int captured_piece = isEnpassant(move) ? PAWN : GetPieceType(pos->PieceOn(To(move)));
                 // Sort by most valuable victim and capthist, with LVA as tiebreaks
                 move_list->moves[i].score = mvv_lva[GetPieceType(Piece(move))][captured_piece] + GetCapthistScore(pos, sd, move) + goodCaptureScore;
@@ -538,6 +538,45 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
             if (razorScore <= alpha)
                 return razorScore;
         }
+
+        // Probcut
+        int pcBeta = beta + 256;
+        if (   depth > 4
+            && abs(beta) < mate_found
+            && !(ttScore != score_none
+                && tte.depth >= depth - 3
+                && ttScore < pcBeta)) 
+        {
+            S_MOVELIST pcMoveList[1];
+            GenerateCaptures(pcMoveList, pos);
+            ScoreMoves(pos, sd, ss, pcMoveList, SEE(pos, ttMove, pcBeta - ss->staticEval) ? ttMove : NOMOVE, pcBeta - ss->staticEval);
+            // Loop over moves within a movelist
+            for (int count = 0; count < pcMoveList->count; count++) {
+                // Take the most promising move that hasn't been played yet
+                PickMove(pcMoveList, count);
+
+                // If we have searched all moves that pass the pc threshold, exit early
+                if (pcMoveList->moves[count].score < goodCaptureScore)
+                    break;
+
+                // Get the move with the highest score in the move ordering
+                int move = pcMoveList->moves[count].move;
+
+                ss->move = move;
+                MakeMove(move, pos);
+
+                int pcScore = -Quiescence<false>(-pcBeta, -pcBeta + 1, td, ss + 1);
+                if (pcScore >= pcBeta)
+                    pcScore = -Negamax<false>(-pcBeta, -pcBeta + 1, depth - 4, !cutNode, td, ss + 1);
+
+                UnmakeMove(move, pos);
+
+                if (pcScore >= pcBeta) {
+                    StoreHashEntry(pos->posKey, MoveToTT(move), ScoreToTT(pcScore, ss->ply), ss->staticEval, HFLOWER, depth - 3, pvNode, ttPv);
+                    return pcBeta;
+                }
+            }
+        }    
     }
 
 moves_loop:
