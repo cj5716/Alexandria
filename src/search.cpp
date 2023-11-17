@@ -220,7 +220,7 @@ static inline void ScoreMoves(S_Board* pos, Search_data* sd, Search_stack* ss, S
             continue;
         }
         // After the killer moves try the Counter moves
-        else if (move == sd->CounterMoves[From((ss - 1)->move)][To((ss - 1)->move)]) {
+        else if (move == sd->CounterMoves[Piece((ss - 1)->move)][To((ss - 1)->move)]) {
             move_list->moves[i].score = counterMoveScore;
             continue;
         }
@@ -766,7 +766,7 @@ moves_loop:
 
                         // Save CounterMoves
                         if (ss->ply >= 1)
-                            sd->CounterMoves[From((ss - 1)->move)][To((ss - 1)->move)] = move;
+                            sd->CounterMoves[Piece((ss - 1)->move)][To((ss - 1)->move)] = move;
                     }
                     // Update the history heuristics based on the new best move
                     UpdateHistories(pos, sd, ss, depth + (eval <= alpha), bestMove, &quietMoves, &noisyMoves);

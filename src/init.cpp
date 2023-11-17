@@ -299,7 +299,7 @@ void InitNewGame(S_ThreadData* td) {
     }
 
     // Clean the Counter moves array
-    for (int index = 0; index < Board_sq_num; ++index) {
+    for (int index = 0; index < 12; ++index) {
         for (int index2 = 0; index2 < Board_sq_num; ++index2) {
             ss->CounterMoves[index][index2] = NOMOVE;
         }
