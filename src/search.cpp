@@ -540,7 +540,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
         }
 
         // Probcut
-        int pcBeta = beta + 192 - 32 * improving;
+        int pcBeta = beta + 256;
         if (   depth > 4
             && abs(beta) < mate_found
             && !(ttScore != score_none
