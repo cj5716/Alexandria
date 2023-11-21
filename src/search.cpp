@@ -435,6 +435,11 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
     if (depth >= 4 && ttFlag == HFNONE)
         depth--;
 
+    // Reduce depth if the node was expected to fail high, but a higher depth TT entry
+    // had actually failed low in the past.
+    if (cutNode && ttHit && depth >= 7 && tte.depth >= depth && !ttMove)
+        depth--;
+
     // If we are in check or searching a singular extension we avoid pruning before the move loop
     if (inCheck || excludedMove) {
         ss->staticEval = eval = score_none;
