@@ -89,9 +89,13 @@ enum {
     PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING
 };
 
-// Contains the material Values of the pieces
-constexpr int PieceValue[15] = { 100, 300, 300, 450, 900, 0,
-                      100, 300, 300, 450, 900, 0,0,0,0 };
+// Contains the material values of the pieces
+constexpr int PieceValue[15] = {100, 300, 300, 450, 900, 0,
+                                100, 300, 300, 450, 900, 0, 0, 0, 0};
+
+// Contains the values of the pieces (used for delta pruning)
+constexpr int DeltaValue[15] = {170, 600, 650, 1024, 1950, 0,
+                                170, 600, 650, 1024, 1950, 0, 0, 0, 0};
 
 enum {
     queenPromotionScore = 2000000001,

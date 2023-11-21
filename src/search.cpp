@@ -877,6 +877,8 @@ int Quiescence(int alpha, int beta, S_ThreadData* td, Search_stack* ss) {
     ScoreMoves(pos, sd, ss, move_list, ttMove);
 
     int bestmove = NOMOVE;
+    const int futilityBase = ss->staticEval + 192;
+    const bool canFutPrune = !inCheck && BoardHasNonPawns(pos, pos->side);
 
     // loop over moves within the movelist
     for (int count = 0; count < move_list->count; count++) {
@@ -891,18 +893,27 @@ int Quiescence(int alpha, int beta, S_ThreadData* td, Search_stack* ss) {
         }
         ss->move = move;
 
-        // Futility pruning. If static eval is far below alpha, only search moves that win material.
         if (    bestScore > -mate_found
-            && !inCheck
+            &&  canFutPrune
             && !isPromo(move)
-            && !isEnpassant(move)
-            &&  BoardHasNonPawns(pos, pos->side)) {
-                int futilityBase = ss->staticEval + 192;
+            && !isEnpassant(move)) {
+
+                int delta = futilityBase + DeltaValue[pos->PieceOn(To(move))];
+
+                // Delta pruning. Despite capturing the opponent piece, we are still far below alpha.
+                // As the move is unlikely to raise alpha, skip searching it.
+                if (delta <= alpha) {
+                    bestScore = std::max(bestScore, delta);
+                    continue;
+                }
+
+                // Futility pruning. If static eval is far below alpha, only search moves that win material.
                 if (futilityBase <= alpha && !SEE(pos, move, 1)) {
                     bestScore = std::max(futilityBase, bestScore);
                     continue;
                 }
             }
+
         MakeMove(move, pos);
         // increment nodes count
         info->nodes++;
