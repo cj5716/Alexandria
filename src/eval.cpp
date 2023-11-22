@@ -24,7 +24,7 @@ bool MaterialDraw(const S_Board* pos) {
 }
 
 static inline float MaterialScale(const S_Board* pos) {
-    return 700 + GetMaterialValue(pos) / 32;
+    return 800 + GetMaterialValue(pos) / 64;
 }
 
 // position evaluation
