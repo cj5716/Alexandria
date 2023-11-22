@@ -4,6 +4,8 @@
 #include <algorithm>
 #include "misc.h"
 
+constexpr double bmStabilities[7] = {2.50, 1.20, 0.90, 0.85, 0.80, 0.75, 0.70};
+
 // Calculate how much time to spend on searching a move
 void Optimum(S_SearchINFO* info, int time, int inc) {
     // If ccrl sent us a negative time just assume we have a workable amount of time to search for a move
@@ -48,13 +50,14 @@ bool StopEarly(const S_SearchINFO* info) {
     return (info->timeset || info->movetimeset) && GetTimeMs() > info->stoptimeOpt;
 }
 
-void ScaleTm(S_ThreadData* td) {
+void ScaleTm(S_ThreadData* td, int bestMoveStability) {
     int bestmove = GetBestMove(&td->pvTable);
     // Calculate how many nodes were spent on checking the best move
     double bestMoveNodesFraction = static_cast<double>(td->nodeSpentTable[From(bestmove)][To(bestmove)]) / static_cast<double>(td->info.nodes);
     double nodeScalingFactor = (1.62 - bestMoveNodesFraction) * 1.48;
-    // Scale the search time based on how many nodes we spent
-    td->info.stoptimeOpt = std::min<uint64_t>(td->info.starttime + td->info.stoptimeBaseOpt * nodeScalingFactor, td->info.stoptimeMax);
+    // Scale the search time based on how many nodes we spent and best move stability
+    td->info.stoptimeOpt = std::min<uint64_t>(td->info.starttime + td->info.stoptimeBaseOpt * nodeScalingFactor * bmStabilities[std::min(bestMoveStability, 6)], 
+                                              td->info.stoptimeMax);
 }
 
 bool NodesOver(const S_SearchINFO* info) {
