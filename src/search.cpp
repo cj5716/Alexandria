@@ -694,6 +694,9 @@ moves_loop:
                 // Get base reduction value
                 depthReduction = reductions[false][depth][movesSearched];
 
+                // Fuck
+                depthReduction += 2 * cutNode;
+
                 // Decrease the reduction for moves that have a good history score and increase it for moves with a bad score
                 depthReduction -= std::clamp(moveHistory / 16384, -2, 2);
 
