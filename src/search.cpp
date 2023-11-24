@@ -402,7 +402,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
             return 0;
 
         // If we reached maxdepth we return a static evaluation of the position
-        if (ss->ply >= MAXDEPTH - 1)
+        if (ss->ply >= MAXDEPTH - 2)
             return inCheck ? 0 : EvalPosition(pos);
 
         // Mate distance pruning
@@ -479,6 +479,8 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
     (ss + 1)->excludedMove = NOMOVE;
     (ss + 1)->searchKillers[0] = NOMOVE;
     (ss + 1)->searchKillers[1] = NOMOVE;
+    // clean cutoffcount for 2 plies ahead
+    (ss + 2)->cutOffCount = 0;
 
     if (!pvNode) {
         // Reverse futility pruning
@@ -685,6 +687,11 @@ moves_loop:
                 // Decrease the reduction for moves that have a good history score and increase it for moves with a bad score
                 depthReduction -= std::clamp(moveHistory / 16384, -2, 2);
 
+                // Decrease the reduction if the next ply has a low number of beta cutoffs, which means that
+                // the chance of raising alpha is high
+                if ((ss + 1)->cutOffCount < 3)
+                    depthReduction -= 1;
+
                 // Decrease the reduction for moves that give check
                 if (pos->checkers)
                     depthReduction -= 1;
@@ -743,6 +750,9 @@ moves_loop:
                 pvTable->pvLength[ss->ply] = pvTable->pvLength[ss->ply + 1];
 
                 if (score >= beta) {
+                    // Update beta cutoff count
+                    ss->cutOffCount++;
+
                     // If the move that caused the beta cutoff is quiet we have a killer move
                     if (isQuiet) {
                         // Don't update killer moves if it would result in having 2 identical killer moves
@@ -808,7 +818,7 @@ int Quiescence(int alpha, int beta, S_ThreadData* td, Search_stack* ss) {
         return 0;
 
     // If we reached maxdepth we return a static evaluation of the position
-    if (ss->ply >= MAXDEPTH - 1)
+    if (ss->ply >= MAXDEPTH - 2)
         return inCheck ? 0 : EvalPosition(pos);
 
     // ttHit is true if and only if we find something in the TT

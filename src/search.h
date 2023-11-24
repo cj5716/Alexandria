@@ -5,12 +5,13 @@
 #include "uci.h"
 
 struct Search_stack {
-    int excludedMove = {};
-    int16_t staticEval = {};
-    int move = {};
+    int excludedMove = NOMOVE;
+    int16_t staticEval = score_none;
+    int move = NOMOVE;
     int ply;
     int searchKillers[2] = {};
     int doubleExtensions = 0;
+    int cutOffCount = 0;
 };
 
 struct Search_data {
