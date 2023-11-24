@@ -590,11 +590,10 @@ moves_loop:
             &&  BoardHasNonPawns(pos, pos->side)
             &&  bestScore > -mate_found) {
             // Movecount pruning: if we searched enough moves and we are not in check we skip the rest
-            if (   !pvNode
-                && !inCheck
+            if (   !inCheck
                 &&  depth < 9
                 &&  isQuiet
-                &&  movesSearched > lmp_margin[depth][improving]) {
+                &&  movesSearched > lmp_margin[depth][improving] + 3 * pvNode) {
                 SkipQuiets = true;
                 continue;
             }
