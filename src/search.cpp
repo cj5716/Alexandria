@@ -606,7 +606,7 @@ moves_loop:
             if (   !inCheck
                 &&  lmrDepth < 11
                 &&  isQuiet
-                &&  ss->staticEval + 100 + 170 * lmrDepth <= alpha) {
+                &&  ss->staticEval + 175 + 150 * lmrDepth <= alpha) {
                 SkipQuiets = true;
                 continue;
             }
