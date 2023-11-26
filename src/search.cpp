@@ -604,7 +604,7 @@ moves_loop:
 
             // Futility pruning: if the static eval is so low that even after adding a bonus we are still under alpha we can stop trying quiet moves
             if (   !inCheck
-                &&  lmrDepth < 12
+                &&  lmrDepth < 9
                 &&  isQuiet
                 &&  ss->staticEval + 100 + 150 * lmrDepth <= alpha) {
                 SkipQuiets = true;
