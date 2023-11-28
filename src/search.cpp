@@ -604,9 +604,9 @@ moves_loop:
 
             // Futility pruning: if the static eval is so low that even after adding a bonus we are still under alpha we can stop trying quiet moves
             if (   !inCheck
-                &&  lmrDepth < 12
+                &&  lmrDepth < 11
                 &&  isQuiet
-                &&  ss->staticEval + 100 + 150 * lmrDepth <= alpha) {
+                &&  ss->staticEval + 100 + 170 * lmrDepth <= alpha) {
                 SkipQuiets = true;
                 continue;
             }
@@ -668,10 +668,10 @@ moves_loop:
         bool doFullSearch = false;
         // Conditions to consider LMR. Calculate how much we should reduce the search depth.
         if (movesSearched >= 2 + 2 * pvNode && depth >= 3) {
-            if (isQuiet) {
+            if (isQuiet || !ttPv) {
 
                 // Get base reduction value
-                depthReduction = reductions[true][depth][movesSearched];
+                depthReduction = reductions[isQuiet][depth][movesSearched];
 
                 // Reduce more if we aren't improving
                 depthReduction += !improving;
@@ -681,18 +681,6 @@ moves_loop:
 
                 // Fuck
                 depthReduction += 2 * cutNode;
-
-                // Decrease the reduction for moves that have a good history score and increase it for moves with a bad score
-                depthReduction -= std::clamp(moveHistory / 16384, -2, 2);
-
-                // Decrease the reduction for moves that give check
-                if (pos->checkers)
-                    depthReduction -= 1;
-            }
-            else if (!ttPv) {
-
-                // Get base reduction value
-                depthReduction = reductions[false][depth][movesSearched];
 
                 // Decrease the reduction for moves that have a good history score and increase it for moves with a bad score
                 depthReduction -= std::clamp(moveHistory / 16384, -2, 2);
