@@ -571,8 +571,9 @@ moves_loop:
             continue;
 
         bool isQuiet = IsQuiet(move);
+        bool isRefutation = (move == ss->searchKillers[0] || move == ss->searchKillers[1] || move == sd->CounterMoves[From((ss - 1)->move)][To((ss - 1)->move)]);
 
-        if (isQuiet && SkipQuiets)
+        if (isQuiet && SkipQuiets && !isRefutation)
             continue;
 
         const int moveHistory = GetHistoryScore(pos, sd, move, ss);
@@ -589,14 +590,15 @@ moves_loop:
         if (   !rootNode
             &&  BoardHasNonPawns(pos, pos->side)
             &&  bestScore > -mate_found) {
-            // Movecount pruning: if we searched enough moves and we are not in check we skip the rest
+            // Movecount pruning: if we searched enough moves and we are not in check we skip the other quiet moves
             if (   !pvNode
                 && !inCheck
                 &&  depth < 9
                 &&  isQuiet
                 &&  movesSearched > lmp_margin[depth][improving]) {
                 SkipQuiets = true;
-                continue;
+                if (!isRefutation)
+                    continue;
             }
 
             // lmrDepth is the current depth minus the reduction the move would undergo in lmr, this is helpful because it helps us discriminate the bad moves with more accuracy
@@ -608,7 +610,8 @@ moves_loop:
                 &&  isQuiet
                 &&  ss->staticEval + 100 + 150 * lmrDepth <= alpha) {
                 SkipQuiets = true;
-                continue;
+                if (!isRefutation)
+                    continue;
             }
 
             // See pruning: prune all the moves that have a SEE score that is lower than our threshold
