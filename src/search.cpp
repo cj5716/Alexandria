@@ -622,7 +622,7 @@ moves_loop:
         if (ss->ply < td->RootDepth * 2) {
             // Search extension
             if (   !rootNode
-                &&  depth >= 7
+                &&  depth >= 5
                 &&  move == ttMove
                 && !excludedMove
                 && (ttFlag & HFLOWER)
