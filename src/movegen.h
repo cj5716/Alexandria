@@ -9,8 +9,14 @@ struct S_MOVELIST;
 // Check for move legality by generating the list of legal moves in a position and checking if that move is present
 [[nodiscard]] int MoveExists(const S_Board* pos, const int move);
 
-// generate all moves
+// Generate all moves
 void GenerateMoves(S_MOVELIST* move_list, S_Board* pos);
 
-// generate all moves
+// Generate all captures
 void GenerateCaptures(S_MOVELIST* move_list, S_Board* pos);
+
+// Generate all quiets
+void GenerateQuiets(S_MOVELIST* move_list, S_Board* pos);
+
+// Check for move legality
+bool MoveIsLegal(S_Board* pos, const int move);
