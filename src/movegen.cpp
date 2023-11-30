@@ -597,6 +597,8 @@ void GenerateQuiets(S_MOVELIST* move_list, S_Board* pos) {
 
 bool MoveIsLegal(S_Board* pos, const int move) {
 
+    return MoveExists(pos, move);
+
     init(pos, pos->side, KingSQ(pos, pos->side));
 
     int sourceSquare = From(move);
