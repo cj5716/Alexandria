@@ -22,9 +22,9 @@ struct Movepicker {
     S_Board* pos;
     Search_data* sd;
     Search_stack* ss;
-    S_MOVELIST* goodCaptures;
-    S_MOVELIST* quiets;
-    S_MOVELIST* badCaptures;
+    S_MOVELIST goodCaptures[1];
+    S_MOVELIST quiets[1];
+    S_MOVELIST badCaptures[1];
     int ttMove;
     int threshold;
     int idx;
