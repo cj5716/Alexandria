@@ -608,6 +608,9 @@ bool MoveIsLegal(S_Board* pos, const int move) {
     if (piece != Piece(move))
         return false;
 
+    if (GetPieceType(pos->PieceOn(toSquare)) == KING)
+        return false;
+
     int pieceType = GetPieceType(piece);
     Bitboard legalMoves = 0;
     if (pieceType == PAWN)
