@@ -20,3 +20,6 @@ void GenerateQuiets(S_MOVELIST* move_list, S_Board* pos);
 
 // Check for move legality
 bool MoveIsLegal(S_Board* pos, const int move);
+
+// Add move to movelist
+void AddMove(S_MOVELIST* list, const int move, const int score);
