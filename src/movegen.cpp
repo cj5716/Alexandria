@@ -1,10 +1,10 @@
-#include "movegen.h"
 #include "attack.h"
+#include "board.h"
 #include "init.h"
 #include "magic.h"
 #include "makemove.h"
-#include "board.h"
 #include "move.h"
+#include "movegen.h"
 
 // is the square given in input attacked by the current given side
 bool IsSquareAttacked(const S_Board* pos, const int square, const int side) {
@@ -41,7 +41,7 @@ static inline void init(S_Board* pos, int color, int sq) {
     DoPinMask(pos, color, sq);
 }
 // Check for move legality by generating the list of legal moves in a position and checking if that move is present
-int MoveExists(S_Board* pos, const int move) {
+bool MoveExists(S_Board* pos, const int move) {
     S_MOVELIST list[1];
     GenerateMoves(list, pos);
 
@@ -597,13 +597,15 @@ void GenerateQuiets(S_MOVELIST* move_list, S_Board* pos) {
 
 bool MoveIsLegal(S_Board* pos, const int move) {
 
-    return MoveExists(pos, move);
-
     init(pos, pos->side, KingSQ(pos, pos->side));
 
     int sourceSquare = From(move);
+    int toSquare = To(move);
     int piece = pos->PieceOn(sourceSquare);
     if (piece == EMPTY)
+        return false;
+
+    if (piece != Piece(move))
         return false;
 
     int pieceType = GetPieceType(piece);
@@ -665,5 +667,18 @@ bool MoveIsLegal(S_Board* pos, const int move) {
             legalMoves = LegalKingMoves(pos, pos->side, sourceSquare);
     }
 
-    return bool(legalMoves & (1ULL << To(move)));
+    // Check that move type matches
+    if (legalMoves & (1ULL << toSquare)) {
+
+        if (isPromo(move) || isDP(move))
+            return true;
+
+        else if (pieceType == PAWN)
+            return !IsCapture(move) || bool(toSquare == GetEpSquare(pos)) == isEnpassant(move);
+
+        else
+            return bool(pos->PieceOn(toSquare) == EMPTY) == IsQuiet(move);
+    }
+    else
+        return false;
 }
