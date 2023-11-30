@@ -180,13 +180,11 @@ top:
             PickMove(mp->quiets, mp->idx);
             int move = mp->quiets->moves[mp->idx].move;
             ++mp->idx;
-            if (   move == mp->ttMove 
-                || move == mp->ss->searchKillers[0]
-                || move == mp->ss->searchKillers[1]
-                || move == mp->sd->CounterMoves[From((mp->ss - 1)->move)][To((mp->ss - 1)->move)])
-                continue;
-
-            return move;
+            if (   move != mp->ttMove 
+                && move != mp->ss->searchKillers[0]
+                && move != mp->ss->searchKillers[1]
+                && move != mp->sd->CounterMoves[From((mp->ss - 1)->move)][To((mp->ss - 1)->move)])
+                return move;
         }
         ++mp->stage;
         mp->idx = 0;
