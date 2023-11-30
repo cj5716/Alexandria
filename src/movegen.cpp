@@ -591,6 +591,9 @@ void GenerateQuiets(S_MOVELIST* move_list, S_Board* pos) {
 }
 
 bool MoveIsLegal(S_Board* pos, const int move) {
+
+    init(pos, pos->side, KingSQ(pos, pos->side));
+
     int sourceSquare = From(move);
     int piece = pos->PieceOn(sourceSquare);
     if (piece == EMPTY)
@@ -655,5 +658,5 @@ bool MoveIsLegal(S_Board* pos, const int move) {
             legalMoves = LegalKingMoves(pos, pos->side, sourceSquare);
     }
 
-    return legalMoves & (1ULL << To(move));
+    return bool(legalMoves & (1ULL << To(move)));
 }
