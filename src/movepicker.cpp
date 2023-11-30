@@ -31,6 +31,9 @@ void InitMP(Movepicker *mp, S_Board* pos, Search_data* sd, Search_stack* ss, int
     mp->threshold = threshold;
     mp->idx = 0;
     mp->stage = mp->ttMove ? PICK_TT : GEN_CAPTURES;
+    std::memset(mp->goodCaptures, 0, sizeof(mp->goodCaptures));
+    std::memset(mp->quiets, 0, sizeof(mp->quiets));
+    std::memset(mp->badCaptures, 0, sizeof(mp->badCaptures));
 }
 
 void ScoreCaptures(S_Board* pos, Search_data* sd, S_MOVELIST* move_list) {
