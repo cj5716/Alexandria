@@ -599,6 +599,9 @@ bool MoveIsLegal(S_Board* pos, const int move) {
 
     init(pos, pos->side, KingSQ(pos, pos->side));
 
+    if (move == NOMOVE)
+        return false;
+
     int sourceSquare = From(move);
     int toSquare = To(move);
     int piece = pos->PieceOn(sourceSquare);
