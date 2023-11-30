@@ -199,7 +199,6 @@ top:
 
             return move;
         }
-        return NOMOVE;
     }
     return NOMOVE;
 }
