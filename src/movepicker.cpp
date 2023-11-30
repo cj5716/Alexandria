@@ -93,9 +93,10 @@ top:
         goto top;
     }
     else if (mp->stage == PICK_GOOD_CAPTURES) {
-        for (; mp->idx < mp->goodCaptures->count; ++mp->idx) {
+        while (mp->idx < mp->goodCaptures->count) {
             PickMove(mp->goodCaptures, mp->idx);
             int move = mp->goodCaptures->moves[mp->idx].move;
+            ++mp->idx;
 
             if (move == mp->ttMove)
                 continue;
@@ -173,9 +174,10 @@ top:
             mp->idx = 0;
             goto top;
         }
-        for (; mp->idx < mp->quiets->count; ++mp->idx) {
+        while (mp->idx < mp->quiets->count) {
             PickMove(mp->quiets, mp->idx);
             int move = mp->quiets->moves[mp->idx].move;
+            ++mp->idx;
             if (   move == mp->ttMove 
                 || move == mp->ss->searchKillers[0]
                 || move == mp->ss->searchKillers[1]
@@ -188,9 +190,10 @@ top:
         goto top;
     }
     else if (mp->stage == PICK_BAD_CAPTURES) {
-        for (; mp->idx < mp->badCaptures->count; ++mp->idx) {
+        while (mp->idx < mp->badCaptures->count) {
             PickMove(mp->badCaptures, mp->idx);
             int move = mp->badCaptures->moves[mp->idx].move;
+            ++mp->idx;
             if (move == mp->ttMove)
                 continue;
 
