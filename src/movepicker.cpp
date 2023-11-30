@@ -127,6 +127,7 @@ top:
     }
     else if (mp->stage == PICK_KILLER_1) {
         if (skipQuiets) {
+            mp->idx = 0;
             mp->stage = PICK_BAD_CAPTURES;
             goto top;
         }
@@ -141,6 +142,7 @@ top:
     }
     else if (mp->stage == PICK_COUNTER) {
         if (skipQuiets) {
+            mp->idx = 0;
             mp->stage = PICK_BAD_CAPTURES;
             goto top;
         }
