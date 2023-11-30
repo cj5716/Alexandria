@@ -52,11 +52,16 @@ int MoveExists(S_Board* pos, const int move) {
     }
     return false;
 }
-// function that adds a move to the move list
-static inline void AddMove(int move, S_MOVELIST* list) {
+
+void AddMove(S_MOVELIST* list, const int move, const int score) {
     list->moves[list->count].move = move;
-    list->moves[list->count].score = 0;
+    list->moves[list->count].score = score;
     list->count++;
+}
+
+// function that adds a move to the move list
+void AddMove(int move, S_MOVELIST* list) {
+    AddMove(list, move, 0);
 }
 // function that adds a pawn move (and all its possible branches) to the move list
 static inline void AddPawnMove(const S_Board* pos, const int from, const int to, S_MOVELIST* list) {
