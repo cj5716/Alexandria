@@ -1,3 +1,4 @@
+#include "movegen.h"
 #include "search.h"
 #include "types.h"
 
@@ -30,6 +31,5 @@ struct Movepicker {
     int stage;
 };
 
-void PickMove(S_MOVELIST* moveList, const int moveNum);
-
-void InitMP(Movepicker *mp, S_Board* pos, Search_data* sd, Search_stack* ss, S_MOVELIST* move_list, int ttMove, int threshold);
+void InitMP(Movepicker *mp, S_Board* pos, Search_data* sd, Search_stack* ss, int ttMove, int threshold);
+int NextMove(Movepicker *mp, bool skipQuiets);
