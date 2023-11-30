@@ -187,6 +187,7 @@ top:
             return move;
         }
         ++mp->stage;
+        mp->idx = 0;
         goto top;
     }
     else if (mp->stage == PICK_BAD_CAPTURES) {
