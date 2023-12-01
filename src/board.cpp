@@ -145,7 +145,7 @@ void ParseFen(const std::string& command, S_Board* pos) {
                 // loop over all piece pos->pos->bitboards
                 for (int bb_piece = WP; bb_piece <= BK; bb_piece++) {
                     // if there is a piece on current square
-                    if (get_bit(pos->bitboards[bb_piece], square))
+                    if (get_bit(pos->bitboards[bb_piece], 1ULL << square))
                         // get piece code
                         piece = bb_piece;
                 }
