@@ -7,7 +7,7 @@ struct S_MOVELIST;
 [[nodiscard]] bool IsSquareAttacked(const S_Board* pos, const int square, const int side);
 
 // Check for move legality by generating the list of legal moves in a position and checking if that move is present
-[[nodiscard]] bool MoveExists(const S_Board* pos, const int move);
+[[nodiscard]] bool MoveExists(S_Board* pos, const int move);
 
 // Generate all moves
 void GenerateMoves(S_MOVELIST* move_list, S_Board* pos);
