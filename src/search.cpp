@@ -800,6 +800,9 @@ int Quiescence(int alpha, int beta, S_ThreadData* td, Search_stack* ss) {
     // loop over moves within the movelist
     while ((move = NextMove(&mp, !inCheck || bestScore > -mate_found)) != NOMOVE) {
 
+        // Make sure the move exists (and therefore is legal) according to our legal movegen
+        assert(MoveExists(pos, move));
+
         // See pruning
         if (   mp.stage > PICK_GOOD_CAPTURES
             && bestScore > -mate_found) {
