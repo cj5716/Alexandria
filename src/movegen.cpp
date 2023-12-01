@@ -679,8 +679,12 @@ bool MoveIsLegal(S_Board* pos, const int move) {
         if (isPromo(move) || isDP(move))
             return true;
 
-        else if (pieceType == PAWN)
+        else if (pieceType == PAWN) {
+            if (!IsCapture(move) && (pos->PieceOn(toSquare) != EMPTY || toSquare == GetEpSquare(pos)))
+                return false;
+
             return !IsCapture(move) || bool(toSquare == GetEpSquare(pos)) == isEnpassant(move);
+        }
 
         else
             return bool(pos->PieceOn(toSquare) == EMPTY) == IsQuiet(move);
