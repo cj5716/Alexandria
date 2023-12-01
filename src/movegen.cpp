@@ -622,6 +622,12 @@ bool MoveIsLegal(S_Board* pos, const int move) {
 
     int pieceType = GetPieceType(piece);
 
+    if ((isDP(move) || isPromo(move) || isEnpassant(move)) && pieceType != PAWN)
+        return false;
+
+    if (IsCastle(move) && pieceType != KING)
+        return false;
+
     if (pos->checks >= 2 && pieceType != KING)
         return false;
 
