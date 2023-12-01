@@ -494,7 +494,7 @@ moves_loop:
     while ((move = NextMove(&mp, SkipQuiets)) != NOMOVE) {
 
         // Make sure the move exists (and therefore is legal) according to our legal movegen
-        assert(MoveExists(pos, move))
+        assert(MoveExists(pos, move));
 
         if (move == excludedMove)
             continue;
