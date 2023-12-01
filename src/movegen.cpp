@@ -676,7 +676,10 @@ bool MoveIsLegal(S_Board* pos, const int move) {
     // Check that move type matches
     if (legalMoves & (1ULL << toSquare)) {
 
-        if (isPromo(move) || isDP(move))
+        if (isPromo(move))
+            return legalMoves & 0xFF000000000000FFULL;
+
+        if (isDP(move))
             return true;
 
         else if (pieceType == PAWN) {
