@@ -668,6 +668,8 @@ bool MoveIsLegal(S_Board* pos, const int move) {
                             && !IsSquareAttacked(pos, d8, WHITE)
                             && !IsSquareAttacked(pos, c8, WHITE));
             }
+
+            return false;
         }
         else
             legalMoves = LegalKingMoves(pos, pos->side, sourceSquare);
