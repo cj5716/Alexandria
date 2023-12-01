@@ -611,6 +611,9 @@ bool MoveIsLegal(S_Board* pos, const int move) {
     if (piece != Piece(move))
         return false;
 
+    if (piece / 6 != pos->side)
+        return false;
+
     if (GetPieceType(pos->PieceOn(toSquare)) == KING)
         return false;
 
