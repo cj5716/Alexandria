@@ -297,8 +297,7 @@ void GenerateMoves(S_MOVELIST* move_list, S_Board* pos) { // init move count
             // king side castling is available
             if (pos->GetCastlingPerm() & WKCA) {
                 // make sure square between king and king's rook are empty
-                if (!get_bit(pos->Occupancy(BOTH), f1) &&
-                    !get_bit(pos->Occupancy(BOTH), g1)) {
+                if (!get_bit(pos->Occupancy(BOTH), 0x6000000000000000ULL)) {
                     // make sure king and the f1 squares are not under attacks
                     if (!IsSquareAttacked(pos, e1, BLACK) &&
                         !IsSquareAttacked(pos, f1, BLACK) &&
@@ -309,9 +308,7 @@ void GenerateMoves(S_MOVELIST* move_list, S_Board* pos) { // init move count
 
             if (pos->GetCastlingPerm() & WQCA) {
                 // make sure square between king and queen's rook are empty
-                if (!get_bit(pos->Occupancy(BOTH), d1) &&
-                    !get_bit(pos->Occupancy(BOTH), c1) &&
-                    !get_bit(pos->Occupancy(BOTH), b1)) {
+                if (!get_bit(pos->Occupancy(BOTH), 0x0E00000000000000ULL)) {
                     // make sure king and the d1 squares are not under attacks
                     if (!IsSquareAttacked(pos, e1, BLACK) &&
                         !IsSquareAttacked(pos, d1, BLACK) &&
@@ -324,8 +321,7 @@ void GenerateMoves(S_MOVELIST* move_list, S_Board* pos) { // init move count
         else {
             if (pos->GetCastlingPerm() & BKCA) {
                 // make sure square between king and king's rook are empty
-                if (!get_bit(pos->Occupancy(BOTH), f8) &&
-                    !get_bit(pos->Occupancy(BOTH), g8)) {
+                if (!get_bit(pos->Occupancy(BOTH), 0x0000000000000060ULL)) {
                     // make sure king and the f8 squares are not under attacks
                     if (!IsSquareAttacked(pos, e8, WHITE) &&
                         !IsSquareAttacked(pos, f8, WHITE) &&
@@ -336,9 +332,7 @@ void GenerateMoves(S_MOVELIST* move_list, S_Board* pos) { // init move count
 
             if (pos->GetCastlingPerm() & BQCA) {
                 // make sure square between king and queen's rook are empty
-                if (!get_bit(pos->Occupancy(BOTH), d8) &&
-                    !get_bit(pos->Occupancy(BOTH), c8) &&
-                    !get_bit(pos->Occupancy(BOTH), b8)) {
+                if (!get_bit(pos->Occupancy(BOTH), 0x000000000000000EULL)) {
                     // make sure king and the d8 squares are not under attacks
                     if (!IsSquareAttacked(pos, e8, WHITE) &&
                         !IsSquareAttacked(pos, d8, WHITE) &&
@@ -542,8 +536,7 @@ void GenerateQuiets(S_MOVELIST* move_list, S_Board* pos) {
             // king side castling is available
             if (pos->GetCastlingPerm() & WKCA) {
                 // make sure square between king and king's rook are empty
-                if (!get_bit(pos->Occupancy(BOTH), f1) &&
-                    !get_bit(pos->Occupancy(BOTH), g1)) {
+                if (!get_bit(pos->Occupancy(BOTH), 0x6000000000000000ULL)) {
                     // make sure king and the f1 squares are not under attacks
                     if (!IsSquareAttacked(pos, e1, BLACK) &&
                         !IsSquareAttacked(pos, f1, BLACK) &&
@@ -554,9 +547,7 @@ void GenerateQuiets(S_MOVELIST* move_list, S_Board* pos) {
 
             if (pos->GetCastlingPerm() & WQCA) {
                 // make sure square between king and queen's rook are empty
-                if (!get_bit(pos->Occupancy(BOTH), d1) &&
-                    !get_bit(pos->Occupancy(BOTH), c1) &&
-                    !get_bit(pos->Occupancy(BOTH), b1)) {
+                if (!get_bit(pos->Occupancy(BOTH), 0x0E00000000000000ULL)) {
                     // make sure king and the d1 squares are not under attacks
                     if (!IsSquareAttacked(pos, e1, BLACK) &&
                         !IsSquareAttacked(pos, d1, BLACK) &&
@@ -569,8 +560,7 @@ void GenerateQuiets(S_MOVELIST* move_list, S_Board* pos) {
         else {
             if (pos->GetCastlingPerm() & BKCA) {
                 // make sure square between king and king's rook are empty
-                if (!get_bit(pos->Occupancy(BOTH), f8) &&
-                    !get_bit(pos->Occupancy(BOTH), g8)) {
+                if (!get_bit(pos->Occupancy(BOTH), 0x0000000000000060ULL)) {
                     // make sure king and the f8 squares are not under attacks
                     if (!IsSquareAttacked(pos, e8, WHITE) &&
                         !IsSquareAttacked(pos, f8, WHITE) &&
@@ -581,9 +571,7 @@ void GenerateQuiets(S_MOVELIST* move_list, S_Board* pos) {
 
             if (pos->GetCastlingPerm() & BQCA) {
                 // make sure square between king and queen's rook are empty
-                if (!get_bit(pos->Occupancy(BOTH), d8) &&
-                    !get_bit(pos->Occupancy(BOTH), c8) &&
-                    !get_bit(pos->Occupancy(BOTH), b8)) {
+                if (!get_bit(pos->Occupancy(BOTH), 0x000000000000000EULL)) {
                     // make sure king and the d8 squares are not under attacks
                     if (!IsSquareAttacked(pos, e8, WHITE) &&
                         !IsSquareAttacked(pos, d8, WHITE) &&
@@ -652,34 +640,28 @@ bool MoveIsLegal(S_Board* pos, const int move) {
             if (pos->side == WHITE) {
                 if (Movetype(GetMovetype(move)) == Movetype::KSCastle)
                     return (    pos->GetCastlingPerm() & WKCA 
-                            && !get_bit(pos->Occupancy(BOTH), f1)
-                            && !get_bit(pos->Occupancy(BOTH), g1)
+                            && !get_bit(pos->Occupancy(BOTH), 0x6000000000000000ULL)
                             && !IsSquareAttacked(pos, e1, BLACK)
                             && !IsSquareAttacked(pos, f1, BLACK)
                             && !IsSquareAttacked(pos, g1, BLACK));
 
                 if (Movetype(GetMovetype(move)) == Movetype::QSCastle)
                     return (    pos->GetCastlingPerm() & WQCA 
-                            && !get_bit(pos->Occupancy(BOTH), d1)
-                            && !get_bit(pos->Occupancy(BOTH), c1)
-                            && !get_bit(pos->Occupancy(BOTH), b1)
+                            && !get_bit(pos->Occupancy(BOTH), 0x0E00000000000000ULL)
                             && !IsSquareAttacked(pos, e1, BLACK)
                             && !IsSquareAttacked(pos, d1, BLACK)
                             && !IsSquareAttacked(pos, c1, BLACK));
             } else {
                 if (Movetype(GetMovetype(move)) == Movetype::KSCastle)
                     return (    pos->GetCastlingPerm() & BKCA 
-                            && !get_bit(pos->Occupancy(BOTH), f8)
-                            && !get_bit(pos->Occupancy(BOTH), g8)
+                            && !get_bit(pos->Occupancy(BOTH), 0x0000000000000060ULL)
                             && !IsSquareAttacked(pos, e8, WHITE)
                             && !IsSquareAttacked(pos, f8, WHITE)
                             && !IsSquareAttacked(pos, g8, WHITE));
 
                 if (Movetype(GetMovetype(move)) == Movetype::QSCastle)
                     return (    pos->GetCastlingPerm() & BQCA 
-                            && !get_bit(pos->Occupancy(BOTH), d8)
-                            && !get_bit(pos->Occupancy(BOTH), c8)
-                            && !get_bit(pos->Occupancy(BOTH), b8)
+                            && !get_bit(pos->Occupancy(BOTH), 0x000000000000000EULL)
                             && !IsSquareAttacked(pos, e8, WHITE)
                             && !IsSquareAttacked(pos, d8, WHITE)
                             && !IsSquareAttacked(pos, c8, WHITE));
