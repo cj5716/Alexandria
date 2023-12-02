@@ -492,14 +492,8 @@ moves_loop:
     quietMoves.count = 0, noisyMoves.count = 0;
 
     while ((move = NextMove(&mp, SkipQuiets)) != NOMOVE) {
-/*
-        // Make sure the move exists (and therefore is legal) according to our legal movegen
-        if (!MoveExists(pos, move)) {
-            std::cout << "\n Illegal Move returned\n";
-            PrintBoard(pos);
-            std::cout << "\n The illegal move that was almost played is: " << FormatMove(move)<<std::endl;
-        }
-*/
+        assert(MoveExists(pos, move));
+
         if (move == excludedMove)
             continue;
 
@@ -803,14 +797,7 @@ int Quiescence(int alpha, int beta, S_ThreadData* td, Search_stack* ss) {
 
     // loop over moves within the movelist
     while ((move = NextMove(&mp, !inCheck || bestScore > -mate_found)) != NOMOVE) {
-/*
-        // Make sure the move exists (and therefore is legal) according to our legal movegen
-        if(!MoveExists(pos, move)){
-            std::cout << "\n Illegal Move returned\n";
-            PrintBoard(pos);
-            std::cout << "\n The illegal move that was almost played is: " << FormatMove(move);
-        }
-*/
+        assert(MoveExists(pos, move));
         // See pruning
         if (   mp.stage > PICK_GOOD_CAPTURES
             && bestScore > -mate_found) {
