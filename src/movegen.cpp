@@ -67,32 +67,17 @@ void AddMove(int move, S_MOVELIST* list) {
 static inline void AddPawnMove(const S_Board* pos, const int from, const int to, S_MOVELIST* list) {
     Movetype movetype = pos->PieceOn(to) != EMPTY ? Movetype::Capture : Movetype::Quiet;
     if (!(abs(to - from) - 16)) movetype = Movetype::doublePush;
-    else if(!(to - pos->enPas)) movetype = Movetype::enPassant;
+    else if (!(to - pos->enPas)) movetype = Movetype::enPassant;
+    int pc = GetPiece(PAWN, pos->side);
 
-    if (pos->side == WHITE) {
-        if (from >= a7 &&
-            from <= h7) { // if the piece is moving from the 7th to the 8th rank
-            AddMove(encode_move(from, to, WP, (Movetype::queenPromo | movetype)), list);
-            AddMove(encode_move(from, to, WP, (Movetype::rookPromo | movetype)), list); // consider every possible piece promotion
-            AddMove(encode_move(from, to, WP, (Movetype::bishopPromo | movetype)), list);
-            AddMove(encode_move(from, to, WP, (Movetype::knightPromo | movetype)), list);
-        }
-        else { // else do not include possible promotions
-            AddMove(encode_move(from, to, WP,  movetype), list);
-        }
+    if ((1ULL << to) & 0xFF000000000000FFULL) { // if the piece is moving from the 7th to the 8th rank
+        AddMove(encode_move(from, to, pc, (Movetype::queenPromo | movetype)), list);
+        AddMove(encode_move(from, to, pc, (Movetype::rookPromo | movetype)), list); // consider every possible piece promotion
+        AddMove(encode_move(from, to, pc, (Movetype::bishopPromo | movetype)), list);
+        AddMove(encode_move(from, to, pc, (Movetype::knightPromo | movetype)), list);
     }
-
-    else {
-        if (from >= a2 &&
-            from <= h2) { // if the piece is moving from the 2nd to the 1st rank
-            AddMove(encode_move(from, to, BP, (Movetype::queenPromo | movetype)), list);
-            AddMove(encode_move(from, to, BP, (Movetype::rookPromo | movetype)), list); // consider every possible piece promotion
-            AddMove(encode_move(from, to, BP, (Movetype::bishopPromo | movetype)), list);
-            AddMove(encode_move(from, to, BP, (Movetype::knightPromo | movetype)), list);
-        }
-        else { // else do not include possible promotions
-            AddMove(encode_move(from, to, BP, movetype), list);
-        }
+    else { // else do not include possible promotions
+        AddMove(encode_move(from, to, pc,  movetype), list);
     }
 }
 
@@ -364,7 +349,7 @@ void GenerateCaptures(S_MOVELIST* move_list, S_Board* pos) {
         while (pawn_mask) {
             // init source square
             sourceSquare = GetLsbIndex(pawn_mask);
-            Bitboard moves = LegalPawnMoves(pos, pos->side, sourceSquare) & (pos->Enemy() | 0xFF000000000000FF);
+            Bitboard moves = LegalPawnMoves(pos, pos->side, sourceSquare) & (pos->Enemy() | 0xFF000000000000FFULL);
 
             while (moves) {
                 // init target square
@@ -458,7 +443,7 @@ void GenerateQuiets(S_MOVELIST* move_list, S_Board* pos) {
         while (pawn_mask) {
             // init source square
             sourceSquare = GetLsbIndex(pawn_mask);
-            Bitboard moves = LegalPawnMoves(pos, pos->side, sourceSquare) & ~(pos->Enemy() | 0xFF000000000000FF);
+            Bitboard moves = LegalPawnMoves(pos, pos->side, sourceSquare) & ~(pos->Enemy() | 0xFF000000000000FFULL);
 
             while (moves) {
                 // init target square
