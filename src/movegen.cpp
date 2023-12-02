@@ -598,10 +598,16 @@ bool MoveIsLegal(S_Board* pos, const int move) {
     if ((isDP(move) || isPromo(move) || isEnpassant(move)) && pieceType != PAWN)
         return false;
 
+    if (isPromo(move) && !((1ULL << toSquare) & 0xFF000000000000FFULL))
+        return false;
+
     if (IsCastle(move) && pieceType != KING)
         return false;
 
     if (pos->checks >= 2 && pieceType != KING)
+        return false;
+
+    if (pieceType != PAWN && (pos->PieceOn(toSquare) == EMPTY) != IsQuiet(move))
         return false;
 
     Bitboard legalMoves = 0;
@@ -661,9 +667,6 @@ bool MoveIsLegal(S_Board* pos, const int move) {
     // Check that move type matches
     if (legalMoves & (1ULL << toSquare)) {
 
-        if (isPromo(move))
-            return legalMoves & 0xFF000000000000FFULL;
-
         if (isDP(move))
             return true;
 
@@ -673,9 +676,8 @@ bool MoveIsLegal(S_Board* pos, const int move) {
 
             return !IsCapture(move) || bool(toSquare == GetEpSquare(pos)) == isEnpassant(move);
         }
-
         else
-            return bool(pos->PieceOn(toSquare) == EMPTY) == IsQuiet(move);
+            return true;
     }
     else
         return false;
