@@ -23,11 +23,14 @@ void PickMove(S_MOVELIST* moveList, const int moveNum) {
     moveList->moves[bestNum] = temp;
 }
 
-void InitMP(Movepicker *mp, S_Board* pos, Search_data* sd, Search_stack* ss, int ttMove, int threshold, bool capturesOnly) {
+void InitMP(Movepicker *mp, S_Board* pos, Search_data* sd, Search_stack* ss, int ttMove, int killer0, int killer1, int counter, int threshold, bool capturesOnly) {
     mp->pos = pos;
     mp->sd = sd;
     mp->ss = ss;
     mp->ttMove = (!capturesOnly || !IsQuiet(ttMove)) && MoveIsLegal(pos, ttMove) ? ttMove : NOMOVE;
+    mp->killer0 = (killer0 == mp->ttMove || !IsQuiet(killer0)) ? NOMOVE : killer0;
+    mp->killer1 = (killer1 == mp->ttMove || !IsQuiet(killer1)) ? NOMOVE : killer1;
+    mp->counter = (counter == mp->ttMove || counter == mp->killer0 || counter == mp->killer1 || !IsQuiet(counter)) ? NOMOVE : counter;
     mp->threshold = threshold;
     mp->idx = 0;
     mp->stage = mp->ttMove ? PICK_TT : GEN_CAPTURES;
@@ -116,9 +119,8 @@ top:
             goto top;
         }
         ++mp->stage;
-        int move = mp->ss->searchKillers[0];
-        if (move != mp->ttMove && IsQuiet(move) && MoveIsLegal(mp->pos, move))
-            return move;
+        if (MoveIsLegal(mp->pos, mp->killer0))
+            return mp->killer0;
         else {
             mp->idx = 0;
             goto top;
@@ -131,9 +133,8 @@ top:
             goto top;
         }
         ++mp->stage;
-        int move = mp->ss->searchKillers[1];
-        if (move != mp->ttMove && IsQuiet(move) && MoveIsLegal(mp->pos, move))
-            return move;
+        if (MoveIsLegal(mp->pos, mp->killer1))
+            return mp->killer1;
         else {
             mp->idx = 0;
             goto top;
@@ -146,13 +147,8 @@ top:
             goto top;
         }
         ++mp->stage;
-        int countermove = mp->sd->CounterMoves[From((mp->ss - 1)->move)][To((mp->ss - 1)->move)];
-        if (   countermove != mp->ttMove
-            && countermove != mp->ss->searchKillers[0]
-            && countermove != mp->ss->searchKillers[1]
-            && IsQuiet(countermove)
-            && MoveIsLegal(mp->pos, countermove))
-            return countermove;
+        if (MoveIsLegal(mp->pos, mp->counter))
+            return mp->counter;
         else {
             mp->idx = 0;
             goto top;
@@ -180,9 +176,9 @@ top:
             int move = mp->quiets->moves[mp->idx].move;
             ++mp->idx;
             if (   move != mp->ttMove 
-                && move != mp->ss->searchKillers[0]
-                && move != mp->ss->searchKillers[1]
-                && move != mp->sd->CounterMoves[From((mp->ss - 1)->move)][To((mp->ss - 1)->move)])
+                && move != mp->killer0
+                && move != mp->killer1
+                && move != mp->counter)
                 return move;
         }
         ++mp->stage;
@@ -194,10 +190,8 @@ top:
             PickMove(mp->badCaptures, mp->idx);
             int move = mp->badCaptures->moves[mp->idx].move;
             ++mp->idx;
-            if (move == mp->ttMove)
-                continue;
-
-            return move;
+            if (move != mp->ttMove)
+                return move;
         }
     }
     return NOMOVE;
