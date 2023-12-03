@@ -23,14 +23,15 @@ void PickMove(S_MOVELIST* moveList, const int moveNum) {
     moveList->moves[bestNum] = temp;
 }
 
-void InitMP(Movepicker *mp, S_Board* pos, Search_data* sd, Search_stack* ss, int ttMove, int threshold) {
+void InitMP(Movepicker *mp, S_Board* pos, Search_data* sd, Search_stack* ss, int ttMove, int threshold, bool capturesOnly) {
     mp->pos = pos;
     mp->sd = sd;
     mp->ss = ss;
-    mp->ttMove = MoveIsLegal(pos, ttMove) ? ttMove : NOMOVE;
+    mp->ttMove = (!capturesOnly || !IsQuiet(ttMove)) && MoveIsLegal(pos, ttMove) ? ttMove : NOMOVE;
     mp->threshold = threshold;
     mp->idx = 0;
     mp->stage = mp->ttMove ? PICK_TT : GEN_CAPTURES;
+    mp->capturesOnly = capturesOnly;
     std::memset(mp->goodCaptures, 0, sizeof(mp->goodCaptures));
     std::memset(mp->quiets, 0, sizeof(mp->quiets));
     std::memset(mp->badCaptures, 0, sizeof(mp->badCaptures));
@@ -81,8 +82,6 @@ top:
     if (mp->stage == PICK_TT) {
         ++mp->stage;
         mp->idx = 0;
-        if (skipQuiets && IsQuiet(mp->ttMove))
-            goto top;
         return mp->ttMove;
     }
     else if (mp->stage == GEN_CAPTURES) {

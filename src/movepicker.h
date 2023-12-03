@@ -29,7 +29,8 @@ struct Movepicker {
     int threshold;
     int idx;
     int stage;
+    bool capturesOnly;
 };
 
-void InitMP(Movepicker *mp, S_Board* pos, Search_data* sd, Search_stack* ss, int ttMove, int threshold);
+void InitMP(Movepicker *mp, S_Board* pos, Search_data* sd, Search_stack* ss, int ttMove, int threshold, bool capturesOnly);
 int NextMove(Movepicker *mp, bool skipQuiets);

@@ -485,7 +485,7 @@ moves_loop:
     bool SkipQuiets = false;
 
     Movepicker mp;
-    InitMP(&mp, pos, sd, ss, ttMove, -107);
+    InitMP(&mp, pos, sd, ss, ttMove, -107, false);
 
     // Keep track of the played quiet and noisy moves
     S_MOVELIST quietMoves, noisyMoves;
@@ -790,13 +790,13 @@ int Quiescence(int alpha, int beta, S_ThreadData* td, Search_stack* ss) {
     alpha = std::max(alpha, bestScore);
 
     Movepicker mp;
-    InitMP(&mp, pos, sd, ss, ttMove, -107);
+    InitMP(&mp, pos, sd, ss, ttMove, -107, !inCheck);
 
     int move = NOMOVE;
     int bestmove = NOMOVE;
 
     // loop over moves within the movelist
-    while ((move = NextMove(&mp, !inCheck || bestScore > -mate_found)) != NOMOVE) {
+    while ((move = NextMove(&mp, bestScore > -mate_found)) != NOMOVE) {
         assert(MoveExists(pos, move));
         // See pruning
         if (   mp.stage > PICK_GOOD_CAPTURES
