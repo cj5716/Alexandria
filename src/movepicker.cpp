@@ -23,7 +23,11 @@ void PickMove(S_MOVELIST* moveList, const int moveNum) {
     moveList->moves[bestNum] = temp;
 }
 
-void InitMP(Movepicker *mp, S_Board* pos, Search_data* sd, Search_stack* ss, int ttMove, int killer0, int killer1, int counter, int threshold, bool capturesOnly) {
+void InitMP(Movepicker *mp, S_Board* pos, Search_data* sd, Search_stack* ss, int ttMove, int threshold, bool capturesOnly) {
+    int killer0 = ss->searchKillers[0], 
+        killer1 = ss->searchKillers[1], 
+        counter = sd->CounterMoves[From((ss - 1)->move)][To((ss - 1)->move)];
+
     mp->pos = pos;
     mp->sd = sd;
     mp->ss = ss;
