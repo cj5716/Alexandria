@@ -103,15 +103,16 @@ top:
         while (mp->idx < mp->goodCaptures->count) {
             PickMove(mp->goodCaptures, mp->idx);
             int move = mp->goodCaptures->moves[mp->idx].move;
+            int moveScore = mp->goodCaptures->moves[mp->idx].score;
             ++mp->idx;
 
             if (move == mp->ttMove)
                 continue;
 
-            if (SEE(mp->pos, move, mp->threshold) && mp->goodCaptures->moves[mp->idx].score != badPromotionScore)
+            if (SEE(mp->pos, move, mp->threshold) && moveScore != badPromotionScore)
                 return move;
             else
-                AddMove(mp->badCaptures, move, mp->goodCaptures->moves[mp->idx].score);
+                AddMove(mp->badCaptures, move, moveScore);
         }
         ++mp->stage;
         mp->idx = 0;
