@@ -75,6 +75,7 @@ void MakeMove(const int move, S_Board* pos) {
     pos->history[pos->hisPly].pinHV = pos->pinHV;
     pos->history[pos->hisPly].pinD = pos->pinD;
     pos->history[pos->hisPly].checkMask = pos->checkMask;
+    pos->history[pos->hisPly].checks = pos->checks;
 
     // Store position key in the array of searched position
     pos->played_positions.emplace_back(pos->posKey);
@@ -190,6 +191,7 @@ void MakeMoveLight(const int move, S_Board* pos) {
     pos->history[pos->hisPly].pinHV = pos->pinHV;
     pos->history[pos->hisPly].pinD = pos->pinD;
     pos->history[pos->hisPly].checkMask = pos->checkMask;
+    pos->history[pos->hisPly].checks = pos->checks;
     // Store position key in the array of searched position
     pos->played_positions.emplace_back(pos->posKey);
 
@@ -300,6 +302,7 @@ void UnmakeMove(const int move, S_Board* pos) {
     pos->pinHV = pos->history[pos->hisPly].pinHV;
     pos->pinD = pos->history[pos->hisPly].pinD;
     pos->checkMask = pos->history[pos->hisPly].checkMask;
+    pos->checks = pos->history[pos->hisPly].checks;
 
     // parse move
     const int sourceSquare = From(move);
@@ -386,6 +389,7 @@ void MakeNullMove(S_Board* pos) {
     pos->history[pos->hisPly].pinHV = pos->pinHV;
     pos->history[pos->hisPly].pinD = pos->pinD;
     pos->history[pos->hisPly].checkMask = pos->checkMask;
+    pos->history[pos->hisPly].checks = pos->checks;
 
     // Store position key in the array of searched position
     pos->played_positions.emplace_back(pos->posKey);
@@ -414,6 +418,7 @@ void TakeNullMove(S_Board* pos) {
     pos->pinHV = pos->history[pos->hisPly].pinHV;
     pos->pinD = pos->history[pos->hisPly].pinD;
     pos->checkMask = pos->history[pos->hisPly].checkMask;
+    pos->checks = pos->history[pos->hisPly].checks;
 
     pos->ChangeSide();
     pos->posKey = pos->played_positions.back();
