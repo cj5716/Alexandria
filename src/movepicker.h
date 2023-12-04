@@ -8,23 +8,15 @@ struct S_MOVELIST;
 
 enum {
     PICK_TT,
-    GEN_CAPTURES,
-    PICK_GOOD_CAPTURES,
-    PICK_KILLER_0,
-    PICK_KILLER_1,
-    PICK_COUNTER,
-    GEN_QUIET,
-    PICK_QUIET,
-    PICK_BAD_CAPTURES
+    GEN_MOVES,
+    PICK_MOVES
 };
 
 struct Movepicker {
     S_Board* pos;
     Search_data* sd;
     Search_stack* ss;
-    S_MOVELIST goodCaptures[1];
-    S_MOVELIST quiets[1];
-    S_MOVELIST badCaptures[1];
+    S_MOVELIST moveList[1];
     int ttMove;
     int killer0;
     int killer1;
@@ -36,4 +28,4 @@ struct Movepicker {
 };
 
 void InitMP(Movepicker *mp, S_Board* pos, Search_data* sd, Search_stack* ss, int ttMove, int threshold, bool capturesOnly);
-int NextMove(Movepicker *mp, bool skipQuiets);
+int NextMove(Movepicker *mp, bool skipQuiets, bool skipNonGood);
