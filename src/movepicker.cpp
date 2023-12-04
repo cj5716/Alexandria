@@ -23,14 +23,14 @@ void PickMove(S_MOVELIST* moveList, const int moveNum) {
     moveList->moves[bestNum] = temp;
 }
 
-void InitMP(Movepicker *mp, S_Board* pos, Search_data* sd, Search_stack* ss, int ttMove, int killer0, int killer1, int counter, int threshold, bool capturesOnly) {
+void InitMP(Movepicker* mp, S_Board* pos, Search_data* sd, Search_stack* ss, int ttMove, int killer0, int killer1, int counter, int threshold, bool capturesOnly) {
     mp->pos = pos;
     mp->sd = sd;
     mp->ss = ss;
     mp->ttMove = (!capturesOnly || !IsQuiet(ttMove)) && MoveIsLegal(pos, ttMove) ? ttMove : NOMOVE;
-    mp->killer0 = (killer0 == mp->ttMove || !IsQuiet(killer0)) ? NOMOVE : killer0;
-    mp->killer1 = (killer1 == mp->ttMove || !IsQuiet(killer1)) ? NOMOVE : killer1;
-    mp->counter = (counter == mp->ttMove || counter == mp->killer0 || counter == mp->killer1 || !IsQuiet(counter)) ? NOMOVE : counter;
+    mp->killer0 = killer0;
+    mp->killer1 = killer1;
+    mp->counter = counter;
     mp->threshold = threshold;
     mp->idx = 0;
     mp->stage = mp->ttMove ? PICK_TT : GEN_CAPTURES;
@@ -72,15 +72,22 @@ void ScoreCaptures(S_Board* pos, Search_data* sd, S_MOVELIST* move_list) {
     }
 }
 
-void ScoreQuiets(S_Board* pos, Search_data* sd, Search_stack* ss, S_MOVELIST* move_list) {
+void ScoreQuiets(S_Board* pos, Search_data* sd, Search_stack* ss, S_MOVELIST* moveList, int killer0, int killer1, int counter) {
     // Loop through all the move in the movelist
-    for (int i = 0; i < move_list->count; i++) {
-        int move = move_list->moves[i].move;
-        move_list->moves[i].score = GetHistoryScore(pos, sd, move, ss);
+    for (int i = 0; i < moveList->count; i++) {
+        int move = moveList->moves[i].move;
+        if (move == killer0)
+            moveList->moves[i].score = killerMoveScore0;
+        else if (move == killer1)
+            moveList->moves[i].score = killerMoveScore1;
+        else if (move == counter)
+            moveList->moves[i].score = counterMoveScore;
+        else
+            moveList->moves[i].score = GetHistoryScore(pos, sd, move, ss);
     }
 }
 
-int NextMove(Movepicker *mp, bool skipQuiets) {
+int NextMove(Movepicker* mp, bool skipQuiets) {
     skipQuiets |= mp->capturesOnly;
 top:
     if (mp->stage == PICK_TT) {
@@ -113,48 +120,6 @@ top:
         mp->idx = 0;
         goto top;
     }
-    else if (mp->stage == PICK_KILLER_0) {
-        if (skipQuiets) {
-            mp->stage = PICK_BAD_CAPTURES;
-            mp->idx = 0;
-            goto top;
-        }
-        ++mp->stage;
-        if (MoveIsLegal(mp->pos, mp->killer0))
-            return mp->killer0;
-        else {
-            mp->idx = 0;
-            goto top;
-        }
-    }
-    else if (mp->stage == PICK_KILLER_1) {
-        if (skipQuiets) {
-            mp->idx = 0;
-            mp->stage = PICK_BAD_CAPTURES;
-            goto top;
-        }
-        ++mp->stage;
-        if (MoveIsLegal(mp->pos, mp->killer1))
-            return mp->killer1;
-        else {
-            mp->idx = 0;
-            goto top;
-        }
-    }
-    else if (mp->stage == PICK_COUNTER) {
-        if (skipQuiets) {
-            mp->idx = 0;
-            mp->stage = PICK_BAD_CAPTURES;
-            goto top;
-        }
-        ++mp->stage;
-        if (MoveIsLegal(mp->pos, mp->counter))
-            return mp->counter;
-        else {
-            mp->idx = 0;
-            goto top;
-        }
-    }
     else if (mp->stage == GEN_QUIET) {
         if (skipQuiets) {
             mp->stage = PICK_BAD_CAPTURES;
@@ -162,7 +127,7 @@ top:
             goto top;
         }
         GenerateQuiets(mp->quiets, mp->pos);
-        ScoreQuiets(mp->pos, mp->sd, mp->ss, mp->quiets);
+        ScoreQuiets(mp->pos, mp->sd, mp->ss, mp->quiets, mp->killer0, mp->killer1, mp->counter);
         ++mp->stage;
         goto top;
     }
@@ -176,10 +141,7 @@ top:
             PickMove(mp->quiets, mp->idx);
             int move = mp->quiets->moves[mp->idx].move;
             ++mp->idx;
-            if (   move != mp->ttMove 
-                && move != mp->killer0
-                && move != mp->killer1
-                && move != mp->counter)
+            if (move != mp->ttMove)
                 return move;
         }
         ++mp->stage;
