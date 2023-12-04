@@ -492,7 +492,17 @@ moves_loop:
     quietMoves.count = 0, noisyMoves.count = 0;
 
     while ((move = NextMove(&mp, SkipQuiets)) != NOMOVE) {
-        assert(MoveExists(pos, move));
+        if (!MoveExists(pos, move)) {
+            PrintBoard(pos);
+            PrintBitboard(pos->checkMask);
+            std::cout << "number of checks is: " << pos->checks<< std::endl;
+            std::cout << "Move was: " << FormatMove(move)<<std::endl;
+            std::cout << "the saved TT move is: " << FormatMove(mp.ttMove) << std::endl;
+            std::cout << "the saved killer1 move is: " << FormatMove(mp.killer0) << std::endl;
+            std::cout << "the saved killer2 move is: " << FormatMove(mp.killer1) << std::endl;
+            std::cout << "the saved counter move is: " << FormatMove(mp.counter) << std::endl;
+            exit(5);
+        }
 
         if (move == excludedMove)
             continue;
