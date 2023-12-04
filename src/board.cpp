@@ -32,6 +32,7 @@ int CountBits(Bitboard bitboard) {
 }
 
 int GetLsbIndex(Bitboard bitboard) {
+    assert(bitboard);
 #if defined(__GNUC__) // GCC, Clang, ICC
     return int(__builtin_ctzll(bitboard));
 #elif defined(_MSC_VER) // MSVC
@@ -40,7 +41,6 @@ int GetLsbIndex(Bitboard bitboard) {
     _BitScanForward64(&idx, bitboard);
     return (int)idx;
 #else // MSVC, WIN32
-    assert(bitboard);
     unsigned long idx;
 
     if (b & 0xffffffff) {
