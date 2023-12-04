@@ -104,7 +104,7 @@ top:
             if (move == mp->ttMove)
                 continue;
 
-            if (SEE(mp->pos, move, mp->threshold))
+            if (SEE(mp->pos, move, mp->threshold) && mp->goodCaptures->moves[mp->idx].score != badPromotionScore)
                 return move;
             else
                 AddMove(mp->badCaptures, move, mp->goodCaptures->moves[mp->idx].score);
