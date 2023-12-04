@@ -35,5 +35,5 @@ struct Movepicker {
     bool capturesOnly;
 };
 
-void InitMP(Movepicker *mp, S_Board* pos, Search_data* sd, Search_stack* ss, int ttMove, int killer0, int killer1, int counter, int threshold, bool capturesOnly);
+void InitMP(Movepicker *mp, S_Board* pos, Search_data* sd, Search_stack* ss, int ttMove, int threshold, bool capturesOnly);
 int NextMove(Movepicker *mp, bool skipQuiets);
