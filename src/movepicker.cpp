@@ -81,6 +81,7 @@ void ScoreQuiets(S_Board* pos, Search_data* sd, Search_stack* ss, S_MOVELIST* mo
 }
 
 int NextMove(Movepicker *mp, bool skipQuiets) {
+    skipQuiets |= mp->capturesOnly;
 top:
     if (mp->stage == PICK_TT) {
         ++mp->stage;
