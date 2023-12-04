@@ -501,6 +501,7 @@ moves_loop:
             std::cout << "the saved killer1 move is: " << FormatMove(mp.killer0) << std::endl;
             std::cout << "the saved killer2 move is: " << FormatMove(mp.killer1) << std::endl;
             std::cout << "the saved counter move is: " << FormatMove(mp.counter) << std::endl;
+            std::cout << "MP stage is : " << mp.stage << std::endl;
             exit(5);
         }
 
