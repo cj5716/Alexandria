@@ -73,6 +73,9 @@ struct S_Undo {
     int enPas = 0;
     int fiftyMove = 0;
     bool checkers = false;
+    Bitboard pinHV = 0ULL;
+    Bitboard pinD = 0ULL;
+    Bitboard checkMask = 0ULL;
     Bitboard occupancies[3];
 }; // stores a move and the state of the game before that move is made
 // for rollback purposes

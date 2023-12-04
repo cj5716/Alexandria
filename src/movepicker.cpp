@@ -24,6 +24,7 @@ void PickMove(S_MOVELIST* moveList, const int moveNum) {
 }
 
 void InitMP(Movepicker *mp, S_Board* pos, Search_data* sd, Search_stack* ss, int ttMove, int threshold, bool capturesOnly) {
+    init(pos, pos->side, KingSQ(pos, pos->side));
     int killer0 = ss->searchKillers[0], 
         killer1 = ss->searchKillers[1], 
         counter = sd->CounterMoves[From((ss - 1)->move)][To((ss - 1)->move)];
