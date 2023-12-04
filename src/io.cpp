@@ -27,7 +27,7 @@ void PrintBitboard(const Bitboard bitboard) {
                 printf("  %d ", 8 - rank);
 
             // print bit state (either 1 or 0)
-            printf(" %d", get_bit(bitboard, 1ULL << square) ? 1 : 0);
+            printf(" %d", get_bit(bitboard, square) ? 1 : 0);
         }
 
         // print new line every rank
@@ -63,7 +63,7 @@ void PrintBoard(const S_Board* pos) {
             // loop over all piece pos->bitboards
             for (int bb_piece = WP; bb_piece <= BK; bb_piece++) {
                 // if there is a piece on current square
-                if (get_bit(pos->bitboards[bb_piece], 1ULL << square))
+                if (get_bit(pos->bitboards[bb_piece], square))
                     // get piece code
                     piece = bb_piece;
             }

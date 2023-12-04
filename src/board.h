@@ -21,7 +21,7 @@
 
 // set/get/pop bit macros
 #define set_bit(bitboard, square) ((bitboard) |= (1ULL << (square)))
-#define get_bit(bitboard, bitboard2) ((bitboard) & (bitboard2))
+#define get_bit(bitboard, square) ((bitboard) & (1ULL << (square)))
 #define pop_bit(bitboard, square) ((bitboard) &= ~(1ULL << (square)))
 #define clr_bit(bitboard) ((bitboard) &= (bitboard - 1))
 
@@ -73,6 +73,7 @@ struct S_Undo {
     int enPas = 0;
     int fiftyMove = 0;
     bool checkers = false;
+    int checks = -1;
     Bitboard pinHV = 0ULL;
     Bitboard pinD = 0ULL;
     Bitboard checkMask = 0ULL;
