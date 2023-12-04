@@ -35,7 +35,7 @@ static inline Bitboard PawnPush(int color, int sq) {
     return (1ULL << (sq + 8));
 }
 
-static inline void init(S_Board* pos, int color, int sq) {
+void init(S_Board* pos, int color, int sq) {
     Bitboard newMask = DoCheckmask(pos, color, sq);
     pos->checkMask = newMask ? newMask : 18446744073709551615ULL;
     DoPinMask(pos, color, sq);
@@ -337,8 +337,6 @@ void GenerateCaptures(S_MOVELIST* move_list, S_Board* pos) {
     // define source & target squares
     int sourceSquare, targetSquare;
 
-    init(pos, pos->side, KingSQ(pos, pos->side));
-
     if (pos->checks < 2) {
         Bitboard pawn_mask = pos->GetPieceColorBB(PAWN, pos->side);
         Bitboard knights_mask = pos->GetPieceColorBB(KNIGHT, pos->side);
@@ -430,8 +428,6 @@ void GenerateQuiets(S_MOVELIST* move_list, S_Board* pos) {
 
     // define source & target squares
     int sourceSquare, targetSquare;
-
-    init(pos, pos->side, KingSQ(pos, pos->side));
 
     if (pos->checks < 2) {
         Bitboard pawn_mask = pos->GetPieceColorBB(PAWN, pos->side);
@@ -569,8 +565,6 @@ void GenerateQuiets(S_MOVELIST* move_list, S_Board* pos) {
 }
 
 bool MoveIsLegal(S_Board* pos, const int move) {
-
-    init(pos, pos->side, KingSQ(pos, pos->side));
 
     if (move == NOMOVE)
         return false;
