@@ -130,8 +130,22 @@ static inline Bitboard LegalPawnCaptures(S_Board* pos, int color, int square) {
 
     Bitboard moves = ((attacks & enemy) | push) & pos->checkMask;
 
-    if ((epBB & attacks) && SquareDistance(square, GetEpSquare(pos)) == 1)
-        moves |= epBB;
+    if (epBB && SquareDistance(square, GetEpSquare(pos)) == 1 &&
+        epBB & attacks) {
+        int ourPawn = GetPiece(PAWN, color);
+        int theirPawn = GetPiece(PAWN, color ^ 1);
+        int kSQ = KingSQ(pos, color);
+        ClearPiece(ourPawn, square, pos);
+        ClearPiece(theirPawn, (GetEpSquare(pos) + offset), pos);
+        AddPiece(ourPawn, GetEpSquare(pos), pos);
+        if (!((GetRookAttacks(kSQ, pos->Occupancy(BOTH)) &
+            (pos->GetPieceColorBB(ROOK, color ^ 1) |
+                pos->GetPieceColorBB(QUEEN, color ^ 1)))))
+            moves |= epBB;
+        AddPiece(ourPawn, square, pos);
+        AddPiece(theirPawn, GetEpSquare(pos) + offset, pos);
+        ClearPiece(ourPawn, GetEpSquare(pos), pos);
+    }
 
     return moves;
 }
@@ -174,8 +188,21 @@ static inline Bitboard LegalPawnMoves(S_Board* pos, int color, int square) {
     Bitboard moves = ((attacks & enemy) | push) & pos->checkMask;
 
     if (GetEpSquare(pos) != no_sq && SquareDistance(square, GetEpSquare(pos)) == 1 &&
-        (1ULL << GetEpSquare(pos)) & attacks)
-        moves |= (1ULL << GetEpSquare(pos));
+        (1ULL << GetEpSquare(pos)) & attacks) {
+        int ourPawn = GetPiece(PAWN, color);
+        int theirPawn = GetPiece(PAWN, color ^ 1);
+        int kSQ = KingSQ(pos, color);
+        ClearPiece(ourPawn, square, pos);
+        ClearPiece(theirPawn, (GetEpSquare(pos) + offset), pos);
+        AddPiece(ourPawn, GetEpSquare(pos), pos);
+        if (!((GetRookAttacks(kSQ, pos->Occupancy(BOTH)) &
+            (pos->GetPieceColorBB(ROOK, color ^ 1) |
+                pos->GetPieceColorBB(QUEEN, color ^ 1)))))
+            moves |= (1ULL << GetEpSquare(pos));
+        AddPiece(ourPawn, square, pos);
+        AddPiece(theirPawn, GetEpSquare(pos) + offset, pos);
+        ClearPiece(ourPawn, GetEpSquare(pos), pos);
+    }
 
     return moves;
 }
