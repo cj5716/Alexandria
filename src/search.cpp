@@ -492,21 +492,7 @@ moves_loop:
     quietMoves.count = 0, noisyMoves.count = 0;
 
     while ((move = NextMove(&mp, SkipQuiets)) != NOMOVE) {
-        // We have to save this data here because MoveExists will reset them to the correct values by calling init
-        int checks_before_reset = pos->checks;
-        Bitboard checkmask_before_reset = pos->checkMask;
-        if (!MoveExists(pos, move)) {
-            PrintBoard(pos);
-            PrintBitboard(checkmask_before_reset);
-            std::cout << "number of checks is: " << checks_before_reset  << std::endl;
-            std::cout << "Move was: " << FormatMove(move)<<std::endl;
-            std::cout << "the saved TT move is: " << FormatMove(mp.ttMove) << std::endl;
-            std::cout << "the saved killer1 move is: " << FormatMove(mp.killer0) << std::endl;
-            std::cout << "the saved killer2 move is: " << FormatMove(mp.killer1) << std::endl;
-            std::cout << "the saved counter move is: " << FormatMove(mp.counter) << std::endl;
-            std::cout << "MP stage is : " << mp.stage << std::endl;
-            exit(5);
-        }
+        assert(MoveExists(pos, move));
 
         if (move == excludedMove)
             continue;
