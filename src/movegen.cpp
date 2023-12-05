@@ -102,7 +102,8 @@ static inline Bitboard LegalPawnMoves(S_Board* pos, int color, int square) {
             (color == WHITE)
             ? (get_rank[square] == 1 ? (push >> 8) & ~pos->Occupancy(BOTH) : 0ULL)
             : (get_rank[square] == 6 ? (push << 8) & ~pos->Occupancy(BOTH) : 0ULL);
-        push &= ~0xFF000000000000FFULL;
+        if constexpr (genQuiet && !genCaptures)
+            push &= ~0xFF000000000000FFULL;
     }
 
     // If we are pinned horizontally we can do no moves but if we are pinned
