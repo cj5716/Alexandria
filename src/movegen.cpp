@@ -81,90 +81,29 @@ static inline void AddPawnMove(const S_Board* pos, const int from, const int to,
     }
 }
 
-static inline Bitboard LegalPawnPushes(S_Board* pos, int color, int square) {
-    if (pos->pinD & (1ULL << square))
-        return NOMOVE;
-
-    // Calculate pawn pushs
-    Bitboard push = PawnPush(color, square) & ~pos->Occupancy(BOTH) & ~0xFF000000000000FFULL;
-
-    push |=
-        (color == WHITE)
-        ? (get_rank[square] == 1 ? (push >> 8) & ~pos->Occupancy(BOTH) : 0ULL)
-        : (get_rank[square] == 6 ? (push << 8) & ~pos->Occupancy(BOTH) : 0ULL);
-
-    // If we are pinned horizontally we can do no moves but if we are pinned
-    // vertically we can only do pawn pushs
-    if (pos->pinHV & (1ULL << square))
-        return push & pos->pinHV & pos->checkMask;
-
-    return push & pos->checkMask;
-}
-
-static inline Bitboard LegalPawnCaptures(S_Board* pos, int color, int square) {
-
-    const Bitboard enemy = pos->Enemy();
-    const Bitboard epBB = GetEpSquare(pos) == no_sq ? 0 : 1ULL << GetEpSquare(pos);
-
-    if (pos->pinD & (1ULL << square))
-        return pawn_attacks[color][square] & pos->pinD & pos->checkMask & (enemy | epBB);
-
-    // Calculate pawn promotions
-    Bitboard push = PawnPush(color, square) & ~pos->Occupancy(BOTH) & 0xFF000000000000FFULL;
-
-    if (pos->pinHV & (1ULL << square))
-        return push & pos->pinHV & pos->checkMask;
-
-    int offset = color * -16 + 8;
-    Bitboard attacks = pawn_attacks[color][square];
-
-    // If we are in check and  the en passant square lies on our attackmask and
-    // the en passant piece gives check return the ep mask as a move square
-    if (    pos->checkMask != 18446744073709551615ULL
-        && (attacks & epBB && pos->checkMask & (1ULL << (GetEpSquare(pos) + offset))))
-        return epBB;
-
-    // If we are in check we can do all moves that are on the checkmask
-    if (pos->checkMask != 18446744073709551615ULL)
-        return ((attacks & enemy) | push) & pos->checkMask;
-
-    Bitboard moves = ((attacks & enemy) | push) & pos->checkMask;
-
-    if (epBB && SquareDistance(square, GetEpSquare(pos)) == 1 &&
-        epBB & attacks) {
-        int ourPawn = GetPiece(PAWN, color);
-        int theirPawn = GetPiece(PAWN, color ^ 1);
-        int kSQ = KingSQ(pos, color);
-        ClearPiece(ourPawn, square, pos);
-        ClearPiece(theirPawn, (GetEpSquare(pos) + offset), pos);
-        AddPiece(ourPawn, GetEpSquare(pos), pos);
-        if (!((GetRookAttacks(kSQ, pos->Occupancy(BOTH)) &
-            (pos->GetPieceColorBB(ROOK, color ^ 1) |
-                pos->GetPieceColorBB(QUEEN, color ^ 1)))))
-            moves |= epBB;
-        AddPiece(ourPawn, square, pos);
-        AddPiece(theirPawn, GetEpSquare(pos) + offset, pos);
-        ClearPiece(ourPawn, GetEpSquare(pos), pos);
-    }
-
-    return moves;
-}
-
+template<bool genQuiet, bool genCaptures>
 static inline Bitboard LegalPawnMoves(S_Board* pos, int color, int square) {
     const Bitboard enemy = pos->Enemy();
+
+    static_assert(genQuiet || genCaptures);
 
     // If we are pinned diagonally we can only do captures which are on the pin_dg
     // and on the checkmask
     if (pos->pinD & (1ULL << square))
-        return pawn_attacks[color][square] & pos->pinD & pos->checkMask & (enemy | (GetEpSquare(pos) != no_sq ? 1ULL << GetEpSquare(pos) : 0));
+        return genCaptures ? pawn_attacks[color][square] & pos->pinD & pos->checkMask & (enemy | (GetEpSquare(pos) != no_sq ? 1ULL << GetEpSquare(pos) : 0))
+                           : 0ULL;
 
     // Calculate pawn pushs
     Bitboard push = PawnPush(color, square) & ~pos->Occupancy(BOTH);
-
-    push |=
-        (color == WHITE)
-        ? (get_rank[square] == 1 ? (push >> 8) & ~pos->Occupancy(BOTH) : 0ULL)
-        : (get_rank[square] == 6 ? (push << 8) & ~pos->Occupancy(BOTH) : 0ULL);
+    if constexpr (genCaptures && !genQuiet)
+        push &= 0xFF000000000000FFULL;
+    else {
+        push |=
+            (color == WHITE)
+            ? (get_rank[square] == 1 ? (push >> 8) & ~pos->Occupancy(BOTH) : 0ULL)
+            : (get_rank[square] == 6 ? (push << 8) & ~pos->Occupancy(BOTH) : 0ULL);
+        push &= ~0xFF000000000000FFULL;
+    }
 
     // If we are pinned horizontally we can do no moves but if we are pinned
     // vertically we can only do pawn pushs
@@ -172,14 +111,14 @@ static inline Bitboard LegalPawnMoves(S_Board* pos, int color, int square) {
         return push & pos->pinHV & pos->checkMask;
 
     int offset = color * -16 + 8;
-    Bitboard attacks = pawn_attacks[color][square];
+    Bitboard attacks = genCaptures ? pawn_attacks[color][square] : 0ULL;
 
     // If we are in check and  the en passant square lies on our attackmask and
     // the en passant piece gives check return the ep mask as a move square
     if (pos->checkMask != 18446744073709551615ULL && GetEpSquare(pos) != no_sq &&
         attacks & (1ULL << GetEpSquare(pos)) &&
         pos->checkMask & (1ULL << (GetEpSquare(pos) + offset)))
-        return 1ULL << GetEpSquare(pos);
+        return genCaptures ? 1ULL << GetEpSquare(pos) : 0ULL;
 
     // If we are in check we can do all moves that are on the checkmask
     if (pos->checkMask != 18446744073709551615ULL)
@@ -187,7 +126,7 @@ static inline Bitboard LegalPawnMoves(S_Board* pos, int color, int square) {
 
     Bitboard moves = ((attacks & enemy) | push) & pos->checkMask;
 
-    if (GetEpSquare(pos) != no_sq && SquareDistance(square, GetEpSquare(pos)) == 1 &&
+    if (genCaptures && GetEpSquare(pos) != no_sq && SquareDistance(square, GetEpSquare(pos)) == 1 &&
         (1ULL << GetEpSquare(pos)) & attacks) {
         int ourPawn = GetPiece(PAWN, color);
         int theirPawn = GetPiece(PAWN, color ^ 1);
@@ -271,7 +210,7 @@ void GenerateMoves(S_MOVELIST* move_list, S_Board* pos) { // init move count
         while (pawns) {
             // init source square
             sourceSquare = GetLsbIndex(pawns);
-            Bitboard moves = LegalPawnMoves(pos, pos->side, sourceSquare);
+            Bitboard moves = LegalPawnMoves<true, true>(pos, pos->side, sourceSquare);
             while (moves) {
                 // init target square
                 targetSquare = GetLsbIndex(moves);
@@ -426,7 +365,7 @@ void GenerateCaptures(S_MOVELIST* move_list, S_Board* pos) {
         while (pawn_mask) {
             // init source square
             sourceSquare = GetLsbIndex(pawn_mask);
-            Bitboard moves = LegalPawnCaptures(pos, pos->side, sourceSquare);
+            Bitboard moves = LegalPawnMoves<false, true>(pos, pos->side, sourceSquare);
 
             while (moves) {
                 // init target square
@@ -518,8 +457,7 @@ void GenerateQuiets(S_MOVELIST* move_list, S_Board* pos) {
         while (pawn_mask) {
             // init source square
             sourceSquare = GetLsbIndex(pawn_mask);
-            Bitboard moves = LegalPawnPushes(pos, pos->side, sourceSquare);
-
+            Bitboard moves = LegalPawnMoves<true, false>(pos, pos->side, sourceSquare);
             while (moves) {
                 // init target square
                 targetSquare = GetLsbIndex(moves);
@@ -691,7 +629,7 @@ bool MoveIsLegal(S_Board* pos, const int move) {
 
     Bitboard legalMoves = 0;
     if (pieceType == PAWN)
-        legalMoves = LegalPawnMoves(pos, pos->side, sourceSquare);
+        legalMoves = LegalPawnMoves<true, true>(pos, pos->side, sourceSquare);
     else if (pieceType == KNIGHT)
         legalMoves = LegalKnightMoves(pos, pos->side, sourceSquare);
     else if (pieceType == BISHOP)
