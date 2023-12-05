@@ -607,10 +607,7 @@ bool MoveIsLegal(S_Board* pos, const int move) {
     if (isPromo(move) && !((1ULL << toSquare) & 0xFF000000000000FFULL))
         return false;
 
-    if (IsCastle(move) && pieceType != KING)
-        return false;
-
-    if (pos->checks >= 2 && pieceType != KING)
+    if ((IsCastle(move) || pos->checks >= 2) && pieceType != KING)
         return false;
 
     if (pieceType == PAWN && (toSquare == GetEpSquare(pos)) != isEnpassant(move))
