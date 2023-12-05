@@ -213,8 +213,6 @@ void DoPinMask(S_Board* pos, int color, int sq) {
     Bitboard rook_mask = (pos->bitboards[(color ^ 1) * 6 + 3] |
         pos->bitboards[0 + (color ^ 1) * 6 + 4]) &
         GetRookAttacks(sq, them);
-    Bitboard rook_pin = 0ULL;
-    Bitboard bishop_pin = 0ULL;
     pos->pinD = 0ULL;
     pos->pinHV = 0ULL;
 
@@ -222,18 +220,16 @@ void DoPinMask(S_Board* pos, int color, int sq) {
         int index = GetLsbIndex(rook_mask);
         Bitboard possible_pin = (SQUARES_BETWEEN_BB[sq][index] | (1ULL << index));
         if (CountBits(possible_pin & pos->occupancies[color]) == 1)
-            rook_pin |= possible_pin;
+            pos->pinHV |= possible_pin;
         pop_bit(rook_mask, index);
     }
     while (bishop_mask) {
         int index = GetLsbIndex(bishop_mask);
         Bitboard possible_pin = (SQUARES_BETWEEN_BB[sq][index] | (1ULL << index));
         if (CountBits(possible_pin & pos->occupancies[color]) == 1)
-            bishop_pin |= possible_pin;
+            pos->pinD |= possible_pin;
         pop_bit(bishop_mask, index);
     }
-    pos->pinHV = rook_pin;
-    pos->pinD = bishop_pin;
 }
 
 // PreCalculate the logarithms used in the reduction calculation
