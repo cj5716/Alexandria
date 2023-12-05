@@ -81,6 +81,26 @@ static inline void AddPawnMove(const S_Board* pos, const int from, const int to,
     }
 }
 
+static inline Bitboard LegalPawnPushes(S_Board* pos, int color, int square) {
+    if (pos->pinD & (1ULL << square))
+        return NOMOVE;
+
+    // Calculate pawn pushs
+    Bitboard push = PawnPush(color, square) & ~pos->Occupancy(BOTH) & ~0xFF000000000000FFULL;
+
+    push |=
+        (color == WHITE)
+        ? (get_rank[square] == 1 ? (push >> 8) & ~pos->Occupancy(BOTH) : 0ULL)
+        : (get_rank[square] == 6 ? (push << 8) & ~pos->Occupancy(BOTH) : 0ULL);
+
+    // If we are pinned horizontally we can do no moves but if we are pinned
+    // vertically we can only do pawn pushs
+    if (pos->pinHV & (1ULL << square))
+        return push & pos->pinHV & pos->checkMask;
+
+    return push & pos->checkMask;
+}
+
 static inline Bitboard LegalPawnMoves(S_Board* pos, int color, int square) {
     const Bitboard enemy = pos->occupancies[color ^ 1];
 
@@ -90,7 +110,7 @@ static inline Bitboard LegalPawnMoves(S_Board* pos, int color, int square) {
     if (pos->pinD & (1ULL << square))
         return pawn_attacks[color][square] & pos->pinD & pos->checkMask & (enemy | (1ULL << GetEpSquare(pos)));
     // Calculate pawn pushs
-    Bitboard push = PawnPush(color, square) & ~pos->occupancies[2];
+    Bitboard push = PawnPush(color, square) & ~pos->Occupancy(BOTH);
 
     push |=
         (color == WHITE)
@@ -445,7 +465,7 @@ void GenerateQuiets(S_MOVELIST* move_list, S_Board* pos) {
         while (pawn_mask) {
             // init source square
             sourceSquare = GetLsbIndex(pawn_mask);
-            Bitboard moves = LegalPawnMoves(pos, pos->side, sourceSquare) & ~(pos->Enemy() | 0xFF000000000000FFULL);
+            Bitboard moves = LegalPawnPushes(pos, pos->side, sourceSquare);
 
             while (moves) {
                 // init target square
