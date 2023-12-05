@@ -135,7 +135,7 @@ static inline Bitboard LegalPawnMoves(S_Board* pos, int color, int square) {
 }
 
 static inline Bitboard LegalKnightMoves(S_Board* pos, int color, int square) {
-    if (pos->pinD & (1ULL << square) || pos->pinHV & (1ULL << square))
+    if ((pos->pinD | pos->pinHV) & (1ULL << square))
         return NOMOVE;
     return knight_attacks[square] & ~pos->Occupancy(color) &
         pos->checkMask;
