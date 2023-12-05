@@ -70,7 +70,7 @@ static inline void AddPawnMove(const S_Board* pos, const int from, const int to,
     else if (!(to - pos->enPas)) movetype = Movetype::enPassant;
     int pc = GetPiece(PAWN, pos->side);
 
-    if ((1ULL << to) & 0xFF000000000000FFULL) { // if the piece is moving from the 7th to the 8th rank
+    if ((1ULL << to) & 0xFF000000000000FFULL) { // if the pawn is moving from the 7th to the 8th rank
         AddMove(encode_move(from, to, pc, (Movetype::queenPromo | movetype)), list);
         AddMove(encode_move(from, to, pc, (Movetype::rookPromo | movetype)), list); // consider every possible piece promotion
         AddMove(encode_move(from, to, pc, (Movetype::bishopPromo | movetype)), list);
