@@ -128,7 +128,7 @@ static inline Bitboard LegalPawnMoves(S_Board* pos, int color, int square) {
     if (pos->checkMask != 18446744073709551615ULL && GetEpSquare(pos) != no_sq &&
         attacks & (1ULL << GetEpSquare(pos)) &&
         pos->checkMask & (1ULL << (GetEpSquare(pos) + offset)))
-        return (attacks & (1ULL << GetEpSquare(pos)));
+        return 1ULL << GetEpSquare(pos);
     // If we are in check we can do all moves that are on the checkmask
     if (pos->checkMask != 18446744073709551615ULL)
         return ((attacks & enemy) | push) & pos->checkMask;
