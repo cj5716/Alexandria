@@ -630,7 +630,8 @@ bool MoveIsLegal(S_Board* pos, const int move) {
 
     Bitboard legalMoves = 0;
     if (pieceType == PAWN)
-        legalMoves = LegalPawnMoves<true, true>(pos, pos->side, sourceSquare);
+        legalMoves = IsQuiet(move) ? LegalPawnMoves<true, false>(pos, pos->side, sourceSquare)
+                                   : LegalPawnMoves<false, true>(pos, pos->side, sourceSquare);
     else if (pieceType == KNIGHT)
         legalMoves = LegalKnightMoves(pos, pos->side, sourceSquare);
     else if (pieceType == BISHOP)
