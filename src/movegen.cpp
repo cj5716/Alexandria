@@ -278,7 +278,7 @@ void GenerateMoves(S_MOVELIST* move_list, S_Board* pos) { // init move count
                 AddPawnMove(pos, sourceSquare, targetSquare, move_list);
                 pop_bit(moves, targetSquare);
             }
-            // pop ls1b from piece bitboard copy
+            // pop lsb from piece bitboard copy
             pop_bit(pawns, sourceSquare);
         }
 
@@ -691,7 +691,8 @@ bool MoveIsLegal(S_Board* pos, const int move) {
 
     Bitboard legalMoves = 0;
     if (pieceType == PAWN)
-        legalMoves = LegalPawnMoves(pos, pos->side, sourceSquare);
+        legalMoves = IsQuiet(move) ? LegalPawnPushes(pos, pos->side, sourceSquare)
+                                   : LegalPawnCaptures(pos, pos->side, sourceSquare);
     else if (pieceType == KNIGHT)
         legalMoves = LegalKnightMoves(pos, pos->side, sourceSquare);
     else if (pieceType == BISHOP)
