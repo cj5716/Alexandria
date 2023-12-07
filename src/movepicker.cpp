@@ -194,7 +194,6 @@ top:
     }
     else if (mp->stage == PICK_BAD_CAPTURES) {
         while (mp->idx < mp->badCaptures->count) {
-            PickMove(mp->badCaptures, mp->idx);
             int move = mp->badCaptures->moves[mp->idx].move;
             ++mp->idx;
             if (move != mp->ttMove)
