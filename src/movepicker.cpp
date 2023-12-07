@@ -23,23 +23,24 @@ void PickMove(S_MOVELIST* moveList, const int moveNum) {
     moveList->moves[bestNum] = temp;
 }
 
-void InitMP(Movepicker *mp, S_Board* pos, Search_data* sd, Search_stack* ss, int ttMove, int threshold, bool capturesOnly) {
-    init(pos, pos->side, KingSQ(pos, pos->side));
+void InitMP(Movepicker *mp, S_Board* pos, Search_data* sd, Search_stack* ss, int ttMove, int threshold, bool capturesOnly, bool inCheck) {
+
+    init(pos, pos->side, KingSQ(pos, pos->side), inCheck);
     int killer0 = ss->searchKillers[0], 
         killer1 = ss->searchKillers[1], 
         counter = sd->CounterMoves[From((ss - 1)->move)][To((ss - 1)->move)];
-
     mp->pos = pos;
     mp->sd = sd;
     mp->ss = ss;
-    mp->ttMove = (!capturesOnly || !IsQuiet(ttMove)) && MoveIsLegal(pos, ttMove) ? ttMove : NOMOVE;
+    mp->capturesOnly = capturesOnly && !inCheck;
+    mp->inCheck = inCheck;
+    mp->ttMove = (!mp->capturesOnly || !IsQuiet(ttMove)) && MoveIsLegal(pos, ttMove) ? ttMove : NOMOVE;
     mp->killer0 = (killer0 == mp->ttMove || !IsQuiet(killer0)) ? NOMOVE : killer0;
     mp->killer1 = (killer1 == mp->ttMove || !IsQuiet(killer1)) ? NOMOVE : killer1;
     mp->counter = (counter == mp->ttMove || counter == mp->killer0 || counter == mp->killer1 || !IsQuiet(counter)) ? NOMOVE : counter;
     mp->threshold = threshold;
     mp->idx = 0;
     mp->stage = mp->ttMove ? PICK_TT : GEN_CAPTURES;
-    mp->capturesOnly = capturesOnly;
     std::memset(mp->goodCaptures, 0, sizeof(mp->goodCaptures));
     std::memset(mp->quiets, 0, sizeof(mp->quiets));
     std::memset(mp->badCaptures, 0, sizeof(mp->badCaptures));
