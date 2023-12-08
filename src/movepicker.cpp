@@ -40,165 +40,110 @@ void InitMP(Movepicker *mp, S_Board* pos, Search_data* sd, Search_stack* ss, int
     mp->counter = (counter == mp->ttMove || counter == mp->killer0 || counter == mp->killer1 || !IsQuiet(counter)) ? NOMOVE : counter;
     mp->threshold = threshold;
     mp->idx = 0;
-    mp->stage = mp->ttMove ? PICK_TT : GEN_CAPTURES;
-    std::memset(mp->goodCaptures, 0, sizeof(mp->goodCaptures));
-    std::memset(mp->quiets, 0, sizeof(mp->quiets));
-    std::memset(mp->badCaptures, 0, sizeof(mp->badCaptures));
+    mp->stage = mp->ttMove ? PICK_TT : GEN_MOVES;
+    std::memset(mp->moveList, 0, sizeof(mp->moveList));
 }
 
-void ScoreCaptures(S_Board* pos, Search_data* sd, S_MOVELIST* move_list) {
+// ScoreMoves takes a list of move as an argument and assigns a score to each move
+static inline void ScoreMoves(Movepicker* mp) {
+    S_Board* pos = mp->pos;
+    Search_data* sd = mp->sd;
+    Search_stack* ss = mp->ss;
+    S_MOVELIST* moveList = mp->moveList;
     // Loop through all the move in the movelist
-    for (int i = 0; i < move_list->count; i++) {
-        int move = move_list->moves[i].move;
+    for (int i = 0; i < moveList->count; i++) {
+        int move = moveList->moves[i].move;
+        // Sort promotions based on the promoted piece type
         if (isPromo(move)) {
             switch (getPromotedPiecetype(move)) {
             case QUEEN:
-                move_list->moves[i].score = queenPromotionScore;
+                moveList->moves[i].score = queenPromotionScore;
                 break;
             case KNIGHT:
-                move_list->moves[i].score = knightPromotionScore;
+                moveList->moves[i].score = knightPromotionScore;
                 break;
             case ROOK:
-                move_list->moves[i].score = badPromotionScore;
+                moveList->moves[i].score = badPromotionScore;
                 break;
             case BISHOP:
-                move_list->moves[i].score = badPromotionScore;
+                moveList->moves[i].score = badPromotionScore;
                 break;
             default:
                 break;
             }
         }
-        // Capture
+        else if (mp->capturesOnly || IsCapture(move)) {
+            // Good captures get played before any move that isn't a promotion or a TT move
+            if (SEE(pos, move, mp->threshold)) {
+                int captured_piece = isEnpassant(move) ? PAWN : GetPieceType(pos->PieceOn(To(move)));
+                // Sort by most valuable victim and capthist, with LVA as tiebreaks
+                moveList->moves[i].score = mvv_lva[GetPieceType(Piece(move))][captured_piece] + GetCapthistScore(pos, sd, move) + goodCaptureScore;
+            }
+            // Bad captures are always played last, no matter how bad the history score of a move is, it will never be played after a bad capture
+            else {
+                int captured_piece = isEnpassant(move) ? PAWN : GetPieceType(pos->PieceOn(To(move)));
+                // Sort by most valuable victim and capthist, with LVA as tiebreaks
+                moveList->moves[i].score = badCaptureScore + mvv_lva[GetPieceType(Piece(move))][captured_piece] + GetCapthistScore(pos, sd, move);
+            }
+            continue;
+        }
+        // First killer move always comes after the TT move,the promotions and the good captures and before anything else
+        else if (move == mp->killer0) {
+            moveList->moves[i].score = killerMoveScore0;
+            continue;
+        }
+        // Second killer move always comes after the first one
+        else if (move == mp->killer1) {
+            moveList->moves[i].score = killerMoveScore1;
+            continue;
+        }
+        // After the killer moves try the Counter moves
+        else if (move == mp->counter) {
+            moveList->moves[i].score = counterMoveScore;
+            continue;
+        }
+        // if the move isn't in any of the previous categories score it according to the history heuristic
         else {
-            int captured_piece = isEnpassant(move) ? PAWN : GetPieceType(pos->PieceOn(To(move)));
-            // Sort by most valuable victim and capthist, with LVA as tiebreaks
-            move_list->moves[i].score = mvv_lva[GetPieceType(Piece(move))][captured_piece] + GetCapthistScore(pos, sd, move);
+            moveList->moves[i].score = GetHistoryScore(pos, sd, move, ss);
             continue;
         }
     }
 }
 
-void ScoreQuiets(S_Board* pos, Search_data* sd, Search_stack* ss, S_MOVELIST* move_list) {
-    // Loop through all the move in the movelist
-    for (int i = 0; i < move_list->count; i++) {
-        int move = move_list->moves[i].move;
-        move_list->moves[i].score = GetHistoryScore(pos, sd, move, ss);
-    }
-}
-
-int NextMove(Movepicker *mp, bool skipQuiets) {
-    skipQuiets |= mp->capturesOnly;
+int NextMove(Movepicker *mp, bool skipQuiets, bool skipNonGood) {
 top:
     if (mp->stage == PICK_TT) {
         ++mp->stage;
         mp->idx = 0;
         return mp->ttMove;
     }
-    else if (mp->stage == GEN_CAPTURES) {
-        GenerateCaptures(mp->goodCaptures, mp->pos);
-        ScoreCaptures(mp->pos, mp->sd, mp->goodCaptures);
+    else if (mp->stage == GEN_MOVES) {
+        if (mp->capturesOnly)
+            GenerateCaptures(mp->moveList, mp->pos);
+        else
+            GenerateMoves(mp->moveList, mp->pos, false);
+        ScoreMoves(mp);
         ++mp->stage;
         mp->idx = 0;
         goto top;
     }
-    else if (mp->stage == PICK_GOOD_CAPTURES) {
-        while (mp->idx < mp->goodCaptures->count) {
-            PickMove(mp->goodCaptures, mp->idx);
-            int move = mp->goodCaptures->moves[mp->idx].move;
-            int moveScore = mp->goodCaptures->moves[mp->idx].score;
+    else if (mp->stage == PICK_MOVES) {
+        while (mp->idx < mp->moveList->count) {
+            PickMove(mp->moveList, mp->idx);
+            int move = mp->moveList->moves[mp->idx].move;
+            int moveScore = mp->moveList->moves[mp->idx].score;
             ++mp->idx;
 
             if (move == mp->ttMove)
                 continue;
 
-            if (SEE(mp->pos, move, mp->threshold) && moveScore != badPromotionScore)
-                return move;
-            else
-                AddMove(mp->badCaptures, move, moveScore);
-        }
-        ++mp->stage;
-        mp->idx = 0;
-        goto top;
-    }
-    else if (mp->stage == PICK_KILLER_0) {
-        if (skipQuiets) {
-            mp->stage = PICK_BAD_CAPTURES;
-            mp->idx = 0;
-            goto top;
-        }
-        ++mp->stage;
-        if (MoveIsLegal(mp->pos, mp->killer0))
-            return mp->killer0;
-        else {
-            mp->idx = 0;
-            goto top;
-        }
-    }
-    else if (mp->stage == PICK_KILLER_1) {
-        if (skipQuiets) {
-            mp->idx = 0;
-            mp->stage = PICK_BAD_CAPTURES;
-            goto top;
-        }
-        ++mp->stage;
-        if (MoveIsLegal(mp->pos, mp->killer1))
-            return mp->killer1;
-        else {
-            mp->idx = 0;
-            goto top;
-        }
-    }
-    else if (mp->stage == PICK_COUNTER) {
-        if (skipQuiets) {
-            mp->idx = 0;
-            mp->stage = PICK_BAD_CAPTURES;
-            goto top;
-        }
-        ++mp->stage;
-        if (MoveIsLegal(mp->pos, mp->counter))
-            return mp->counter;
-        else {
-            mp->idx = 0;
-            goto top;
-        }
-    }
-    else if (mp->stage == GEN_QUIET) {
-        if (skipQuiets) {
-            mp->stage = PICK_BAD_CAPTURES;
-            mp->idx = 0;
-            goto top;
-        }
-        GenerateQuiets(mp->quiets, mp->pos);
-        ScoreQuiets(mp->pos, mp->sd, mp->ss, mp->quiets);
-        ++mp->stage;
-        goto top;
-    }
-    else if (mp->stage == PICK_QUIET) {
-        if (skipQuiets) {
-            mp->stage = PICK_BAD_CAPTURES;
-            mp->idx = 0;
-            goto top;
-        }
-        while (mp->idx < mp->quiets->count) {
-            PickMove(mp->quiets, mp->idx);
-            int move = mp->quiets->moves[mp->idx].move;
-            ++mp->idx;
-            if (   move != mp->ttMove 
-                && move != mp->killer0
-                && move != mp->killer1
-                && move != mp->counter)
-                return move;
-        }
-        ++mp->stage;
-        mp->idx = 0;
-        goto top;
-    }
-    else if (mp->stage == PICK_BAD_CAPTURES) {
-        while (mp->idx < mp->badCaptures->count) {
-            int move = mp->badCaptures->moves[mp->idx].move;
-            ++mp->idx;
-            if (move != mp->ttMove)
-                return move;
+            if (skipQuiets && IsQuiet(move))
+                continue;
+
+            if (moveScore < goodCaptureScore && skipNonGood)
+                return NOMOVE;
+
+            return move;
         }
     }
     return NOMOVE;

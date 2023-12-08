@@ -491,7 +491,7 @@ moves_loop:
     S_MOVELIST quietMoves, noisyMoves;
     quietMoves.count = 0, noisyMoves.count = 0;
 
-    while ((move = NextMove(&mp, SkipQuiets)) != NOMOVE) {
+    while ((move = NextMove(&mp, SkipQuiets, false)) != NOMOVE) {
         assert(MoveExists(pos, move));
 
         if (move == excludedMove)
@@ -796,13 +796,8 @@ int Quiescence(int alpha, int beta, S_ThreadData* td, Search_stack* ss) {
     int bestmove = NOMOVE;
 
     // loop over moves within the movelist
-    while ((move = NextMove(&mp, bestScore > -mate_found)) != NOMOVE) {
+    while ((move = NextMove(&mp, false, bestScore > -mate_found)) != NOMOVE) {
         assert(MoveExists(pos, move));
-        // See pruning
-        if (   mp.stage > PICK_GOOD_CAPTURES
-            && bestScore > -mate_found) {
-            break;
-        }
         ss->move = move;
 
         // Futility pruning. If static eval is far below alpha, only search moves that win material.

@@ -13,7 +13,7 @@ struct S_MOVELIST;
 void init(S_Board* pos, int color, int sq);
 
 // Generate all moves
-void GenerateMoves(S_MOVELIST* move_list, S_Board* pos);
+void GenerateMoves(S_MOVELIST* move_list, S_Board* pos, bool doInit = true);
 
 // Generate all captures
 void GenerateCaptures(S_MOVELIST* move_list, S_Board* pos);
