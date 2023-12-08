@@ -10,7 +10,7 @@ struct S_MOVELIST;
 [[nodiscard]] bool MoveExists(S_Board* pos, const int move);
 
 // Init checkmasks and pinmasks
-void init(S_Board* pos, int color, int sq, bool inCheck = true);
+void init(S_Board* pos, int color, int sq);
 
 // Generate all moves
 void GenerateMoves(S_MOVELIST* move_list, S_Board* pos);

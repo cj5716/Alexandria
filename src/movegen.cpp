@@ -35,17 +35,9 @@ static inline Bitboard PawnPush(int color, int sq) {
     return (1ULL << (sq + 8));
 }
 
-void init(S_Board* pos, int color, int sq, bool inCheck) {
-    if (!inCheck)
-    {
-        pos->checkMask = 18446744073709551615ULL;
-        pos->checks = 0;
-    }
-    else
-    {
-        Bitboard newMask = DoCheckmask(pos, color, sq);
-        pos->checkMask = newMask ? newMask : 18446744073709551615ULL;
-    }
+void init(S_Board* pos, int color, int sq) {
+    Bitboard newMask = DoCheckmask(pos, color, sq);
+    pos->checkMask = newMask ? newMask : 18446744073709551615ULL;
     DoPinMask(pos, color, sq);
 }
 // Check for move legality by generating the list of legal moves in a position and checking if that move is present
