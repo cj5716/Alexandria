@@ -683,7 +683,7 @@ moves_loop:
                 depthReduction += 2 * cutNode;
 
                 // Decrease the reduction for moves that have a good history score and increase it for moves with a bad score
-                depthReduction -= std::clamp(moveHistory / 16384, -2, 2);
+                depthReduction -= std::clamp(moveHistory / 8192, -2, 2);
 
                 // Decrease the reduction for moves that give check
                 if (pos->checkers)
@@ -695,7 +695,7 @@ moves_loop:
                 depthReduction = reductions[false][depth][movesSearched];
 
                 // Decrease the reduction for moves that have a good history score and increase it for moves with a bad score
-                depthReduction -= std::clamp(moveHistory / 16384, -2, 2);
+                depthReduction -= std::clamp(moveHistory / 8192, -2, 2);
 
                 // Decrease the reduction for moves that give check
                 if (pos->checkers)
@@ -719,7 +719,7 @@ moves_loop:
             if (depthReduction)
             {
                 // define the conthist bonus
-                int bonus = std::min(16 * (depth + 1) * (depth + 1), 1200);
+                int bonus = std::min(8 * (depth + 1) * (depth + 1), 600);
                 updateCHScore(sd, ss, move, score > alpha ? bonus : -bonus);
             }
         }

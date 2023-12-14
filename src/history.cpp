@@ -11,16 +11,16 @@ GetScore: this is simply a getter for a specific entry of the history table
 */
 
 void updateHHScore(const S_Board* pos, Search_data* sd, int move, int bonus) {
-    // Scale bonus to fix it in a [-32768;32768] range
-    const int scaledBonus = bonus - GetHHScore(pos, sd, move) * std::abs(bonus) / 32768;
+    // Scale bonus to fix it in a [-16384;16384] range
+    const int scaledBonus = bonus - GetHHScore(pos, sd, move) * std::abs(bonus) / 16384;
     // Update move score
     sd->searchHistory[pos->side][From(move)]
         [To(move)] += scaledBonus;
 }
 
 void updateCHScore(Search_data* sd, const Search_stack* ss, const int move, const int bonus) {
-    // Scale bonus to fix it in a [-32768;32768] range
-    const int scaledBonus = bonus - GetCHScore(sd, ss, move) * std::abs(bonus) / 32768;
+    // Scale bonus to fix it in a [-16384;16384] range
+    const int scaledBonus = bonus - GetCHScore(sd, ss, move) * std::abs(bonus) / 16384;
     // Update move score
     if (ss->ply > 0) {
         sd->cont_hist[Piece((ss - 1)->move)][To((ss - 1)->move)]
@@ -39,8 +39,8 @@ void updateCHScore(Search_data* sd, const Search_stack* ss, const int move, cons
 }
 
 void updateCapthistScore(const S_Board* pos, Search_data* sd, int move, int bonus) {
-    // Scale bonus to fix it in a [-32768;32768] range
-    const int scaledBonus = bonus - GetCapthistScore(pos, sd, move) * std::abs(bonus) / 32768;
+    // Scale bonus to fix it in a [-16384;16384] range
+    const int scaledBonus = bonus - GetCapthistScore(pos, sd, move) * std::abs(bonus) / 16384;
     int capturedPiece = isEnpassant(move) ? PAWN : GetPieceType(pos->PieceOn(To(move)));
     // If we captured an empty piece this means the move is a promotion, we can pretend we captured a pawn to use a slot of the table that would've otherwise went unused (you can't capture pawns on the 1st/8th rank)
     if (capturedPiece == EMPTY) capturedPiece = PAWN;
@@ -51,7 +51,7 @@ void updateCapthistScore(const S_Board* pos, Search_data* sd, int move, int bonu
 // Update all histories
 void UpdateHistories(const S_Board* pos, Search_data* sd, Search_stack* ss, const int depth, const int bestmove, const S_MOVELIST* quiet_moves, const S_MOVELIST* noisy_moves) {
     // define the history bonus
-    const int bonus = std::min(16 * (depth + 1) * (depth + 1), 1200);
+    const int bonus = std::min(8 * (depth + 1) * (depth + 1), 600);
     if (IsQuiet(bestmove))
     {
         // increase bestmove HH and CH score
