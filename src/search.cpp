@@ -591,7 +591,7 @@ moves_loop:
             }
 
             // lmrDepth is the current depth minus the reduction the move would undergo in lmr, this is helpful because it helps us discriminate the bad moves with more accuracy
-            int lmrDepth = std::max(0, depth - reductions[isQuiet][depth][movesSearched]);
+            int lmrDepth = std::clamp(depth - reductions[isQuiet][depth][movesSearched] + std::clamp(moveHistory / 16384, -2, 2), 0, depth);
 
             // Futility pruning: if the static eval is so low that even after adding a bonus we are still under alpha we can stop trying quiet moves
             if (   !inCheck
