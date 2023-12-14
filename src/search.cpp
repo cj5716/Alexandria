@@ -101,10 +101,13 @@ bool SEE(const S_Board* pos, const int move, const int threshold) {
     if (isPromo(move))
         return true;
 
+    if (IsCastle(move))
+        return threshold <= 0;
+
     int to = To(move);
     int from = From(move);
 
-    int target = pos->PieceOn(to);
+    int target = isEnpassant(move) ? PAWN : pos->PieceOn(to);
     // Making the move and not losing it must beat the threshold
     int value = PieceValue[target] - threshold;
 
@@ -119,7 +122,7 @@ bool SEE(const S_Board* pos, const int move, const int threshold) {
         return true;
 
     // It doesn't matter if the to square is occupied or not
-    Bitboard occupied = pos->Occupancy(BOTH) ^ (1ULL << from) ^ (1ULL << to);
+    Bitboard occupied = pos->Occupancy(BOTH) ^ (1ULL << from) ^ (1ULL << (isEnpassant(move) ? GetEpSquare(pos) : to));
     Bitboard attackers = AttacksTo(pos, to, occupied);
 
     Bitboard bishops = GetPieceBB(pos, BISHOP) | GetPieceBB(pos, QUEEN);
