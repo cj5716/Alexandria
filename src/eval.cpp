@@ -23,15 +23,12 @@ bool MaterialDraw(const S_Board* pos) {
     return false;
 }
 
-static inline float MaterialScale(const S_Board* pos) {
-    return 700 + GetMaterialValue(pos) / 32;
-}
-
 // position evaluation
 int EvalPosition(const S_Board* pos) {
     bool stm = (pos->side == WHITE);
     int eval = nnue.output(pos->accumulator, stm);
-    eval = (eval * MaterialScale(pos)) / 1024;
+    int phase = GetGamePhase(pos);
+    eval = (phase * eval + (24 - phase) * eval * 700 / 1024) / 24;
     eval = eval * (200 - pos->Get50mrCounter()) / 200;
     // Clamp eval to avoid it somehow being a mate score
     eval = std::clamp(eval, -mate_score + 1, mate_score - 1);
