@@ -676,8 +676,8 @@ moves_loop:
                 // Reduce more if we aren't improving
                 depthReduction += !improving;
 
-                // Reduce more if we aren't in a pv node
-                depthReduction += !ttPv;
+                // Reduce more if we are in an expected ALL node that hasn't been on the PV
+                depthReduction += !ttPv && !cutNode;
 
                 // Fuck
                 depthReduction += 2 * cutNode;
