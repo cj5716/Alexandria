@@ -676,7 +676,7 @@ moves_loop:
             depthReduction += !ttPv && !cutNode;
 
             // Fuck
-            depthReduction += cutNode;
+            depthReduction += 2 * cutNode;
 
             // Reduce less if we are improving
             depthReduction -= improving;
