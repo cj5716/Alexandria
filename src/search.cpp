@@ -681,8 +681,8 @@ moves_loop:
             // Get base reduction value
             depthReduction = reductions[isQuiet][depth][movesSearched];
 
-            // Reduce more if we aren't in a pv node
-            depthReduction += !ttPv;
+            // Reduce more if the position hasn't been on the PV and we are on an expected ALL node or we have a ttHit
+            depthReduction += !ttPv && (ttHit || !cutNode);
 
             // Fuck
             depthReduction += 2 * cutNode;
