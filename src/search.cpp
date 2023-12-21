@@ -16,6 +16,7 @@
 #include <iostream>
 #include <algorithm>
 
+
 // Returns true if the position is a 2-fold repetition, false otherwise
 static bool IsRepetition(const S_Board* pos, const bool pvNode) {
     assert(pos->hisPly >= pos->fiftyMove);
