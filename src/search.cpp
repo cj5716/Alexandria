@@ -681,14 +681,15 @@ moves_loop:
             // Get base reduction value
             depthReduction = reductions[isQuiet][depth][movesSearched];
 
-            // Reduce more if we aren't in a pv node
-            depthReduction += !ttPv;
+            // Reduce less if we have been on the PV, and even less on cutNodes.
+            if (ttPv)
+                depthReduction -= 1 + cutNode;
 
             // Fuck
             depthReduction += 2 * cutNode;
 
-            // Reduce less if we are improving
-            depthReduction -= improving;
+            // Reduce more if we are not improving
+            depthReduction += !improving;
 
             // Decrease the reduction for moves that have a good history score and increase it for moves with a bad score
             depthReduction -= std::clamp(moveHistory / 16384, -2, 2);
