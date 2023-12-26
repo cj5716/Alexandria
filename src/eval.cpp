@@ -29,7 +29,7 @@ int EvalPosition(const S_Board* pos) {
     int eval = nnue.output(pos->accumulator, stm);
     int phase = GetGamePhase(pos);
     constexpr double mg = 0.9;
-    constexpr double eg = 0.65;
+    constexpr double eg = 0.75;
     eval = (phase * eval * mg + (24 - phase) * eval * eg) / 24;
     eval = eval * (200 - pos->Get50mrCounter()) / 200;
     // Clamp eval to avoid it somehow being a mate score
