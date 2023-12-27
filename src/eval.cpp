@@ -28,9 +28,9 @@ int EvalPosition(const S_Board* pos) {
     bool stm = (pos->side == WHITE);
     int eval = nnue.output(pos->accumulator, stm);
     int phase = GetGamePhase(pos);
-    constexpr double mg = 0.9;
-    constexpr double eg = 0.75;
-    eval = (phase * eval * mg + (24 - phase) * eval * eg) / 24;
+    constexpr int mg = 90;
+    constexpr int eg = 75;
+    eval = (phase * eval * mg + (24 - phase) * eval * eg) / 2400;
     eval = eval * (200 - pos->Get50mrCounter()) / 200;
     // Clamp eval to avoid it somehow being a mate score
     eval = std::clamp(eval, -mate_score + 1, mate_score - 1);
