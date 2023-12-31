@@ -612,6 +612,9 @@ moves_loop:
             // Reduce less if we are improving
             depthReduction -= improving;
 
+            // Reduce less if we are at root
+            depthReduction -= rootNode;
+
             // Decrease the reduction for moves that have a good history score and increase it for moves with a bad score
             depthReduction -= std::clamp(moveHistory / 16384, -2, 2);
 
