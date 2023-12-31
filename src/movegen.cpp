@@ -41,6 +41,7 @@ static inline void init(S_Board* pos, int color, int sq) {
     Bitboard newMask = DoCheckmask(pos, color, sq);
     pos->checkMask = newMask ? newMask : 18446744073709551615ULL;
     DoPinMask(pos, color, sq);
+    pos->checkers = pos->checks > 0;
 }
 // Check for move legality by generating the list of legal moves in a position and checking if that move is present
 int MoveExists(S_Board* pos, const int move) {
@@ -418,9 +419,19 @@ bool IsLegal(S_Board* pos, const int move) {
     if (GetPieceType(Piece(move)) == KING)
         return !IsSquareAttacked(pos, pos->Occupancy(BOTH) ^ (1ULL << from), to, pos->side ^ 1);
 
+    if (pos->checks >= 2)
+        return false;
+
     Bitboard pins = pos->pinHV | pos->pinD;
-    return !(pins & (1ULL << from)) || (get_file[from] == get_file[ksq] && get_file[to] == get_file[ksq]) 
-                                    || (get_rank[from] == get_rank[ksq] && get_rank[to] == get_rank[ksq])
-                                    || (get_diagonal[from] == get_diagonal[ksq] && get_diagonal[to] == get_diagonal[ksq])
-                                    || (get_antidiagonal(from) == get_antidiagonal(ksq) && get_antidiagonal(to) == get_antidiagonal(ksq));
+
+    if ((pins & (1ULL << from))) {
+        return (   (get_file[from] == get_file[ksq] && get_file[to] == get_file[ksq]) 
+                || (get_rank[from] == get_rank[ksq] && get_rank[to] == get_rank[ksq])
+                || (get_diagonal[from] == get_diagonal[ksq] && get_diagonal[to] == get_diagonal[ksq])
+                || (get_antidiagonal(from) == get_antidiagonal(ksq) && get_antidiagonal(to) == get_antidiagonal(ksq))
+               ) && !pos->checkers;
+    }
+    int checkSq = GetLsbIndex(pos->checkMask);
+    return    !pos->checkers 
+           || ((1ULL << to) & (pos->checkMask | SQUARES_BETWEEN_BB[ksq][checkSq]));
 }
