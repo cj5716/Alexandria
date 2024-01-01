@@ -20,19 +20,19 @@
 static bool IsRepetition(const S_Board* pos, const bool pvNode) {
     assert(pos->hisPly >= pos->fiftyMove);
     int counter = 1;
-
-    // we only need to check for repetition the moves since the last 50mr reset
-    for (int index = std::max(static_cast<int>(pos->played_positions.size()) - pos->Get50mrCounter(), 0);
-        index < static_cast<int>(pos->played_positions.size()); index++)
-
+    // How many moves back should we look at most, aka our distance to the last irreversible move
+    int distance = std::min(pos->Get50mrCounter(), pos->plyFromNull);
+    // Get the point our search should start from
+    int startingPoint = pos->played_positions.size();
+    // Scan backwards from the first position where a repetition is possible (4 half moves ago) for at most distance steps
+    for (int index = 4; index <= distance; index += 2)
         // if we found the same position hashkey as the current position
-        if (pos->played_positions[index] == pos->posKey) {
+        if (pos->played_positions[startingPoint - index] == pos->posKey) {
             // we found a repetition
             counter++;
             if (counter >= 2 + pvNode)
                 return true;
         }
-
     return false;
 }
 
@@ -506,15 +506,12 @@ moves_loop:
             continue;
 
         totalMoves++;
-        ss->move = move;
 
         const bool isQuiet = IsQuiet(move);
 
         if (isQuiet && SkipQuiets)
             continue;
-
         const int moveHistory = GetHistoryScore(pos, sd, move, ss);
-
         if (   !rootNode
             &&  BoardHasNonPawns(pos, pos->side)
             &&  bestScore > -mate_found) {
@@ -580,13 +577,9 @@ moves_loop:
                 else if (ttScore >= beta)
                     extension = -2;
             }
-            // Check extension
-            else if (inCheck)
-                extension = 1;
         }
         // we adjust the search depth based on potential extensions
         int newDepth = depth - 1 + extension;
-        int depthReduction = 0;
         ss->move = move;
         // Play the move
         MakeMove(move, pos);
@@ -603,6 +596,7 @@ moves_loop:
         info->nodes++;
         uint64_t nodesBeforeSearch = info->nodes;
         bool doFullSearch = false;
+        int depthReduction = 0;
         // Conditions to consider LMR. Calculate how much we should reduce the search depth.
         if (movesSearched >= 2 + 2 * pvNode && depth >= 3 && (isQuiet || !ttPv)) {
 
@@ -704,13 +698,13 @@ moves_loop:
         }
     }
 
-    // We don't have any legal moves to make in the current postion. If we are in singular search, return alpha.
+    // We don't have any legal moves to make in the current postion. If we are in singular search, return -infinite.
     // Otherwise, if the king is in check, return a mate score, assuming closest distance to mating position.
     // If we are in neither of these 2 cases, it is stalemate.
-    if (totalMoves == 0 && !excludedMove) {
-        return excludedMove ? alpha
-            : inCheck ? -mate_score + ss->ply
-            : 0;
+    if (totalMoves == 0) {
+        return excludedMove ? -MAXSCORE
+             :      inCheck ? -mate_score + ss->ply
+                            : 0;
     }
     // Set the TT flag based on whether the bestScore is better than beta and if it's not based on if we changed alpha or not
     int flag = bestScore >= beta ? HFLOWER : alpha != old_alpha ? HFEXACT : HFUPPER;

@@ -23,7 +23,7 @@
 #define set_bit(bitboard, square) ((bitboard) |= (1ULL << (square)))
 #define get_bit(bitboard, square) ((bitboard) & (1ULL << (square)))
 #define pop_bit(bitboard, square) ((bitboard) &= ~(1ULL << (square)))
-#define clr_bit(bitboard) ((bitboard) &= (bitboard - 1))
+#define pop_lsb(bitboard) ((bitboard) &= (bitboard - 1))
 
 #define get_antidiagonal(sq) (get_rank[sq] + get_file[sq])
 
@@ -31,13 +31,13 @@
 
 // Lookup to get the rank of a square
 constexpr int get_rank[64] = { 7, 7, 7, 7, 7, 7, 7, 7,
-                          6, 6, 6, 6, 6, 6, 6, 6,
-                          5, 5, 5, 5, 5, 5, 5, 5,
-                          4, 4, 4, 4, 4, 4, 4, 4,
-                          3, 3, 3, 3, 3, 3, 3, 3,
-                          2, 2, 2, 2, 2, 2, 2, 2,
-                          1, 1, 1, 1, 1, 1, 1, 1,
-                          0, 0, 0, 0, 0, 0, 0, 0 };
+                               6, 6, 6, 6, 6, 6, 6, 6,
+                               5, 5, 5, 5, 5, 5, 5, 5,
+                               4, 4, 4, 4, 4, 4, 4, 4,
+                               3, 3, 3, 3, 3, 3, 3, 3,
+                               2, 2, 2, 2, 2, 2, 2, 2,
+                               1, 1, 1, 1, 1, 1, 1, 1,
+                               0, 0, 0, 0, 0, 0, 0, 0 };
 
 // extract rank from a square [square]
 constexpr int get_file[64] = { 0, 1, 2, 3, 4, 5, 6, 7,
@@ -50,18 +50,21 @@ constexpr int get_file[64] = { 0, 1, 2, 3, 4, 5, 6, 7,
                                0, 1, 2, 3, 4, 5, 6, 7 };
 
 // extract diagonal from a square [square]
-constexpr int get_diagonal[Board_sq_num] = { 14, 13, 12, 11, 10, 9,  8,  7, 13, 12, 11, 10, 9,
-                                              8,  7,  6,  12, 11, 10, 9,  8, 7,  6,  5,  11, 10,
-                                              9,  8,  7,  6,  5,  4,  10, 9, 8,  7,  6,  5,  4,
-                                              3,  9,  8,  7,  6,  5,  4,  3, 2,  8,  7,  6,  5,
-                                              4,  3,  2,  1,  7,  6,  5,  4, 3,  2,  1,  0 };
+constexpr int get_diagonal[Board_sq_num] = { 14, 13, 12, 11, 10,  9,  8,  7, 
+                                             13, 12, 11, 10,  9,  8,  7,  6, 
+                                             12, 11, 10,  9,  8,  7,  6,  5, 
+                                             11, 10,  9,  8,  7,  6,  5,  4, 
+                                             10,  9,  8,  7,  6,  5,  4,  3, 
+                                              9,  8,  7,  6,  5,  4,  3,  2,  
+                                              8,  7,  6,  5,  4,  3,  2,  1, 
+                                              7,  6,  5,  4,  3,  2,  1,  0 };
 
 // Lookup to get the color from a piece
 constexpr int Color[12] = { WHITE, WHITE, WHITE, WHITE, WHITE, WHITE,
-                       BLACK, BLACK, BLACK, BLACK, BLACK, BLACK };
+                            BLACK, BLACK, BLACK, BLACK, BLACK, BLACK };
 
 constexpr int PieceType[12] = { PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING,
-PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING };
+                                PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING };
 
 extern int reductions[2][MAXDEPTH][MAXPLY];
 extern int lmp_margin[MAXDEPTH][2];
@@ -73,6 +76,7 @@ struct S_Undo {
     int enPas = 0;
     int fiftyMove = 0;
     bool checkers = false;
+    int plyFromNull = 0;
 }; // stores a move and the state of the game before that move is made
 // for rollback purposes
 
@@ -88,6 +92,7 @@ public:
     int enPas = no_sq; // if enpassant is possible and in which square
     int fiftyMove = 0; // Counter for the 50 moves rule
     int hisPly = 0; // total number of halfmoves
+    int plyFromNull = 0;
     int castleperm = 0;
     // unique  hashkey  that encodes a board position
     ZobristKey posKey = 0ULL;
@@ -134,6 +139,7 @@ public:
     }
 
     inline int PieceOn(const int square) const {
+        assert(square >= 0 && square <= 63);
         return pieces[square];
     }
 
@@ -141,7 +147,7 @@ public:
         return side;
     }
 
-    inline int GetPoskey() const {
+    inline ZobristKey GetPoskey() const {
         return posKey;
     }
 

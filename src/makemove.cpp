@@ -6,6 +6,7 @@
 #include "io.h"
 #include "makemove.h"
 #include "movegen.h"
+#include <iostream>
 
 // Remove a piece from a square
 void ClearPiece(const int piece, const int from, S_Board* pos) {
@@ -70,6 +71,7 @@ void MakeMove(const int move, S_Board* pos) {
     pos->history[pos->hisPly].enPas = pos->enPas;
     pos->history[pos->hisPly].castlePerm = pos->castleperm;
     pos->history[pos->hisPly].checkers = pos->checkers;
+    pos->history[pos->hisPly].plyFromNull = pos->plyFromNull;
 
     // Store position key in the array of searched position
     pos->played_positions.emplace_back(pos->posKey);
@@ -88,13 +90,16 @@ void MakeMove(const int move, S_Board* pos) {
     const bool promotion = isPromo(move);
     // increment fifty move rule counter
     pos->fiftyMove++;
-
+    pos->plyFromNull++;
     const int NORTH = pos->side == WHITE ? 8 : -8;
+
+    // if a pawn was moved reset the 50 move rule counter
+    if (GetPieceType(piece) == PAWN)
+        pos->fiftyMove = 0;
 
     // handle enpassant captures
     if (enpass) {
         ClearPieceNNUE(GetPiece(PAWN, pos->side ^ 1), targetSquare + NORTH, pos);
-        pos->fiftyMove = 0;
     }
     // handling capture moves
     else if (capture) {
@@ -106,10 +111,6 @@ void MakeMove(const int move, S_Board* pos) {
         // a capture was played so reset 50 move rule counter
         pos->fiftyMove = 0;
     }
-
-    // if a pawn was moved reset the 50 move rule counter
-    if (GetPieceType(piece) == PAWN)
-        pos->fiftyMove = 0;
 
     // increment ply counters
     pos->hisPly++;
@@ -168,7 +169,6 @@ void MakeMove(const int move, S_Board* pos) {
     pos->ChangeSide();
     // Xor the new side into the key
     HashKey(pos, SideKey);
-
     // Speculative prefetch of the TT entry
     TTPrefetch(pos->posKey);
     pos->checkers = IsInCheck(pos, pos->side);
@@ -183,6 +183,7 @@ void UnmakeMove(const int move, S_Board* pos) {
     pos->fiftyMove = pos->history[pos->hisPly].fiftyMove;
     pos->castleperm = pos->history[pos->hisPly].castlePerm;
     pos->checkers = pos->history[pos->hisPly].checkers;
+    pos->plyFromNull = pos->history[pos->hisPly].plyFromNull;
 
     // parse move
     const int sourceSquare = From(move);
@@ -266,11 +267,13 @@ void MakeNullMove(S_Board* pos) {
     pos->history[pos->hisPly].enPas = pos->enPas;
     pos->history[pos->hisPly].castlePerm = pos->castleperm;
     pos->history[pos->hisPly].checkers = pos->checkers;
+    pos->history[pos->hisPly].plyFromNull = pos->plyFromNull;
     // Store position key in the array of searched position
     pos->played_positions.emplace_back(pos->posKey);
 
     pos->hisPly++;
     pos->fiftyMove++;
+    pos->plyFromNull=0;
 
     // Reset EP square
     if (GetEpSquare(pos) != no_sq)
@@ -290,6 +293,7 @@ void TakeNullMove(S_Board* pos) {
     pos->fiftyMove = pos->history[pos->hisPly].fiftyMove;
     pos->enPas = pos->history[pos->hisPly].enPas;
     pos->checkers = pos->history[pos->hisPly].checkers;
+    pos->plyFromNull = pos->history[pos->hisPly].plyFromNull;
 
     pos->ChangeSide();
     pos->posKey = pos->played_positions.back();
