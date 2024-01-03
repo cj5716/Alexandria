@@ -28,13 +28,13 @@ void AddPiece(const int piece, const int to, S_Board* pos) {
 
 // Remove a piece from a square while also deactivating the nnue weights tied to the piece
 void ClearPieceNNUE(const int piece, const int sq, S_Board* pos) {
-    nnue.clear(pos->AccumulatorTop(), piece, sq);
+    nnue.clear(pos->accumulator, piece, sq);
     ClearPiece(piece, sq, pos);
 }
 
 // Add a piece to a square while also activating the nnue weights tied to the piece
 void AddPieceNNUE(const int piece, const int to, S_Board* pos) {
-    nnue.add(pos->AccumulatorTop(), piece, to);
+    nnue.add(pos->accumulator, piece, to);
     AddPiece(piece, to, pos);
 }
 
@@ -46,7 +46,7 @@ void MovePiece(const int piece, const int from, const int to, S_Board* pos) {
 
 // Move a piece from square to to square from
 void MovePieceNNUE(const int piece, const int from, const int to, S_Board* pos) {
-    nnue.move(pos->AccumulatorTop(), piece, from, to);
+    nnue.move(pos->accumulator, piece, from, to);
     MovePiece(piece, from, to, pos);
 }
 
@@ -189,9 +189,6 @@ void MakeMove(const int move, S_Board* pos) {
     // Store position key in the array of searched position
     pos->played_positions.emplace_back(pos->posKey);
 
-    pos->accumStack[pos->accumStackHead] = pos->AccumulatorTop();
-    pos->accumStackHead++;
-
     // parse move
     const int sourceSquare = From(move);
     const int targetSquare = To(move);
@@ -323,23 +320,21 @@ void UnmakeMove(const int move, S_Board* pos) {
     const bool enpass = isEnpassant(move);
     const bool castling = IsCastle(move);
     const bool promotion = isPromo(move);
-  
-    pos->accumStackHead--;
 
     // handle pawn promotions
     if (promotion) {
         const int promoted_piece = GetPiece(getPromotedPiecetype(move),pos->side^1);
-        ClearPiece(promoted_piece, targetSquare, pos);
+        ClearPieceNNUE(promoted_piece, targetSquare, pos);
     }
 
     // move piece
-    MovePiece(piece, targetSquare, sourceSquare, pos);
+    MovePieceNNUE(piece, targetSquare, sourceSquare, pos);
 
     const int SOUTH = pos->side == WHITE ? -8 : 8;
 
     // handle enpassant captures
     if (enpass) {
-        AddPiece(GetPiece(PAWN, pos->side), targetSquare + SOUTH, pos);
+        AddPieceNNUE(GetPiece(PAWN, pos->side), targetSquare + SOUTH, pos);
     }
 
     // handle castling moves
@@ -349,25 +344,25 @@ void UnmakeMove(const int move, S_Board* pos) {
             // white castles king side
         case (g1):
             // move H rook
-            MovePiece(WR, f1, h1, pos);
+            MovePieceNNUE(WR, f1, h1, pos);
             break;
 
             // white castles queen side
         case (c1):
             // move A rook
-            MovePiece(WR, d1, a1, pos);
+            MovePieceNNUE(WR, d1, a1, pos);
             break;
 
             // black castles king side
         case (g8):
             // move H rook
-            MovePiece(BR, f8, h8, pos);
+            MovePieceNNUE(BR, f8, h8, pos);
             break;
 
             // black castles queen side
         case (c8):
             // move A rook
-            MovePiece(BR, d8, a8, pos);
+            MovePieceNNUE(BR, d8, a8, pos);
             break;
         }
     }
@@ -376,14 +371,14 @@ void UnmakeMove(const int move, S_Board* pos) {
     if (capture && !enpass) {
         // Retrieve the captured piece we have to restore
         const int piececap = pos->history[pos->hisPly].capture;
-        AddPiece(piececap, targetSquare, pos);
+        AddPieceNNUE(piececap, targetSquare, pos);
     }
 
     // change side
     pos->ChangeSide();
 
     // restore zobrist key (done at the end to avoid overwriting the value while
-    // moving pieces bacl to their place)
+    // moving pieces back to their place)
     pos->posKey = pos->played_positions.back();
     pos->played_positions.pop_back();
 }

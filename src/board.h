@@ -100,7 +100,7 @@ public:
     // unique  hashkey  that encodes a board position
     ZobristKey posKey = 0ULL;
     // stores the state of the board  rollback purposes
-    S_Undo    history[1024];
+    S_Undo history[1024];
     // Stores the zobrist keys of all the positions played in the game + the current search instance, used for 3-fold
     std::vector<ZobristKey> played_positions = {};
     Bitboard pinHV = 0ULL;
@@ -111,13 +111,8 @@ public:
     Bitboard occupancies[2] = {};
     Bitboard checkers;
     Bitboard checkMask = fullCheckmask;
-  
-    NNUE::accumulator accumStack[256];
-    int accumStackHead;
 
-    inline NNUE::accumulator& AccumulatorTop() {
-        return accumStack[accumStackHead-1];
-    }
+    NNUE::accumulator accumulator = {};
 
     inline Bitboard Us() const {
         return occupancies[side];
@@ -241,7 +236,7 @@ void parse_moves(const std::string& moves, S_Board* pos);
 
 void ResetInfo(S_SearchINFO* info);
 
-// Retrieve a generic piece (useful when we don't know what type of piece we are dealing with
+// Retrieve a generic piece (useful when we don't know what type of piece we are dealing with)
 [[nodiscard]] Bitboard GetPieceBB(const S_Board* pos, const int piecetype);
 // Returns the threats bitboard of the pieces of <side> color
 [[nodiscard]] Bitboard getThreats(const S_Board* pos, const int side);

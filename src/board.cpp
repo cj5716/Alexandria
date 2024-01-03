@@ -241,8 +241,7 @@ void ParseFen(const std::string& command, S_Board* pos) {
     UpdatePinMasks(pos, pos->side);
 
     // Update nnue accumulator to reflect board state
-    Accumulate(pos->accumStack[0], pos);
-    pos->accumStackHead = 1;
+    Accumulate(pos->accumulator, pos);
 }
 
 std::string GetFen(const S_Board* pos) {
