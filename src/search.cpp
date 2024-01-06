@@ -480,6 +480,34 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
             if (razorScore <= alpha)
                 return razorScore;
         }
+
+        // Probcut
+        int pcBeta = beta + 256;
+        if (   depth >= 5
+            && abs(beta) < mate_found
+            && !(   ttScore != score_none
+                 && tte.depth >= depth - 3
+                 && ttScore < pcBeta))
+        {
+            Movepicker mp;
+            InitMP(&mp, pos, sd, ss, !IsQuiet(ttMove) && SEE(pos, ttMove, pcBeta - ss->staticEval) ? ttMove : NOMOVE, true, pcBeta - ss->staticEval);
+            int move;
+            while ((move = NextMove(&mp, true)) != NOMOVE) {
+                ss->move = move;
+                MakeMove(move, pos);
+
+                int pcScore = -Quiescence<false>(-pcBeta, -pcBeta + 1, td, ss + 1);
+                if (pcScore >= pcBeta)
+                    pcScore = -Negamax<false>(-pcBeta, -pcBeta + 1, depth - 4, !cutNode, td, ss + 1);
+
+                UnmakeMove(move, pos);
+
+                if (pcScore >= pcBeta) {
+                    StoreHashEntry(pos->posKey, MoveToTT(move), ScoreToTT(pcScore, ss->ply), ss->staticEval, HFLOWER, depth - 3, pvNode, ttPv);
+                    return pcScore;
+                }
+            }
+        }
     }
 
 moves_loop:
@@ -494,7 +522,7 @@ moves_loop:
     bool SkipQuiets = false;
 
     Movepicker mp;
-    InitMP(&mp, pos, sd, ss, ttMove, false);
+    InitMP(&mp, pos, sd, ss, ttMove, false, -107);
 
     // Keep track of the played quiet and noisy moves
     S_MOVELIST quietMoves, noisyMoves;
@@ -502,6 +530,7 @@ moves_loop:
 
     // loop over moves within a movelist
     while ((move = NextMove(&mp, false)) != NOMOVE) {
+
         if (move == excludedMove)
             continue;
 
@@ -511,6 +540,7 @@ moves_loop:
 
         if (isQuiet && SkipQuiets)
             continue;
+
         const int moveHistory = GetHistoryScore(pos, sd, move, ss);
         if (   !rootNode
             &&  BoardHasNonPawns(pos, pos->side)
@@ -785,7 +815,7 @@ int Quiescence(int alpha, int beta, S_ThreadData* td, Search_stack* ss) {
 
     Movepicker mp;
     // If we aren't in check we generate just the captures, otherwise we generate all the moves
-    InitMP(&mp, pos, sd, ss, ttMove, !inCheck);
+    InitMP(&mp, pos, sd, ss, ttMove, !inCheck, -107);
 
     int bestmove = NOMOVE;
     int move = NOMOVE;
