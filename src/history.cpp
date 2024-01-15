@@ -20,19 +20,19 @@ void updateHHScore(const S_Board* pos, Search_data* sd, int move, int bonus) {
 
 void updateCHScore(Search_data* sd, const Search_stack* ss, const int move, const int bonus) {
     // Scale bonus to fix it in a [-32768;32768] range
-    const int scaledBonus = bonus - GetCHScore(sd, ss, move) * std::abs(bonus) / 32768;
+    const int averagedBonus = bonus - GetCHScore(sd, ss, move) * std::abs(bonus) / 32768;
     // Update move score
     if (ss->ply > 0) {
-        sd->cont_hist[Piece((ss - 1)->move)][To((ss - 1)->move)]
-            [Piece(move)][To(move)] += scaledBonus;
+        int scaledBonus1 = averagedBonus - sd->cont_hist[Piece((ss - 1)->move)][To((ss - 1)->move)][Piece(move)][To(move)] * std::abs(averagedBonus) / 32768;
+        sd->cont_hist[Piece((ss - 1)->move)][To((ss - 1)->move)][Piece(move)][To(move)] += scaledBonus1;
         // Score followup
         if (ss->ply > 1) {
-            sd->cont_hist[Piece((ss - 2)->move)][To((ss - 2)->move)]
-                [Piece(move)][To(move)] += scaledBonus;
+            int scaledBonus2 = averagedBonus - sd->cont_hist[Piece((ss - 2)->move)][To((ss - 2)->move)][Piece(move)][To(move)] * std::abs(averagedBonus) / 32768;
+            sd->cont_hist[Piece((ss - 2)->move)][To((ss - 2)->move)][Piece(move)][To(move)] += scaledBonus2;
 
             if (ss->ply > 3) {
-                sd->cont_hist[Piece((ss - 4)->move)][To((ss - 4)->move)]
-                    [Piece(move)][To(move)] += scaledBonus;
+                int scaledBonus4 = averagedBonus - sd->cont_hist[Piece((ss - 4)->move)][To((ss - 4)->move)][Piece(move)][To(move)] * std::abs(averagedBonus) / 32768;
+                sd->cont_hist[Piece((ss - 4)->move)][To((ss - 4)->move)][Piece(move)][To(move)] += scaledBonus4;
             }
         }
     }
