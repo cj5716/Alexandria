@@ -646,7 +646,7 @@ moves_loop:
                     score = -Negamax<false>(-alpha - 1, -alpha, newDepth, !cutNode, td, ss + 1);
 
                 // define the conthist bonus
-                int bonus = std::min(16 * (depth + 1) * (depth + 1), 1200);
+                int bonus = std::min(8 * (depth + 1) * (depth + 1), 600);
                 updateCHScore(sd, ss, move, score > alpha ? bonus : -bonus);
             }
         }
