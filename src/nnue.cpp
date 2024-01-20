@@ -85,72 +85,49 @@ void NNUE::add(NNUE::accumulator& board_accumulator, const int piece, const int 
     }
 }
 
-void NNUE::update(NNUE::accumulator& board_accumulator, std::vector<std::pair<std::size_t, std::size_t>>& NNUEAdd, std::vector<std::pair<std::size_t, std::size_t>>& NNUESub) {
-    int adds = NNUEAdd.size();
-    int subs = NNUESub.size();
+void NNUE::update(NNUE::accumulator& board_accumulator, std::vector<SingleUpdate>& NNUEUpdates) {
 
-    if (adds == 0 && subs == 0)
+    int changes = NNUEUpdates.size();
+    if (changes < 2)
         return;
 
-    // Quiets
-    if (adds == 1 && subs == 1) {
-        auto [whiteAddIdx, blackAddIdx] = NNUEAdd[0];
-        auto [whiteSubIdx, blackSubIdx] = NNUESub[0];
-        addSub(board_accumulator, whiteAddIdx, blackAddIdx, whiteSubIdx, blackSubIdx);
-    }
-    // Captures
-    else if (adds == 1 && subs == 2) {
-        auto [whiteAddIdx, blackAddIdx] = NNUEAdd[0];
-        auto [whiteSubIdx1, blackSubIdx1] = NNUESub[0];
-        auto [whiteSubIdx2, blackSubIdx2] = NNUESub[1];
-        addSubSub(board_accumulator, whiteAddIdx, blackAddIdx, whiteSubIdx1, blackSubIdx1, whiteSubIdx2, blackSubIdx2);
-    }
-    // Castling
-    else {
-        auto [whiteAddIdx1, blackAddIdx1] = NNUEAdd[0];
-        auto [whiteAddIdx2, blackAddIdx2] = NNUEAdd[1];
-        auto [whiteSubIdx1, blackSubIdx1] = NNUESub[0];
-        auto [whiteSubIdx2, blackSubIdx2] = NNUESub[1];
-        addSub(board_accumulator, whiteAddIdx1, blackAddIdx1, whiteSubIdx1, blackSubIdx1);
-        addSub(board_accumulator, whiteAddIdx2, blackAddIdx2, whiteSubIdx2, blackSubIdx2);
-    }
-    // Reset the add and sub vectors
-    NNUEAdd.clear();
-    NNUESub.clear();
+    addSubAll(board_accumulator, NNUEUpdates);
+
+    // Reset the NNUE updates
+    NNUEUpdates.clear();
 }
 
-void NNUE::addSub(NNUE::accumulator& board_accumulator, std::size_t whiteAddIdx, std::size_t blackAddIdx, std::size_t whiteSubIdx, std::size_t blackSubIdx) {
-    auto whiteAdd = &net.featureWeights[whiteAddIdx * HIDDEN_SIZE];
-    auto whiteSub = &net.featureWeights[whiteSubIdx * HIDDEN_SIZE];
-    for (int i = 0; i < HIDDEN_SIZE; i++) {
-        board_accumulator[0][i] = board_accumulator[0][i] - whiteSub[i] + whiteAdd[i];
+void NNUE::addSubAll(NNUE::accumulator& board_accumulator, std::vector<SingleUpdate>& NNUEUpdates) {
+    std::vector<int16_t*> whiteAdds;
+    std::vector<int16_t*> whiteSubs;
+    std::vector<int16_t*> blackAdds;
+    std::vector<int16_t*> blackSubs;
+    for (SingleUpdate update : NNUEUpdates) {
+        auto [whiteIdx, blackIdx] = GetIndex(update.pc, update.sq);
+        if (update.isAdd) {
+            whiteAdds.emplace_back(&net.featureWeights[whiteIdx * HIDDEN_SIZE]);
+            blackAdds.emplace_back(&net.featureWeights[blackIdx * HIDDEN_SIZE]);
+        }
+        else {
+            whiteSubs.emplace_back(&net.featureWeights[whiteIdx * HIDDEN_SIZE]);
+            blackSubs.emplace_back(&net.featureWeights[blackIdx * HIDDEN_SIZE]);
+        }
     }
-    auto blackAdd = &net.featureWeights[blackAddIdx * HIDDEN_SIZE];
-    auto blackSub = &net.featureWeights[blackSubIdx * HIDDEN_SIZE];
     for (int i = 0; i < HIDDEN_SIZE; i++) {
-        board_accumulator[1][i] = board_accumulator[1][i] - blackSub[i] + blackAdd[i];
+        for (auto add : whiteAdds) {
+            board_accumulator[0][i] += add[i];
+        }
+        for (auto sub : whiteSubs) {
+            board_accumulator[0][i] -= sub[i];
+        }
     }
-}
-
-void NNUE::addSubSub(NNUE::accumulator& board_accumulator, 
-                     std::size_t whiteAddIdx,
-                     std::size_t blackAddIdx,
-                     std::size_t whiteSubIdx1,
-                     std::size_t blackSubIdx1,
-                     std::size_t whiteSubIdx2,
-                     std::size_t blackSubIdx2) {
-
-    auto whiteAdd = &net.featureWeights[whiteAddIdx * HIDDEN_SIZE];
-    auto whiteSub1 = &net.featureWeights[whiteSubIdx1 * HIDDEN_SIZE];
-    auto whiteSub2 = &net.featureWeights[whiteSubIdx2 * HIDDEN_SIZE];
     for (int i = 0; i < HIDDEN_SIZE; i++) {
-        board_accumulator[0][i] = board_accumulator[0][i] - whiteSub1[i] - whiteSub2[i] + whiteAdd[i];
-    }
-    auto blackAdd = &net.featureWeights[blackAddIdx * HIDDEN_SIZE];
-    auto blackSub1 = &net.featureWeights[blackSubIdx1 * HIDDEN_SIZE];
-    auto blackSub2 = &net.featureWeights[blackSubIdx2 * HIDDEN_SIZE];
-    for (int i = 0; i < HIDDEN_SIZE; i++) {
-        board_accumulator[1][i] = board_accumulator[1][i] - blackSub1[i] - blackSub2[i] + blackAdd[i];
+        for (auto add : blackAdds) {
+            board_accumulator[1][i] += add[i];
+        }
+        for (auto sub : blackSubs) {
+            board_accumulator[1][i] -= sub[i];
+        }
     }
 }
 

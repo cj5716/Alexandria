@@ -486,7 +486,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
 moves_loop:
 
     // update accumulator
-    nnue.update(pos->AccumulatorTop(), pos->NNUEAdd, pos->NNUESub);
+    nnue.update(pos->AccumulatorTop(), pos->NNUEUpdates);
 
     // old value of alpha
     const int old_alpha = alpha;
@@ -798,7 +798,7 @@ int Quiescence(int alpha, int beta, S_ThreadData* td, Search_stack* ss) {
     // Adjust alpha based on eval
     alpha = std::max(alpha, bestScore);
 
-    nnue.update(pos->AccumulatorTop(), pos->NNUEAdd, pos->NNUESub);
+    nnue.update(pos->AccumulatorTop(), pos->NNUEUpdates);
 
     Movepicker mp;
     // If we aren't in check we generate just the captures, otherwise we generate all the moves

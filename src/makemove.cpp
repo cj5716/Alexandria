@@ -28,14 +28,14 @@ void AddPiece(const int piece, const int to, S_Board* pos) {
 
 // Remove a piece from a square while also deactivating the nnue weights tied to the piece
 void ClearPieceNNUE(const int piece, const int sq, S_Board* pos) {
-    pos->NNUESub.emplace_back(nnue.GetIndex(piece, sq));
+    pos->NNUEUpdates.emplace_back(SingleUpdate{piece, sq, false});
     ClearPiece(piece, sq, pos);
 }
 
 // Add a piece to a square while also activating the nnue weights tied to the piece
-void AddPieceNNUE(const int piece, const int to, S_Board* pos) {
-    pos->NNUEAdd.emplace_back(nnue.GetIndex(piece, to));
-    AddPiece(piece, to, pos);
+void AddPieceNNUE(const int piece, const int sq, S_Board* pos) {
+    pos->NNUEUpdates.emplace_back(SingleUpdate{piece, sq, true});
+    AddPiece(piece, sq, pos);
 }
 
 // Move a piece from square to to square from without updating the NNUE weights
@@ -306,8 +306,7 @@ void UnmakeMove(const int move, S_Board* pos) {
     pos->pinHV = pos->history[pos->hisPly].pinHV;
     pos->pinD = pos->history[pos->hisPly].pinD;
 
-    pos->NNUEAdd.clear();
-    pos->NNUESub.clear();
+    pos->NNUEUpdates.clear();
 
     // parse move
     const int sourceSquare = From(move);
