@@ -79,8 +79,6 @@ void NNUE::add(NNUE::accumulator& board_accumulator, const int piece, const int 
     auto blackAdd = &net.featureWeights[blackIdx * HIDDEN_SIZE];
     for (int i = 0; i < HIDDEN_SIZE; i++) {
         board_accumulator[0][i] += whiteAdd[i];
-    }
-    for (int i = 0; i < HIDDEN_SIZE; i++) {
         board_accumulator[1][i] += blackAdd[i];
     }
 }
@@ -122,12 +120,10 @@ void NNUE::update(NNUE::accumulator& board_accumulator, std::vector<std::pair<st
 void NNUE::addSub(NNUE::accumulator& board_accumulator, std::size_t whiteAddIdx, std::size_t blackAddIdx, std::size_t whiteSubIdx, std::size_t blackSubIdx) {
     auto whiteAdd = &net.featureWeights[whiteAddIdx * HIDDEN_SIZE];
     auto whiteSub = &net.featureWeights[whiteSubIdx * HIDDEN_SIZE];
-    for (int i = 0; i < HIDDEN_SIZE; i++) {
-        board_accumulator[0][i] = board_accumulator[0][i] - whiteSub[i] + whiteAdd[i];
-    }
     auto blackAdd = &net.featureWeights[blackAddIdx * HIDDEN_SIZE];
     auto blackSub = &net.featureWeights[blackSubIdx * HIDDEN_SIZE];
     for (int i = 0; i < HIDDEN_SIZE; i++) {
+        board_accumulator[0][i] = board_accumulator[0][i] - whiteSub[i] + whiteAdd[i];
         board_accumulator[1][i] = board_accumulator[1][i] - blackSub[i] + blackAdd[i];
     }
 }
@@ -143,13 +139,11 @@ void NNUE::addSubSub(NNUE::accumulator& board_accumulator,
     auto whiteAdd = &net.featureWeights[whiteAddIdx * HIDDEN_SIZE];
     auto whiteSub1 = &net.featureWeights[whiteSubIdx1 * HIDDEN_SIZE];
     auto whiteSub2 = &net.featureWeights[whiteSubIdx2 * HIDDEN_SIZE];
-    for (int i = 0; i < HIDDEN_SIZE; i++) {
-        board_accumulator[0][i] = board_accumulator[0][i] - whiteSub1[i] - whiteSub2[i] + whiteAdd[i];
-    }
     auto blackAdd = &net.featureWeights[blackAddIdx * HIDDEN_SIZE];
     auto blackSub1 = &net.featureWeights[blackSubIdx1 * HIDDEN_SIZE];
     auto blackSub2 = &net.featureWeights[blackSubIdx2 * HIDDEN_SIZE];
     for (int i = 0; i < HIDDEN_SIZE; i++) {
+        board_accumulator[0][i] = board_accumulator[0][i] - whiteSub1[i] - whiteSub2[i] + whiteAdd[i];
         board_accumulator[1][i] = board_accumulator[1][i] - blackSub1[i] - blackSub2[i] + blackAdd[i];
     }
 }
@@ -169,8 +163,6 @@ int32_t NNUE::output(const NNUE::accumulator& board_accumulator, const bool whit
     int32_t output = 0;
     for (int i = 0; i < HIDDEN_SIZE; i++) {
         output += SCReLU(us[i]) * static_cast<int32_t>(net.outputWeights[i]);
-    }
-    for (int i = 0; i < HIDDEN_SIZE; i++) {
         output += SCReLU(them[i]) * static_cast<int32_t>(net.outputWeights[HIDDEN_SIZE + i]);
     }
     int32_t unsquared = output / 255 + net.outputBias;
