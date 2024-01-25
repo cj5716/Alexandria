@@ -530,7 +530,7 @@ moves_loop:
                 }
 
                 // lmrDepth is the current depth minus the reduction the move would undergo in lmr, this is helpful because it helps us discriminate the bad moves with more accuracy
-                const int lmrDepth = std::max(0, depth - reductions[isQuiet][depth][movesSearched]);
+                const int lmrDepth = std::max(0, depth - reductions[isQuiet][improving][depth][movesSearched]);
 
                 // Futility pruning: if the static eval is so low that even after adding a bonus we are still under alpha we can stop trying quiet moves
                 if (!inCheck
@@ -610,15 +610,11 @@ moves_loop:
         if (movesSearched >= 1 + pvNode && depth >= 3 && (isQuiet || !ttPv)) {
 
             // Get base reduction value
-            int depthReduction = reductions[isQuiet][depth][movesSearched];
+            int depthReduction = reductions[isQuiet][improving][depth][movesSearched];
 
             // Fuck
             if (cutNode)
                 depthReduction += 2;
-
-            // Reduce more if we are not improving
-            if (!improving)
-                depthReduction += 1;
 
             // Reduce less if the move is a refutation
             if (move == mp.killer0 || move == mp.killer1 || move == mp.counter)

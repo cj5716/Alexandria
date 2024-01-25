@@ -44,7 +44,7 @@ Bitboard rook_attacks[64][4096];
 
 Bitboard SQUARES_BETWEEN_BB[64][64];
 
-int reductions[2][MAXDEPTH][MAXPLY];
+int reductions[2][2][MAXDEPTH][MAXPLY];
 int lmp_margin[MAXDEPTH][2];
 int see_margin[MAXDEPTH][2];
 
@@ -166,13 +166,17 @@ void initializeLookupTables() {
 // PreCalculate the logarithms used in the reduction calculation
 void InitReductions() {
     // Avoid log(0) because it's bad
-    reductions[0][0][0] = 0;
-    reductions[1][0][0] = 0;
+    reductions[0][0][0][0] = 1;
+    reductions[1][0][0][0] = 1;
+    reductions[0][1][0][0] = 0;
+    reductions[1][1][0][0] = 0;
 
     for (int i = 1; i < MAXDEPTH; i++) {
         for (int j = 1; j < MAXDEPTH; j++) {
-            reductions[0][i][j] = -0.25 + log(i) * log(j) / 2.25;
-            reductions[1][i][j] = +1.00 + log(i) * log(j) / 2.00;
+            reductions[0][0][i][j] = +0.75 + log(i) * log(j) / 2.25;
+            reductions[1][0][i][j] = +2.00 + log(i) * log(j) / 2.00;
+            reductions[0][1][i][j] = -0.25 + log(i) * log(j) / 2.25;
+            reductions[1][1][i][j] = +1.00 + log(i) * log(j) / 2.00;
         }
     }
 
