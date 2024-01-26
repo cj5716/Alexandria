@@ -551,7 +551,7 @@ moves_loop:
         if (ss->ply < td->RootDepth * 2) {
             // Search extension
             if (   !rootNode
-                &&  depth >= 7
+                &&  depth >= 5
                 &&  move == ttMove
                 && !excludedMove
                 && (ttFlag & HFLOWER)
@@ -568,7 +568,7 @@ moves_loop:
                     extension = 1;
                     // Avoid search explosion by limiting the number of double extensions
                     if (   !pvNode
-                        &&  singularScore < singularBeta - 17
+                        &&  singularScore < singularBeta - 14
                         &&  ss->doubleExtensions <= 11) {
                         extension = 2;
                         ss->doubleExtensions = (ss - 1)->doubleExtensions + 1;
