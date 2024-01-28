@@ -3,7 +3,7 @@ NETWORK_NAME = nn.net
 _THIS     := $(realpath $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 _ROOT     := $(_THIS)
 EVALFILE   = $(NETWORK_NAME)
-CXX       := g++
+CXX       := clang++
 TARGET    := Alexandria
 WARNINGS   = -Wall -Wcast-qual -Wextra -Wshadow -Wdouble-promotion -Wformat=2 -Wnull-dereference -Wlogical-op -Wold-style-cast -Wundef -pedantic
 CXXFLAGS  :=  -funroll-loops -O3 -flto -fno-exceptions -std=gnu++2a -DNDEBUG $(WARNINGS)
