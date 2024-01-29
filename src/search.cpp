@@ -640,7 +640,7 @@ moves_loop:
             score = -Negamax<false>(-alpha - 1, -alpha, reducedDepth, true, td, ss + 1);
 
             // if we failed high on a reduced node we'll search with a reduced window and full depth
-            if (score > alpha && depthReduction) {
+            if (score > alpha && newDepth > reducedDepth) {
                 // SF yoink, based on the value returned by our reduced search see if we should search deeper or shallower, this is an exact yoink of what SF and frankly i don't care lmao
                 const bool doDeeperSearch = score > (bestScore + 53 + 2 * newDepth);
                 const bool doShallowerSearch = score < bestScore + newDepth;
@@ -649,7 +649,7 @@ moves_loop:
                     score = -Negamax<false>(-alpha - 1, -alpha, newDepth, !cutNode, td, ss + 1);
 
                 // define the conthist bonus
-                int bonus = std::min(16 * (depth + 1) * (depth + 1), 1200);
+                int bonus = std::min(16 * (newDepth + 1) * (newDepth + 1), 1200);
                 updateCHScore(sd, ss, move, score > alpha ? bonus : -bonus);
             }
         }
