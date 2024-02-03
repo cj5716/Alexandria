@@ -3,13 +3,14 @@
 #include "search.h"
 #include <algorithm>
 #include "misc.h"
+#include "tune.h"
 
 // Calculate how much time to spend on searching a move
 void Optimum(S_SearchINFO* info, int time, int inc) {
     // If ccrl sent us a negative time just assume we have a workable amount of time to search for a move
     if (time < 0) time = 1000;
     // Reserve some time overhead to avoid timing out in the engine-gui communication process
-    const int safety_overhead = std::min(300, time/2);
+    const int safety_overhead = std::min(300, time / 2);
     time -= safety_overhead;
     // if we recieved a movetime command we need to spend exactly that amount of time on the move, so we don't scale
     if (info->movetimeset) {
@@ -21,24 +22,24 @@ void Optimum(S_SearchINFO* info, int time, int inc) {
         // Divide the time you have left for how many moves you have to play
         const auto basetime = time / info->movestogo;
         // Never use more than 75% of the total time left for a single move
-        const auto maxtimeBound = 0.75 * time;
+        const auto maxtimeBound = tunedValues["v3"] * time / 100;
         // optime is the time we use to stop if we just cleared a depth
-        const auto optime = std::min(0.7 * basetime, maxtimeBound);
+        const auto optime = std::min(tunedValues["v4"] * basetime / 100, maxtimeBound);
         // maxtime is the absolute maximum time we can spend on a search (unless it is bigger than the bound)
-        const auto maxtime = std::min(3.0 * basetime, maxtimeBound);
+        const auto maxtime = std::min(tunedValues["v5"] * basetime / 100, maxtimeBound);
         info->stoptimeMax = info->starttime + maxtime;
         info->stoptimeBaseOpt = optime;
         info->stoptimeOpt = info->starttime + info->stoptimeBaseOpt;
     }
     // else if we recieved wtime/btime we calculate an over and upper bound for the time usage based on fixed coefficients
     else if (info->timeset) {
-        int basetime = time / 20 + inc * 3 / 4;
+        int basetime = time * tunedValues["v1"] / 1000 + inc * tunedValues["v2"] / 100;
         // Never use more than 75% of the total time left for a single move
-        const auto maxtimeBound = 0.75 * time;
+        const auto maxtimeBound = tunedValues["v3"] * time / 100;
         // optime is the time we use to stop if we just cleared a depth
-        const auto optime = std::min(0.7 * basetime, maxtimeBound);
+        const auto optime = std::min(tunedValues["v4"] * basetime / 100, maxtimeBound);
         // maxtime is the absolute maximum time we can spend on a search (unless it is bigger than the bound)
-        const auto maxtime = std::min(3.0 * basetime, maxtimeBound);
+        const auto maxtime = std::min(tunedValues["v5"] * basetime / 100, maxtimeBound);
         info->stoptimeMax = info->starttime + maxtime;
         info->stoptimeBaseOpt = optime;
         info->stoptimeOpt = info->starttime + info->stoptimeBaseOpt;
@@ -51,11 +52,11 @@ bool StopEarly(const S_SearchINFO* info) {
 }
 
 void ScaleTm(S_ThreadData* td, const int bestMoveStabilityFactor) {
-    constexpr double bestmoveScale[5] = { 2.5, 1.20, 0.95, 0.85, 0.8 };
+    const double bestmoveScale[5] = { tunedValues["v6"] / 100.0, tunedValues["v7"] / 100.0, tunedValues["v8"] / 100.0, tunedValues["v9"] / 100.0, tunedValues["v10"] / 100.0 };
     const int bestmove = GetBestMove(&td->pvTable);
     // Calculate how many nodes were spent on checking the best move
     const double bestMoveNodesFraction = static_cast<double>(td->nodeSpentTable[From(bestmove)][To(bestmove)]) / static_cast<double>(td->info.nodes);
-    const double nodeScalingFactor = (1.62 - bestMoveNodesFraction) * 1.48;
+    const double nodeScalingFactor = (tunedValues["v11"] / 100.0 - bestMoveNodesFraction) * tunedValues["v12"] / 100.0;
     const double bestMoveScalingFactor = bestmoveScale[bestMoveStabilityFactor];
     // Scale the search time based on how many nodes we spent and how the best move changed
     td->info.stoptimeOpt = std::min<uint64_t>(td->info.starttime + td->info.stoptimeBaseOpt * nodeScalingFactor * bestMoveScalingFactor, td->info.stoptimeMax);

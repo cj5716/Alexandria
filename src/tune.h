@@ -12,6 +12,8 @@ To use said variable we simply have to swap out the previous magic number with t
 The creation of the uci boilerplate strings and the handling of setoption is automated.
 */
 
+#define TUNE
+
 // This class acts as a fancy string constructor, it's used just to store all the info OB wants for a tune
 class tunable_param {
 public:
