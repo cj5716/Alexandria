@@ -611,7 +611,7 @@ moves_loop:
 
             // Fuck
             if (cutNode)
-                depthReduction += 2;
+                depthReduction += 1 + isQuiet;
 
             // Reduce more if we are not improving
             if (!improving)
