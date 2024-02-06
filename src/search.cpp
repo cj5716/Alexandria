@@ -591,15 +591,6 @@ moves_loop:
         ss->move = move;
         // Play the move
         MakeMove(move, pos);
-        // Add any played move to the matching list
-        if (isQuiet) {
-            quietMoves.moves[quietMoves.count].move = move;
-            quietMoves.count++;
-        }
-        else {
-            noisyMoves.moves[noisyMoves.count].move = move;
-            noisyMoves.count++;
-        }
         // increment nodes count
         info->nodes++;
         uint64_t nodesBeforeSearch = info->nodes;
@@ -672,6 +663,20 @@ moves_loop:
             return 0;
 
         movesSearched++;
+
+        // Add any played move which failed low to the matching list
+        if (score <= alpha)
+        {
+            if (isQuiet) {
+                quietMoves.moves[quietMoves.count].move = move;
+                quietMoves.count++;
+            }
+            else {
+                noisyMoves.moves[noisyMoves.count].move = move;
+                noisyMoves.count++;
+            }
+        }
+
         // If the score of the current move is the best we've found until now
         if (score > bestScore) {
             // Update what the best score is
