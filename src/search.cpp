@@ -625,6 +625,10 @@ moves_loop:
             if (ttPv)
                 depthReduction -= 1 + cutNode;
 
+            // Reduce less on PV nodes
+            if (pvNode)
+                depthReduction -= 1;
+
             // Decrease the reduction for moves that give check
             if (pos->checkers)
                 depthReduction -= 1;
