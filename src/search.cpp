@@ -283,7 +283,7 @@ int AspirationWindowSearch(int prev_eval, int depth, S_ThreadData* td) {
 
         // We fell outside the window, so try again with a bigger window, since we failed low we can adjust beta to decrease the total window size
         if (score <= alpha) {
-            beta = (alpha + beta) / 2;
+            beta = (score + alpha + beta) / 3;
             alpha = std::max(-MAXSCORE, score - delta);
             depth = td->RootDepth;
         }
