@@ -179,14 +179,48 @@ void NNUE::update(NNUE::accumulator& board_accumulator, std::vector<std::pair<st
 void NNUE::addSub(NNUE::accumulator& board_accumulator, std::size_t whiteAddIdx, std::size_t blackAddIdx, std::size_t whiteSubIdx, std::size_t blackSubIdx) {
     auto whiteAdd = &net.featureWeights[whiteAddIdx * HIDDEN_SIZE];
     auto whiteSub = &net.featureWeights[whiteSubIdx * HIDDEN_SIZE];
+    auto blackAdd = &net.featureWeights[blackAddIdx * HIDDEN_SIZE];
+    auto blackSub = &net.featureWeights[blackSubIdx * HIDDEN_SIZE];
+    #if defined(USE_AVX512)
+    for (int i = 0; i < REQUIRED_ITERS; i++) {
+        auto whiteAccVec = _mm512_loadu_epi16(&board_accumulator[0][i * CHUNK_SIZE]);
+        auto whiteAddVec = _mm512_loadu_epi16(&whiteAdd[i * CHUNK_SIZE]);
+        auto whiteSubVec = _mm512_loadu_epi16(&whiteSub[i * CHUNK_SIZE]);
+
+        auto blackAccVec = _mm512_loadu_epi16(&board_accumulator[1][i * CHUNK_SIZE]);
+        auto blackAddVec = _mm512_loadu_epi16(&blackAdd[i * CHUNK_SIZE]);
+        auto blackSubVec = _mm512_loadu_epi16(&blackSub[i * CHUNK_SIZE]);
+
+        auto updatedWhiteAcc = _mm512_sub_epi16(_mm512_add_epi16(whiteAccVec, whiteAddVec), whiteSubVec);
+        _mm512_storeu_epi16(&board_accumulator[0][i * CHUNK_SIZE], updatedWhiteAcc);
+
+        auto updatedBlackAcc = _mm512_sub_epi16(_mm512_add_epi16(blackAccVec, blackAddVec), blackSubVec);
+        _mm512_storeu_epi16(&board_accumulator[1][i * CHUNK_SIZE], updatedBlackAcc);
+    }
+    #elif defined(USE_AVX2)
+    for (int i = 0; i < REQUIRED_ITERS; i++) {
+        auto whiteAccVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(board_accumulator[0].data() + i * CHUNK_SIZE));
+        auto whiteAddVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(whiteAdd + i * CHUNK_SIZE));
+        auto whiteSubVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(whiteSub + i * CHUNK_SIZE));
+
+        auto blackAccVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(board_accumulator[1].data() + i * CHUNK_SIZE));
+        auto blackAddVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(blackAdd + i * CHUNK_SIZE));
+        auto blackSubVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(blackSub + i * CHUNK_SIZE));
+
+        auto updatedWhiteAcc = _mm256_sub_epi16(_mm256_add_epi16(whiteAccVec, whiteAddVec), whiteSubVec);
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(&board_accumulator[0][i * CHUNK_SIZE]), updatedWhiteAcc);
+
+        auto updatedBlackAcc = _mm256_sub_epi16(_mm256_add_epi16(blackAccVec, blackAddVec), blackSubVec);
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(&board_accumulator[1][i * CHUNK_SIZE]), updatedBlackAcc);
+    }
+    #else
     for (int i = 0; i < HIDDEN_SIZE; i++) {
         board_accumulator[0][i] = board_accumulator[0][i] - whiteSub[i] + whiteAdd[i];
     }
-    auto blackAdd = &net.featureWeights[blackAddIdx * HIDDEN_SIZE];
-    auto blackSub = &net.featureWeights[blackSubIdx * HIDDEN_SIZE];
     for (int i = 0; i < HIDDEN_SIZE; i++) {
         board_accumulator[1][i] = board_accumulator[1][i] - blackSub[i] + blackAdd[i];
     }
+    #endif
 }
 
 void NNUE::addSubSub(NNUE::accumulator& board_accumulator, 
@@ -200,15 +234,53 @@ void NNUE::addSubSub(NNUE::accumulator& board_accumulator,
     auto whiteAdd = &net.featureWeights[whiteAddIdx * HIDDEN_SIZE];
     auto whiteSub1 = &net.featureWeights[whiteSubIdx1 * HIDDEN_SIZE];
     auto whiteSub2 = &net.featureWeights[whiteSubIdx2 * HIDDEN_SIZE];
-    for (int i = 0; i < HIDDEN_SIZE; i++) {
-        board_accumulator[0][i] = board_accumulator[0][i] - whiteSub1[i] - whiteSub2[i] + whiteAdd[i];
-    }
     auto blackAdd = &net.featureWeights[blackAddIdx * HIDDEN_SIZE];
     auto blackSub1 = &net.featureWeights[blackSubIdx1 * HIDDEN_SIZE];
     auto blackSub2 = &net.featureWeights[blackSubIdx2 * HIDDEN_SIZE];
+    #if defined(USE_AVX512)
+    for (int i = 0; i < REQUIRED_ITERS; i++) {
+        auto whiteAccVec = _mm512_loadu_epi16(&board_accumulator[0][i * CHUNK_SIZE]);
+        auto whiteAddVec = _mm512_loadu_epi16(&whiteAdd[i * CHUNK_SIZE]);
+        auto whiteSubVec1 = _mm512_loadu_epi16(&whiteSub1[i * CHUNK_SIZE]);
+        auto whiteSubVec2 = _mm512_loadu_epi16(&whiteSub2[i * CHUNK_SIZE]);
+
+        auto blackAccVec = _mm512_loadu_epi16(&board_accumulator[1][i * CHUNK_SIZE]);
+        auto blackAddVec = _mm512_loadu_epi16(&blackAdd[i * CHUNK_SIZE]);
+        auto blackSubVec1 = _mm512_loadu_epi16(&blackSub1[i * CHUNK_SIZE]);
+        auto blackSubVec2 = _mm512_loadu_epi16(&blackSub2[i * CHUNK_SIZE]);
+
+        auto updatedWhiteAcc = _mm512_sub_epi16(_mm512_sub_epi16(_mm512_add_epi16(whiteAccVec, whiteAddVec), whiteSubVec1), whiteSubVec2);
+        _mm512_storeu_epi16(&board_accumulator[0][i * CHUNK_SIZE], updatedWhiteAcc);
+
+        auto updatedBlackAcc = _mm512_sub_epi16(_mm512_sub_epi16(_mm512_add_epi16(blackAccVec, blackAddVec), blackSubVec1), blackSubVec2);
+        _mm512_storeu_epi16(&board_accumulator[1][i * CHUNK_SIZE], updatedBlackAcc);
+    }
+    #elif defined(USE_AVX2)
+    for (int i = 0; i < REQUIRED_ITERS; i++) {
+        auto whiteAccVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(board_accumulator[0].data() + i * CHUNK_SIZE));
+        auto whiteAddVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(whiteAdd + i * CHUNK_SIZE));
+        auto whiteSubVec1 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(whiteSub1 + i * CHUNK_SIZE));
+        auto whiteSubVec2 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(whiteSub2 + i * CHUNK_SIZE));
+
+        auto blackAccVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(board_accumulator[1].data() + i * CHUNK_SIZE));
+        auto blackAddVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(blackAdd + i * CHUNK_SIZE));
+        auto blackSubVec1 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(blackSub1 + i * CHUNK_SIZE));
+        auto blackSubVec2 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(blackSub2 + i * CHUNK_SIZE));
+
+        auto updatedWhiteAcc = _mm256_sub_epi16(_mm256_sub_epi16(_mm256_add_epi16(whiteAccVec, whiteAddVec), whiteSubVec1), whiteSubVec2);
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(&board_accumulator[0][i * CHUNK_SIZE]), updatedWhiteAcc);
+
+        auto updatedBlackAcc = _mm256_sub_epi16(_mm256_sub_epi16(_mm256_add_epi16(blackAccVec, blackAddVec), blackSubVec1), blackSubVec2);
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(&board_accumulator[1][i * CHUNK_SIZE]), updatedBlackAcc);
+    }
+    #else
+    for (int i = 0; i < HIDDEN_SIZE; i++) {
+        board_accumulator[0][i] = board_accumulator[0][i] - whiteSub1[i] - whiteSub2[i] + whiteAdd[i];
+    }
     for (int i = 0; i < HIDDEN_SIZE; i++) {
         board_accumulator[1][i] = board_accumulator[1][i] - blackSub1[i] - blackSub2[i] + blackAdd[i];
     }
+    #endif
 }
 
 int32_t NNUE::output(const NNUE::accumulator& board_accumulator, const bool whiteToMove) {
