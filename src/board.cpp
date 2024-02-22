@@ -467,14 +467,13 @@ int GetEpSquare(const S_Board* pos) {
     return pos->enPas;
 }
 
-uint64_t GetMaterialValue(const S_Board* pos) {
-    int pawns = CountBits(GetPieceBB(pos, PAWN));
+int GetGamePhase(const S_Board* pos) {
     int knights = CountBits(GetPieceBB(pos, KNIGHT));
     int bishops = CountBits(GetPieceBB(pos, BISHOP));
     int rooks = CountBits(GetPieceBB(pos, ROOK));
     int queens = CountBits(GetPieceBB(pos, QUEEN));
 
-    return pawns * PieceValue[PAWN] + knights * PieceValue[KNIGHT] + bishops * PieceValue[BISHOP] + rooks * PieceValue[ROOK] + queens * PieceValue[QUEEN];
+    return std::min(3 * knights + 3 * bishops + 5 * rooks + 10 * queens, 64);
 }
 
 void Accumulate(NNUE::accumulator& board_accumulator, S_Board* pos) {
