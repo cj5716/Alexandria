@@ -204,11 +204,13 @@ void SearchPosition(int startDepth, int finalDepth, S_ThreadData* td, S_UciOptio
     int averageScore = score_none;
     int bestMoveStabilityFactor = 0;
     int previousBestMove = NOMOVE;
+    int previousScore = 0;
     // Clean the position and the search info to start search from a clean state
     ClearForSearch(td);
 
     // Call the Negamax function in an iterative deepening framework
     for (int currentDepth = startDepth; currentDepth <= finalDepth; currentDepth++) {
+        previousScore = score;
         score = AspirationWindowSearch(averageScore, currentDepth, td);
         averageScore = averageScore == score_none ? score : (averageScore + score) / 2;
         // Only the main thread handles time related tasks
@@ -224,7 +226,7 @@ void SearchPosition(int startDepth, int finalDepth, S_ThreadData* td, S_UciOptio
             // use the previous search to adjust some of the time management parameters, do not scale movetime time controls
             if (   td->RootDepth > 7
                 && td->info.timeset) {
-                ScaleTm(td, bestMoveStabilityFactor);
+                ScaleTm(td, bestMoveStabilityFactor, previousScore - score);
             }
 
             // check if we just cleared a depth and more than OptTime passed, or we used more than the give nodes
