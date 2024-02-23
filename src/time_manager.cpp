@@ -58,7 +58,7 @@ void ScaleTm(S_ThreadData* td, const int bestMoveStabilityFactor, const int scor
     const double bestMoveNodesFraction = static_cast<double>(td->nodeSpentTable[From(bestmove)][To(bestmove)]) / static_cast<double>(td->info.nodes);
     const double nodeScalingFactor = (1.52 - bestMoveNodesFraction) * 1.74;
     const double bestMoveScalingFactor = bestmoveScale[bestMoveStabilityFactor];
-    const double scoreDifferenceFactor = std::pow(1.3, std::clamp(scoreDifference, -100, 100) / 100.0);
+    const double scoreDifferenceFactor = std::pow(1.63, std::clamp(scoreDifference, -100, 100) / 100.0);
     // Scale the search time based on how many nodes we spent and how the best move changed
     td->info.stoptimeOpt = std::min<uint64_t>(td->info.starttime + td->info.stoptimeBaseOpt * nodeScalingFactor * bestMoveScalingFactor * scoreDifferenceFactor, td->info.stoptimeMax);
 
