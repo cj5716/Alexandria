@@ -59,7 +59,7 @@ void NNUE::init(const char* file) {
         std::memcpy(net.featureBias, &gEVALData[memoryIndex], HIDDEN_SIZE * sizeof(int16_t));
         memoryIndex += HIDDEN_SIZE * sizeof(int16_t);
 
-        std::memcpy(net.outputWeights, &gEVALData[memoryIndex], HIDDEN_SIZE * sizeof(int16_t) * 2);
+        std::memcpy(net.outputWeights, &gEVALData[memoryIndex], HIDDEN_SIZE * sizeof(int16_t) * 2 * OUTPUT_BUCKETS);
         memoryIndex += HIDDEN_SIZE * sizeof(int16_t) * 2 * OUTPUT_BUCKETS;
         std::memcpy(net.outputBias, &gEVALData[memoryIndex], OUTPUT_BUCKETS * sizeof(int16_t));
     }
