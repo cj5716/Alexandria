@@ -178,13 +178,12 @@ int32_t NNUE::horizontal_add(const __m256i sum) {
 }
 #endif
 
-int32_t NNUE::flatten(const int16_t *acc, const int16_t *weights, const int outputBucket) {
-    const int bucketOffset = 2 * HIDDEN_SIZE * outputBucket;
+int32_t NNUE::flatten(const int16_t *acc, const int16_t *weights) {
     #if defined(USE_AVX512)
     auto sum = _mm512_setzero_si512();
     for (int i = 0; i < REQUIRED_ITERS; i++) {
         auto us_vector = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(acc + i * CHUNK_SIZE));
-        auto weights_vec = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(weights + i * CHUNK_SIZE + bucketOffset));
+        auto weights_vec = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(weights + i * CHUNK_SIZE));
         auto min = _mm512_set1_epi16(0);
         auto max = _mm512_set1_epi16(QA);
         auto clamped = _mm512_min_epi16(_mm512_max_epi16(us_vector, min), max);
@@ -196,7 +195,7 @@ int32_t NNUE::flatten(const int16_t *acc, const int16_t *weights, const int outp
     auto sum = _mm256_setzero_si256();
     for (int i = 0; i < REQUIRED_ITERS; i++) {
         auto us_vector = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(acc + i * CHUNK_SIZE));
-        auto weights_vec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(weights + i * CHUNK_SIZE + bucketOffset));
+        auto weights_vec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(weights + i * CHUNK_SIZE));
         auto min = _mm256_set1_epi16(0);
         auto max = _mm256_set1_epi16(QA);
         auto clamped = _mm256_min_epi16(_mm256_max_epi16(us_vector, min), max);
@@ -208,7 +207,7 @@ int32_t NNUE::flatten(const int16_t *acc, const int16_t *weights, const int outp
     int32_t sum = 0;
     for (int i = 0; i < HIDDEN_SIZE; i++) {
         int32_t clipped = std::clamp(static_cast<int32_t>(acc[i]), 0, QA);
-        sum += clipped * clipped * static_cast<int32_t>(weights[i + bucketOffset]);
+        sum += clipped * clipped * static_cast<int32_t>(weights[i]);
     }
     return sum;
     #endif
@@ -226,7 +225,9 @@ int32_t NNUE::output(const NNUE::accumulator& board_accumulator, const bool whit
         us = board_accumulator[1].data();
         them = board_accumulator[0].data();
     }
-    int32_t output = flatten(us, net.outputWeights, outputBucket) + flatten(them, net.outputWeights + HIDDEN_SIZE, outputBucket);
+    const int32_t bucketOffset = 2 * HIDDEN_SIZE * outputBucket;
+    int32_t output =   flatten(us, net.outputWeights + bucketOffset)
+                     + flatten(them, net.outputWeights + HIDDEN_SIZE + bucketOffset);
     return (output / QA + net.outputBias[outputBucket]) * 400 / (QA * QB);
 }
 

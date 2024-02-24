@@ -32,7 +32,7 @@ public:
     void update(NNUE::accumulator& board_accumulator, std::vector<NNUEIndices>& NNUEAdd, std::vector<NNUEIndices>& NNUESub);
     void addSub(NNUE::accumulator& board_accumulator, NNUEIndices add, NNUEIndices sub);
     void addSubSub(NNUE::accumulator& board_accumulator, NNUEIndices add, NNUEIndices sub1, NNUEIndices sub2);
-    [[nodiscard]] int32_t flatten(const int16_t *acc, const int16_t *weights, const int outputBucket);
+    [[nodiscard]] int32_t flatten(const int16_t *acc, const int16_t *weights);
     [[nodiscard]] int32_t output(const NNUE::accumulator& board_accumulator, const bool whiteToMove, const int outputBucket);
     [[nodiscard]] NNUEIndices GetIndex(const int piece, const int square);
     #if defined(USE_AVX2)
