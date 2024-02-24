@@ -7,7 +7,7 @@
 
 constexpr int INPUT_WEIGHTS = 768;
 constexpr int HIDDEN_SIZE = 1024;
-constexpr int OUTPUT_BUCKETS = 1;
+constexpr int OUTPUT_BUCKETS = 8;
 
 struct Network {
     int16_t featureWeights[INPUT_WEIGHTS * HIDDEN_SIZE];

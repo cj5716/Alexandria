@@ -30,7 +30,8 @@ static inline float MaterialScale(const S_Board* pos) {
 int EvalPositionRaw(S_Board* pos) {
     nnue.update(pos->AccumulatorTop(), pos->NNUEAdd, pos->NNUESub);
     bool stm = pos->side == WHITE;
-    int outputBucket = 0;
+    int pieceCount = CountBits(pos->Occupancy(BOTH));
+    int outputBucket = std::min((63 - pieceCount) * (32 - pieceCount) / 225, 7);
     return nnue.output(pos->accumStack[pos->accumStackHead - 1], stm, outputBucket);
 }
 
