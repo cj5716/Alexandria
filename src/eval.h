@@ -6,3 +6,5 @@ struct S_Board;
 [[nodiscard]] bool MaterialDraw(const S_Board* pos);
 // position evaluation
 [[nodiscard]] int EvalPosition(S_Board* pos);
+// position evaluation (pure NNUE)
+[[nodiscard]] int EvalPositionRaw(S_Board* pos);
