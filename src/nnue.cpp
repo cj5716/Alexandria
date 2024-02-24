@@ -73,7 +73,7 @@ void NNUE::init(const char* file) {
             transposedOutputWeights[dstIdx] = net.outputWeights[srcIdx];
         }
     }
-    std::memcpy(net.outputWeights, &transposedOutputWeights[0], HIDDEN_SIZE * sizeof(int16_t) * 2 * OUTPUT_BUCKETS);
+    std::memcpy(net.outputWeights, transposedOutputWeights, HIDDEN_SIZE * sizeof(int16_t) * 2 * OUTPUT_BUCKETS);
 }
 
 #if defined(USE_AVX512)
