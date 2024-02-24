@@ -66,7 +66,6 @@ void NNUE::init(const char* file) {
         memoryIndex += HIDDEN_SIZE * sizeof(int16_t) * 2 * OUTPUT_BUCKETS;
         std::memcpy(net.outputBias, &gEVALData[memoryIndex], OUTPUT_BUCKETS * sizeof(int16_t));
     }
-
     int16_t transposedOutputWeights[HIDDEN_SIZE * 2 * OUTPUT_BUCKETS];
     for (int weight = 0; weight < 2 * HIDDEN_SIZE; ++weight)
     {
@@ -184,7 +183,7 @@ int32_t NNUE::flatten(const int16_t *acc, const int16_t *weights, const int outp
     #if defined(USE_AVX512)
     auto sum = _mm512_setzero_si512();
     for (int i = 0; i < REQUIRED_ITERS; i++) {
-        auto us_vector = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(acc + i * CHUNK_SIZE + bucketOffset));
+        auto us_vector = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(acc + i * CHUNK_SIZE));
         auto weights_vec = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(weights + i * CHUNK_SIZE + bucketOffset));
         auto min = _mm512_set1_epi16(0);
         auto max = _mm512_set1_epi16(QA);
@@ -196,7 +195,7 @@ int32_t NNUE::flatten(const int16_t *acc, const int16_t *weights, const int outp
     #elif defined(USE_AVX2)
     auto sum = _mm256_setzero_si256();
     for (int i = 0; i < REQUIRED_ITERS; i++) {
-        auto us_vector = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(acc + i * CHUNK_SIZE + bucketOffset));
+        auto us_vector = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(acc + i * CHUNK_SIZE));
         auto weights_vec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(weights + i * CHUNK_SIZE + bucketOffset));
         auto min = _mm256_set1_epi16(0);
         auto max = _mm256_set1_epi16(QA);
@@ -208,7 +207,7 @@ int32_t NNUE::flatten(const int16_t *acc, const int16_t *weights, const int outp
     #else
     int32_t sum = 0;
     for (int i = 0; i < HIDDEN_SIZE; i++) {
-        int32_t clipped = std::clamp(static_cast<int32_t>(acc[i + bucketOffset]), 0, QA);
+        int32_t clipped = std::clamp(static_cast<int32_t>(acc[i]), 0, QA);
         sum += clipped * clipped * static_cast<int32_t>(weights[i + bucketOffset]);
     }
     return sum;
