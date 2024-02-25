@@ -603,7 +603,7 @@ moves_loop:
         info->nodes++;
         uint64_t nodesBeforeSearch = info->nodes;
         // Conditions to consider LMR. Calculate how much we should reduce the search depth.
-        if (totalMoves > 1 + pvNode && depth >= 3 && (isQuiet || !ttPv)) {
+        if (depth >= 3 && totalMoves > 1 + pvNode + 2 * (isQuiet || !ttPv)) {
 
             // Get base reduction value
             int depthReduction = reductions[isQuiet][depth][totalMoves];
