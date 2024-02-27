@@ -31,6 +31,7 @@ Network net;
 // invaluable help and the immense patience
 
 void NNUE::init(const char* file) {
+
     // open the nn file
     FILE* nn = fopen(file, "rb");
 
@@ -66,6 +67,8 @@ void NNUE::init(const char* file) {
         memoryIndex += HIDDEN_SIZE * sizeof(int16_t) * 2 * OUTPUT_BUCKETS;
         std::memcpy(net.outputBias, &gEVALData[memoryIndex], OUTPUT_BUCKETS * sizeof(int16_t));
     }
+
+/*
     int16_t transposedOutputWeights[HIDDEN_SIZE * 2 * OUTPUT_BUCKETS];
     for (int weight = 0; weight < 2 * HIDDEN_SIZE; ++weight)
     {
@@ -77,6 +80,7 @@ void NNUE::init(const char* file) {
         }
     }
     std::memcpy(net.outputWeights, transposedOutputWeights, HIDDEN_SIZE * sizeof(int16_t) * 2 * OUTPUT_BUCKETS);
+*/
 }
 
 #if defined(USE_AVX512)

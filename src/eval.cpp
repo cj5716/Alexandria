@@ -37,7 +37,7 @@ int EvalPositionRaw(Position* pos) {
     nnue.update(pos->AccumulatorTop(), pos->NNUEAdd, pos->NNUESub);
     bool stm = pos->side == WHITE;
     int pieceCount = pos->PieceCount();
-    int outputBucket = std::min((63 - pieceCount) * (32 - pieceCount) / 225, 7);
+    int outputBucket = (pieceCount - 2) / 4;
     return nnue.output(pos->accumStack[pos->accumStackHead - 1], stm, outputBucket);
 }
 
