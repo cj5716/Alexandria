@@ -76,6 +76,7 @@ void InitMP(Movepicker* mp, S_Board* pos, Search_data* sd, Search_stack* ss, con
     mp->stage = mp->ttMove ? PICK_TT : GEN_MOVES;
     mp->capturesOnly = capturesOnly;
     mp->SEEThreshold = SEEThreshold;
+    mp->isBadCap = false;
     mp->killer0 = ss->searchKillers[0];
     mp->killer1 = ss->searchKillers[1];
     mp->counter = sd->CounterMoves[From((ss - 1)->move)][To((ss - 1)->move)];
@@ -85,6 +86,7 @@ int NextMove(Movepicker* mp, const bool skipNonGood) {
     switch (mp->stage) {
     case PICK_TT:
         ++mp->stage;
+        mp->isBadCap = false;
         return mp->ttMove;
 
     case GEN_MOVES: {
@@ -106,9 +108,10 @@ int NextMove(Movepicker* mp, const bool skipNonGood) {
             if (move == mp->ttMove)
                 continue;
 
-            if (skipNonGood && mp->moveList->moves[mp->idx-1].score < goodCaptureMin)
+            if (skipNonGood && mp->moveList->moves[mp->idx - 1].score < goodCaptureMin)
                 return NOMOVE;
 
+            mp->isBadCap = isTactical(move) && mp->moveList->moves[mp->idx - 1].score < goodCaptureMin;
             return move;
         }
         return NOMOVE;

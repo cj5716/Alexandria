@@ -20,8 +20,9 @@ struct Movepicker {
     int killer0;
     int killer1;
     int counter;
-    bool capturesOnly;
     int SEEThreshold;
+    bool isBadCap;
+    bool capturesOnly;
 };
 
 void InitMP(Movepicker* mp, S_Board* pos, Search_data* sd, Search_stack* ss, const int ttMove, const bool capturesOnly, const int SEEThreshold = score_none);
