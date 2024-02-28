@@ -16,5 +16,7 @@ int history_bonus(const int depth);
 [[nodiscard]] int GetCapthistScore(const S_Board* pos, const Search_data* sd, const int move);
 // Clean all the history tables
 void CleanHistories(Search_data* sd);
+// Updates the butterfly history score for a single move
+void updateHHScore(const S_Board* pos, Search_data* sd, int move, int bonus);
 // Updates the continuation history score for a single move
 void updateCHScore(Search_data* sd, const Search_stack* ss, const int move, const int bonus);

@@ -364,8 +364,12 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
         &&  tte.depth >= depth
         && (   (ttFlag == HFUPPER && ttScore <= alpha)
             || (ttFlag == HFLOWER && ttScore >= beta)
-            ||  ttFlag == HFEXACT))
+            ||  ttFlag == HFEXACT)) {
+        if (ttMove && !isTactical(ttMove) && ttScore >= beta)
+            updateHHScore(pos, sd, ttMove, history_bonus(depth));
+            
         return ttScore;
+    }
 
     const bool ttPv = pvNode || (ttHit && tte.wasPv_flags >> 2);
 
