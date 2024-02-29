@@ -484,7 +484,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
         if (depth > 4 && std::abs(beta) < mate_found && (ttScore == score_none || tte.depth < depth - 3 || ttScore >= pcBeta)) {
             Movepicker mp;
             int move;
-            InitMP(&mp, pos, sd, ss, ttMove, true, std::max(pcBeta - ss->staticEval, 1));
+            InitMP(&mp, pos, sd, ss, ttMove, true, pcBeta - ss->staticEval);
             while ((move = NextMove(&mp, true)) != NOMOVE) {
                 // Speculative prefetch of the TT entry
                 TTPrefetch(keyAfter(pos, move));
