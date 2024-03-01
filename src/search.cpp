@@ -437,10 +437,11 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
             && (ss - 1)->move != NOMOVE
             && depth >= 3
             && ss->ply >= td->nmpPlies
-            && BoardHasNonPawns(pos, pos->side)) {
+            && BoardHasNonPawns(pos, pos->side)
+            && !oppCanWinMaterial(pos, pos->side)) {
 
             ss->move = NOMOVE;
-            const int R = 3 + depth / 3 + std::min((eval - beta) / 200, 3) + oppCanWinMaterial(pos, pos->side);
+            const int R = 3 + depth / 3 + std::min((eval - beta) / 200, 3);
 
             MakeNullMove(pos);
 
