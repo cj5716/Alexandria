@@ -508,6 +508,7 @@ moves_loop:
         totalMoves++;
 
         const bool isQuiet = !isTactical(move);
+        const bool isKillerOrCounter = move == mp.killer0 || move == mp.killer1 || move == mp.counter;
 
         if (isQuiet && SkipQuiets)
             continue;
@@ -536,6 +537,13 @@ moves_loop:
                     SkipQuiets = true;
                 }
             }
+
+            // Continuation history pruning: at low depths we prune moves that are bad continuations to our previous moves
+            if (    depth <= 3
+                && !isKillerOrCounter
+                && isQuiet
+                && GetCHScore(sd, ss, move) <= -8192 * depth)
+                continue;
 
             // See pruning: prune all the moves that have a SEE score that is lower than our threshold
             if (    depth <= 8
@@ -617,7 +625,7 @@ moves_loop:
                 depthReduction += 1;
 
             // Reduce less if the move is a refutation
-            if (move == mp.killer0 || move == mp.killer1 || move == mp.counter)
+            if (isKillerOrCounter)
                 depthReduction -= 1;
 
             // Reduce less if we have been on the PV
