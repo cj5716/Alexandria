@@ -542,7 +542,7 @@ moves_loop:
             if (    depth <= 3
                 && !isKillerOrCounter
                 && isQuiet
-                && GetCHScore(sd, ss, move) <= -8192 * depth)
+                && GetCHScore(sd, ss, move) <= -16384 * depth + 8192)
                 continue;
 
             // See pruning: prune all the moves that have a SEE score that is lower than our threshold
