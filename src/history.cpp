@@ -15,32 +15,31 @@ int history_bonus(const int depth) {
 }
 
 void updateHHScore(const S_Board* pos, Search_data* sd, int move, int bonus) {
-    // Scale bonus to fix it in a [-32768;32768] range
-    const int scaledBonus = bonus - GetHHScore(pos, sd, move) * std::abs(bonus) / 32768;
+    // Scale bonus to fix it in a [-16384;16384] range
+    const int scaledBonus = bonus - GetHHScore(pos, sd, move) * std::abs(bonus) / 16384;
     // Update move score
     sd->searchHistory[pos->side][From(move)][To(move)] += scaledBonus;
 }
 
 void updateCHScore(Search_data* sd, const Search_stack* ss, const int move, const int bonus) {
-    // Average out the bonus across the 3 conthist entries
-    const int scaledBonus = bonus - GetCHScore(sd, ss, move) * std::abs(bonus) / 32768;
     // Update move score
-    updateSingleCHScore(sd, ss, move, scaledBonus, 1);
-    updateSingleCHScore(sd, ss, move, scaledBonus, 2);
-    updateSingleCHScore(sd, ss, move, scaledBonus, 4);
+    updateSingleCHScore(sd, ss, move, bonus, 1);
+    updateSingleCHScore(sd, ss, move, bonus, 2);
+    updateSingleCHScore(sd, ss, move, bonus, 4);
 }
 
 void updateSingleCHScore(Search_data* sd, const Search_stack* ss, const int move, const int bonus, const int offset) {
     if (ss->ply >= offset) {
         const int previousMove = (ss - offset)->move;
-        const int scaledBonus = bonus - GetSingleCHScore(sd, ss, move, offset) * std::abs(bonus) / 65536;
+        // Scale bonus to fix it in a [-16384;16384] range
+        const int scaledBonus = bonus - GetSingleCHScore(sd, ss, move, offset) * std::abs(bonus) / 16384;
         sd->contHist[Piece(previousMove)][To(previousMove)][Piece(move)][To(move)] += scaledBonus;
     }
 }
 
 void updateCapthistScore(const S_Board* pos, Search_data* sd, int move, int bonus) {
-    // Scale bonus to fix it in a [-32768;32768] range
-    const int scaledBonus = bonus - GetCapthistScore(pos, sd, move) * std::abs(bonus) / 32768;
+    // Scale bonus to fix it in a [-16384;16384] range
+    const int scaledBonus = bonus - GetCapthistScore(pos, sd, move) * std::abs(bonus) / 16384;
     int capturedPiece = isEnpassant(move) ? PAWN : GetPieceType(pos->PieceOn(To(move)));
     // If we captured an empty piece this means the move is a promotion, we can pretend we captured a pawn to use a slot of the table that would've otherwise went unused (you can't capture pawns on the 1st/8th rank)
     if (capturedPiece == EMPTY) capturedPiece = PAWN;
