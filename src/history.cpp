@@ -11,7 +11,7 @@ GetScore: this is simply a getter for a specific entry of the history table
 */
 
 constexpr int MAX_HH = 16384;
-constexpr int MAX_CH = 32768;
+constexpr int MAX_CH = 12345;
 constexpr int MAX_CAPTHIST = 16384;
 
 int history_bonus(const int depth) {
