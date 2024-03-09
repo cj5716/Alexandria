@@ -10,12 +10,12 @@ UpdateHistories : this performs a general update of all the heuristics, giving t
 GetScore: this is simply a getter for a specific entry of the history table
 */
 
-constexpr int MAX_HH = 16384;
-constexpr int MAX_CH = 12345;
-constexpr int MAX_CAPTHIST = 16384;
+constexpr int MAX_HH = 24576;
+constexpr int MAX_CH = 24576;
+constexpr int MAX_CAPTHIST = 24576;
 
 int history_bonus(const int depth) {
-    return std::min(16 * (depth + 1) * (depth + 1), 1200);
+    return std::min(16 * depth * depth + 32 * depth + 16, 1200);
 }
 
 void updateHHScore(const S_Board* pos, Search_data* sd, int move, int bonus) {
