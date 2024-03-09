@@ -10,13 +10,17 @@ UpdateHistories : this performs a general update of all the heuristics, giving t
 GetScore: this is simply a getter for a specific entry of the history table
 */
 
+constexpr int MAX_HH = 16384;
+constexpr int MAX_CH = 32768;
+constexpr int MAX_CAPTHIST = 16384;
+
 int history_bonus(const int depth) {
     return std::min(16 * (depth + 1) * (depth + 1), 1200);
 }
 
 void updateHHScore(const S_Board* pos, Search_data* sd, int move, int bonus) {
-    // Scale bonus to fix it in a [-16384;16384] range
-    const int scaledBonus = bonus - GetHHScore(pos, sd, move) * std::abs(bonus) / 16384;
+    // Scale bonus to fix it in a [-MAX_HH;MAX_HH] range
+    const int scaledBonus = bonus - GetHHScore(pos, sd, move) * std::abs(bonus) / MAX_HH;
     // Update move score
     sd->searchHistory[pos->side][From(move)][To(move)] += scaledBonus;
 }
@@ -31,15 +35,15 @@ void updateCHScore(Search_data* sd, const Search_stack* ss, const int move, cons
 void updateSingleCHScore(Search_data* sd, const Search_stack* ss, const int move, const int bonus, const int offset) {
     if (ss->ply >= offset) {
         const int previousMove = (ss - offset)->move;
-        // Scale bonus to fix it in a [-16384;16384] range
-        const int scaledBonus = bonus - GetSingleCHScore(sd, ss, move, offset) * std::abs(bonus) / 16384;
+        // Scale bonus to fix it in a [-MAX_CH;MAX_CH] range
+        const int scaledBonus = bonus - GetSingleCHScore(sd, ss, move, offset) * std::abs(bonus) / MAX_CH;
         sd->contHist[Piece(previousMove)][To(previousMove)][Piece(move)][To(move)] += scaledBonus;
     }
 }
 
 void updateCapthistScore(const S_Board* pos, Search_data* sd, int move, int bonus) {
-    // Scale bonus to fix it in a [-16384;16384] range
-    const int scaledBonus = bonus - GetCapthistScore(pos, sd, move) * std::abs(bonus) / 16384;
+    // Scale bonus to fix it in a [-MAX_CAPTHIST;MAX_CAPTHIST] range
+    const int scaledBonus = bonus - GetCapthistScore(pos, sd, move) * std::abs(bonus) / MAX_CAPTHIST;
     int capturedPiece = isEnpassant(move) ? PAWN : GetPieceType(pos->PieceOn(To(move)));
     // If we captured an empty piece this means the move is a promotion, we can pretend we captured a pawn to use a slot of the table that would've otherwise went unused (you can't capture pawns on the 1st/8th rank)
     if (capturedPiece == EMPTY) capturedPiece = PAWN;
