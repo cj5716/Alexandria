@@ -17,8 +17,8 @@
 #include "time_manager.h"
 #include "io.h"
 
-// Returns true if the position is a 2-fold repetition, false otherwise
-static bool IsRepetition(const S_Board* pos, const bool pvNode) {
+// Returns true if the position is a 3-fold repetition, false otherwise
+static bool IsRepetition(const S_Board* pos) {
     assert(pos->hisPly >= pos->fiftyMove);
     int counter = 1;
     // How many moves back should we look at most, aka our distance to the last irreversible move
@@ -31,7 +31,7 @@ static bool IsRepetition(const S_Board* pos, const bool pvNode) {
         if (pos->played_positions[startingPoint - index] == pos->posKey) {
             // we found a repetition
             counter++;
-            if (counter >= 2 + pvNode)
+            if (counter >= 3)
                 return true;
         }
     return false;
@@ -44,20 +44,27 @@ static bool Is50MrDraw(S_Board* pos) {
         // If there's no risk we are being checkmated return true
         if (!pos->checkers)
             return true;
+
         // if we are in check make sure it's not checkmate 
-        S_MOVELIST move_list[1];
+        S_MOVELIST moveList[1];
         // generate moves
-        GenerateMoves(move_list, pos);
-        return move_list->count > 0;
+        GenerateMoves(moveList, pos);
+        int illegals = 0;
+        for (int i = 0; i < moveList->count; i++) {
+            const int move = moveList->moves[i].move;
+            if (!IsLegal(pos, move))
+                illegals++;
+        }
+        return moveList->count > illegals;
     }
 
     return false;
 }
 
 // If we triggered any of the rules that forces a draw or we know the position is a draw return a draw score
-bool IsDraw(S_Board* pos, const bool pvNode) {
+bool IsDraw(S_Board* pos) {
     // if it's a 3-fold repetition, the fifty moves rule kicked in or there isn't enough material on the board to give checkmate then it's a draw
-    return IsRepetition(pos, pvNode)
+    return IsRepetition(pos)
         || Is50MrDraw(pos)
         || MaterialDraw(pos);
 }
@@ -341,7 +348,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
     // Check for early return conditions
     if (!rootNode) {
         // If position is a draw return a randomized draw score to avoid 3-fold blindness
-        if (IsDraw(pos, pvNode))
+        if (IsDraw(pos))
             return 0;
 
         // If we reached maxdepth we return a static evaluation of the position
@@ -750,7 +757,7 @@ int Quiescence(int alpha, int beta, S_ThreadData* td, Search_stack* ss) {
     }
 
     // If position is a draw return a randomized draw score to avoid 3-fold blindness
-    if (IsDraw(pos, pvNode))
+    if (IsDraw(pos))
         return 0;
 
     // If we reached maxdepth we return a static evaluation of the position
