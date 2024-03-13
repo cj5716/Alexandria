@@ -629,7 +629,7 @@ moves_loop:
                 depthReduction -= 1;
 
             // Decrease the reduction for moves that have a good history score and increase it for moves with a bad score
-            depthReduction -= moveHistory / 16384;
+            depthReduction -= moveHistory / 8192;
 
             // adjust the reduction so that we can't drop into Qsearch and to prevent extensions
             depthReduction = std::clamp(depthReduction, 0, newDepth - 1);
