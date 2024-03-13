@@ -49,13 +49,13 @@ static bool Is50MrDraw(S_Board* pos) {
         S_MOVELIST moveList[1];
         // generate moves
         GenerateMoves(moveList, pos);
-        int illegals = 0;
         for (int i = 0; i < moveList->count; i++) {
             const int move = moveList->moves[i].move;
-            if (!IsLegal(pos, move))
-                illegals++;
+            if (IsLegal(pos, move)) {
+                return true; // We have at least one legal move, so it is a draw
+            }
         }
-        return moveList->count > illegals;
+        return false;
     }
 
     return false;
