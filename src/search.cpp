@@ -575,6 +575,7 @@ moves_loop:
 
                 if (singularScore < singularBeta) {
                     extension = 1;
+
                     // Avoid search explosion by limiting the number of double extensions
                     if (   !pvNode
                         &&  singularScore < singularBeta - 17

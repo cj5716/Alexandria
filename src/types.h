@@ -113,9 +113,10 @@ enum {
     knightPromotionScore = 2000000000,
     goodCaptureScore = 1000000000,
     goodCaptureMin = 900000000,
-    killerMoveScore0 = 800000000,
-    killerMoveScore1 = 700000000,
-    counterMoveScore= 600000000,
+    secondMoveScore = 800000000,
+    killerMoveScore0 = 700000000,
+    killerMoveScore1 = 600000000,
+    counterMoveScore = 500000000,
     badCaptureScore = -1000000,
     badPromotionScore = -2000000001
 };
