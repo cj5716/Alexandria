@@ -90,7 +90,7 @@ int NextMove(Movepicker* mp, const bool skipNonGood) {
 
     case PICK_SECOND:
         ++mp->stage;
-        if (mp->secondMove)
+        if (mp->secondMove && IsPseudoLegal(mp->pos, mp->secondMove))
             return mp->secondMove;
 
         [[fallthrough]];
