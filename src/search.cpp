@@ -569,6 +569,10 @@ moves_loop:
                 int singularScore = Negamax<false>(singularBeta - 1, singularBeta, singularDepth, cutNode, td, ss);
                 ss->excludedMove = NOMOVE;
 
+                // This move caused singular search to fail high (thus it is an alternative to the TT move)
+                if (singularScore >= singularBeta)
+                    mp.secondMove = ss->move;
+
                 if (singularScore < singularBeta) {
                     extension = 1;
                     // Avoid search explosion by limiting the number of double extensions

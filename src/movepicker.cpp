@@ -72,6 +72,7 @@ void InitMP(Movepicker* mp, S_Board* pos, Search_data* sd, Search_stack* ss, con
     mp->sd = sd;
     mp->ss = ss;
     mp->ttMove = (!capturesOnly || isTactical(ttMove)) && IsPseudoLegal(pos, ttMove) ? ttMove : NOMOVE;
+    mp->secondMove = NOMOVE;
     mp->idx = 0;
     mp->stage = mp->ttMove ? PICK_TT : GEN_MOVES;
     mp->capturesOnly = capturesOnly;
@@ -87,7 +88,14 @@ int NextMove(Movepicker* mp, const bool skipNonGood) {
         ++mp->stage;
         return mp->ttMove;
 
-    case GEN_MOVES: {
+    case PICK_SECOND:
+        ++mp->stage;
+        if (mp->secondMove)
+            return mp->secondMove;
+
+        [[fallthrough]];
+
+    case GEN_MOVES:
         if (mp->capturesOnly) {
             GenerateCaptures(mp->moveList, mp->pos);
         }
@@ -97,13 +105,13 @@ int NextMove(Movepicker* mp, const bool skipNonGood) {
         ScoreMoves(mp);
         ++mp->stage;
         [[fallthrough]];
-    }
-    case PICK_MOVES: {
+
+    case PICK_MOVES:
         while (mp->idx < mp->moveList->count) {
             partialInsertionSort(mp->moveList, mp->idx);
             const int move = mp->moveList->moves[mp->idx].move;
             ++mp->idx;
-            if (move == mp->ttMove)
+            if (move == mp->ttMove || move == mp->secondMove)
                 continue;
 
             if (skipNonGood && mp->moveList->moves[mp->idx-1].score < goodCaptureMin)
@@ -112,7 +120,6 @@ int NextMove(Movepicker* mp, const bool skipNonGood) {
             return move;
         }
         return NOMOVE;
-    }
     }
     return NOMOVE;
 }
