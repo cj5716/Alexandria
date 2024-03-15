@@ -26,12 +26,7 @@ void ScoreMoves(Movepicker* mp) {
             moveList->moves[i].score += SEE(pos, move, SEEThreshold) ? goodCaptureScore : badCaptureScore;
             continue;
         }
-        // If the singular search suggests this to be an alternative move than place it as the top quiet
-        else if (move == mp->secondMove) {
-            moveList->moves[i].score = secondMoveScore;
-            continue;
-        }
-        // First killer move is always the most prioritised quiet other than secondMove
+        // First killer move always comes after the TT move,the promotions and the good captures and before anything else
         else if (move == mp->killer0) {
             moveList->moves[i].score = killerMoveScore0;
             continue;
@@ -92,6 +87,13 @@ int NextMove(Movepicker* mp, const bool skipNonGood) {
     case PICK_TT:
         ++mp->stage;
         return mp->ttMove;
+
+    case PICK_SECOND:
+        ++mp->stage;
+        if (mp->secondMove && IsPseudoLegal(mp->pos, mp->secondMove))
+            return mp->secondMove;
+
+        [[fallthrough]];
 
     case GEN_MOVES:
         if (mp->capturesOnly) {
