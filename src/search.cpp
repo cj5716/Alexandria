@@ -385,6 +385,9 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, S_ThreadData* td
     if (depth >= 4 && ttBound == HFNONE)
         depth--;
 
+    // clear ss->move before the moves-loop
+    ss->move = NOMOVE;
+
     // clean killers and excluded move for the next ply
     (ss + 1)->excludedMove = NOMOVE;
     (ss + 1)->searchKillers[0] = NOMOVE;
