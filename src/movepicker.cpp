@@ -109,7 +109,7 @@ int NextMove(Movepicker* mp, const bool skipNonGood) {
             partialInsertionSort(mp->moveList, mp->idx);
             const int move = mp->moveList->moves[mp->idx].move;
             ++mp->idx;
-            if (move == mp->ttMove)
+            if (move == mp->ttMove || move == mp->secondMove)
                 continue;
 
             if (skipNonGood && mp->moveList->moves[mp->idx-1].score < goodCaptureMin)
