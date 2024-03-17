@@ -88,13 +88,6 @@ int NextMove(Movepicker* mp, const bool skipNonGood) {
         ++mp->stage;
         return mp->ttMove;
 
-    case PICK_SECOND:
-        ++mp->stage;
-        if (mp->secondMove)
-            return mp->secondMove;
-
-        [[fallthrough]];
-
     case GEN_MOVES:
         if (mp->capturesOnly) {
             GenerateCaptures(mp->moveList, mp->pos);
@@ -111,7 +104,7 @@ int NextMove(Movepicker* mp, const bool skipNonGood) {
             partialInsertionSort(mp->moveList, mp->idx);
             const int move = mp->moveList->moves[mp->idx].move;
             ++mp->idx;
-            if (move == mp->ttMove || move == mp->secondMove)
+            if (move == mp->ttMove)
                 continue;
 
             if (skipNonGood && mp->moveList->moves[mp->idx-1].score < goodCaptureMin)

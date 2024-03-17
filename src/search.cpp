@@ -635,6 +635,10 @@ moves_loop:
             if (move == mp.killer0 || move == mp.killer1 || move == mp.counter)
                 depthReduction -= 1;
 
+            // Reduce less if this move was the best move from singular search
+            if (move == mp.secondMove)
+                depthReduction -= 1;
+
             // Reduce less if we have been on the PV
             if (ttPv)
                 depthReduction -= 1 + cutNode;

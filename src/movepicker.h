@@ -5,7 +5,6 @@ struct S_MOVELIST;
 
 enum {
     PICK_TT,
-    PICK_SECOND,
     GEN_MOVES,
     PICK_MOVES
 };
