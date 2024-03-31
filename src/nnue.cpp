@@ -232,7 +232,7 @@ int32_t NNUE::output(const NNUE::accumulator& board_accumulator, const bool whit
     const int32_t bucketOffset = 2 * HIDDEN_SIZE * outputBucket;
     int32_t output =   flatten(us, net.outputWeights + bucketOffset)
                      + flatten(them, net.outputWeights + HIDDEN_SIZE + bucketOffset);
-    return (output / QA + *(net.outputBias + outputBucket)) * 400 / (QA * QB);
+    return (output / QA + net.outputBias[outputBucket]) * 400 / (QA * QB);
 }
 
 NNUEIndices NNUE::GetIndex(const int piece, const int square) {
