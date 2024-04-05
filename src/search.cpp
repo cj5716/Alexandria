@@ -455,6 +455,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
             const int R = 3 + depth / 3 + std::min((eval - beta) / 200, 3);
 
             MakeNullMove(pos);
+            ss->contHistEntry = &sd->contHist[PieceTo(NOMOVE)];
 
             // Search moves at a reduced depth to find beta cutoffs.
             int nmpScore = -Negamax<false>(-beta, -beta + 1, depth - R, !cutNode, td, ss + 1);
@@ -599,8 +600,10 @@ moves_loop:
         // Speculative prefetch of the TT entry
         TTPrefetch(keyAfter(pos, move));
         ss->move = move;
+
         // Play the move
         MakeMove(move, pos);
+        ss->contHistEntry = &sd->contHist[PieceTo(move)];
 
         // Add any played move to the matching list
         if (isQuiet)
@@ -659,7 +662,7 @@ moves_loop:
 
                 int bonus = score > alpha ? history_bonus(depth)
                                           : -history_bonus(depth);
-                updateCHScore(sd, ss, move, bonus);
+                updateCHScore(ss, move, bonus);
             }
         }
         // If we skipped LMR and this isn't the first move of the node we'll search with a reduced window and full depth
