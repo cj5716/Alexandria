@@ -91,7 +91,7 @@ constexpr int32_t CHUNK_SIZE = 1;
 #endif
 constexpr int32_t REQUIRED_ITERS = HIDDEN_SIZE / CHUNK_SIZE;
 constexpr int32_t QA = 255;
-constexpr int32_t QB = 64;
+constexpr int32_t QB = 255;
 
 void NNUE::add(NNUE::accumulator& board_accumulator, const int piece, const int to) {
     auto [whiteIdx, blackIdx] = GetIndex(piece, to);
@@ -187,10 +187,20 @@ int32_t NNUE::flatten(const int16_t *acc, const int16_t *weights) {
     for (int i = 0; i < REQUIRED_ITERS; i++) {
         auto us_vector = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(acc + i * CHUNK_SIZE));
         auto weights_vec = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(weights + i * CHUNK_SIZE));
-        auto min = _mm512_set1_epi16(0);
-        auto max = _mm512_set1_epi16(QA);
-        auto clamped = _mm512_min_epi16(_mm512_max_epi16(us_vector, min), max);
-        auto mul = _mm512_madd_epi16(_mm512_mullo_epi16(clamped, weights_vec), clamped);
+        auto ZeroVec = _mm512_set1_epi16(0);
+        auto OneVec  = _mm512_set1_epi16(QA);
+        auto clamped = _mm512_min_epi16(_mm512_max_epi16(us_vector, ZeroVec), OneVec);
+        auto squared = _mm512_mullo_epi16(clamped, clamped);
+
+        // Note: the below is simply a workaround because maddubs between uint16_t vec and int16_t vec doesn't exist for some reason
+        auto squaredLo = _mm512_unpacklo_epi16(squared, ZeroVec);
+        auto squaredHi = _mm512_unpackhi_epi16(squared, ZeroVec);
+        auto weightsLo = _mm512_srai_epi32(_mm512_unpacklo_epi16(weights_vec, weights_vec), 16);
+        auto weightsHi = _mm512_srai_epi32(_mm512_unpackhi_epi16(weights_vec, weights_vec), 16);
+        auto mulLo = _mm512_mullo_epi32(weightsLo, squaredLo);
+        auto mulHi = _mm512_mullo_epi32(weightsHi, squaredHi);
+        auto mul = _mm512_add_epi32(mulLo, mulHi);
+
         sum = _mm512_add_epi32(sum, mul);
     }
     return _mm512_reduce_add_epi32(sum);
@@ -202,7 +212,17 @@ int32_t NNUE::flatten(const int16_t *acc, const int16_t *weights) {
         auto min = _mm256_set1_epi16(0);
         auto max = _mm256_set1_epi16(QA);
         auto clamped = _mm256_min_epi16(_mm256_max_epi16(us_vector, min), max);
-        auto mul = _mm256_madd_epi16(_mm256_mullo_epi16(clamped, weights_vec), clamped);
+        auto squared = _mm256_mullo_epi16(clamped, clamped);
+
+        // Note: the below is simply a workaround because maddubs between uint16_t vec and int16_t vec doesn't exist for some reason
+        auto squaredLo = _mm256_unpacklo_epi16(squared, ZeroVec);
+        auto squaredHi = _mm256_unpackhi_epi16(squared, ZeroVec);
+        auto weightsLo = _mm256_srai_epi32(_mm256_unpacklo_epi16(weights_vec, weights_vec), 16);
+        auto weightsHi = _mm256_srai_epi32(_mm256_unpackhi_epi16(weights_vec, weights_vec), 16);
+        auto mulLo = _mm256_mullo_epi32(weightsLo, squaredLo);
+        auto mulHi = _mm256_mullo_epi32(weightsHi, squaredHi);
+        auto mul = _mm256_add_epi32(mulLo, mulHi);
+
         sum = _mm256_add_epi32(sum, mul);
     }
     return horizontal_add(sum);
