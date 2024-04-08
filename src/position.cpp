@@ -442,9 +442,9 @@ int GetEpSquare(const Position* pos) {
 }
 
 void Accumulate(NNUE::accumulator& board_accumulator, Position* pos) {
-    for (int i = 0; i < HIDDEN_SIZE; i++) {
-        board_accumulator[0][i] = net.featureBias[i];
-        board_accumulator[1][i] = net.featureBias[i];
+    for (int i = 0; i < L1_SIZE; i++) {
+        board_accumulator[0][i] = net.FTBiases[i];
+        board_accumulator[1][i] = net.FTBiases[i];
     }
 
     for (int i = 0; i < 64; i++) {
