@@ -14,11 +14,7 @@ constexpr int L1_SIZE = 1536;
 constexpr int L2_SIZE = 32;
 constexpr int OUTPUT_BUCKETS = 8;
 
-// Quantisation constants for each of the layers
-constexpr int FT_QUANT = 255;
-constexpr int L1_QUANT = 64;
-constexpr int L2_QUANT = 64;
-
+constexpr int QUANT = 128;
 constexpr int NET_SCALE = 400;
 
 using NNUEIndices = std::pair<std::size_t, std::size_t>;
@@ -35,7 +31,7 @@ struct Network {
 struct UnquantisedNetwork {
     float FTWeights[INPUT_SIZE * L1_SIZE];
     float FTBiases[L1_SIZE];
-    float L1Weights[2 * L1_SIZE * L2_SIZE][OUTPUT_BUCKETS];
+    float L1Weights[2 * L1_SIZE][OUTPUT_BUCKETS][L2_SIZE];
     float L1Biases[L2_SIZE][OUTPUT_BUCKETS];
     float L2Weights[L2_SIZE][OUTPUT_BUCKETS];
     float L2Biases[OUTPUT_BUCKETS];
