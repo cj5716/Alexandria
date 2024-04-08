@@ -26,6 +26,7 @@ const unsigned int gEVALSize = 1;
 #endif
 
 Network net;
+UnquantisedNetwork unquantisedNet;
 
 // Thanks to Disservin for having me look at his code and Luecx for the
 // invaluable help and the immense patience
@@ -34,9 +35,6 @@ void NNUE::init(const char* file) {
 
     // open the nn file
     FILE* nn = fopen(file, "rb");
-
-    // Unquantised network
-    UnquantisedNetwork unquantisedNet;
 
     // if it's not invalid read the config values from it
     if (nn) {
@@ -108,14 +106,6 @@ void NNUE::init(const char* file) {
     }
 
 }
-
-#if defined(USE_AVX512)
-constexpr int32_t CHUNK_SIZE = sizeof(__m512i) / sizeof(int16_t);
-#elif defined(USE_AVX2)
-constexpr int32_t CHUNK_SIZE = sizeof(__m256i) / sizeof(int16_t);
-#else
-constexpr int32_t CHUNK_SIZE = 1;
-#endif
 
 void NNUE::add(NNUE::accumulator& board_accumulator, const int piece, const int to) {
     auto [whiteIdx, blackIdx] = GetIndex(piece, to);
@@ -206,6 +196,15 @@ int32_t NNUE::horizontal_add(const __m256i sum) {
 #endif
 
 int32_t NNUE::flattenL1(const int16_t *us, const int16_t *them, const int16_t *us_weights, const int16_t *them_weights, const int16_t bias) {
+
+    #if defined(USE_AVX512)
+    constexpr int32_t CHUNK_SIZE = sizeof(__m512i) / sizeof(int16_t);
+    #elif defined(USE_AVX2)
+    constexpr int32_t CHUNK_SIZE = sizeof(__m256i) / sizeof(int16_t);
+    #else
+    constexpr int32_t CHUNK_SIZE = 1;
+    #endif
+
     int32_t sum = 0;
     #if defined(USE_AVX512)
     auto vec_sum = _mm512_setzero_si512();
@@ -250,7 +249,7 @@ int32_t NNUE::flattenL1(const int16_t *us, const int16_t *them, const int16_t *u
         int32_t clipped = std::clamp(static_cast<int32_t>(us[i]), 0, FT_QUANT);
         sum += clipped * clipped * static_cast<int32_t>(us_weights[i]);
 
-        int32_t clipped = std::clamp(static_cast<int32_t>(them[i]), 0, FT_QUANT);
+        clipped = std::clamp(static_cast<int32_t>(them[i]), 0, FT_QUANT);
         sum += clipped * clipped * static_cast<int32_t>(them_weights[i]);
     }
     #endif
@@ -259,16 +258,26 @@ int32_t NNUE::flattenL1(const int16_t *us, const int16_t *them, const int16_t *u
 }
 
 int32_t NNUE::flattenL2(const int32_t* inputs, const int16_t *weights, const int16_t bias) {
+
+    #if defined(USE_AVX512)
+    constexpr int32_t CHUNK_SIZE = sizeof(__m512i) / sizeof(int32_t);
+    #elif defined(USE_AVX2)
+    constexpr int32_t CHUNK_SIZE = sizeof(__m256i) / sizeof(int32_t);
+    #else
+    constexpr int32_t CHUNK_SIZE = 1;
+    #endif
+
     int32_t sum = 0;
+
     #if defined(USE_AVX512)
     auto vec_sum = _mm512_setzero_si512();
-    for (int i = 0; i < L2_SIZE / CHUNK_SIZE; i++) {
+    for (int i = 0; i < L2_SIZE / CHUNK_SIZE; i += 2) {
         auto weights_vec = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(weights + i * CHUNK_SIZE));
         auto min = _mm512_set1_epi32(0);
         auto max = _mm512_set1_epi32(FT_QUANT);
 
-        auto in_vec0 = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(inputs + (2 * i) * CHUNK_SIZE));
-        auto in_vec1 = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(inputs + (2 * i + 1) * CHUNK_SIZE));
+        auto in_vec0 = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(inputs + i * CHUNK_SIZE));
+        auto in_vec1 = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(inputs + (i + 1) * CHUNK_SIZE));
         auto clipped0 = _mm512_min_epi32(_mm512_max_epi32(in_vec0, min), max);
         auto clipped1 = _mm512_min_epi32(_mm512_max_epi32(in_vec1, min), max);
         auto clipped = _mm512_packs_epi32(clipped0, clipped1);
@@ -279,13 +288,13 @@ int32_t NNUE::flattenL2(const int32_t* inputs, const int16_t *weights, const int
     sum = _mm512_reduce_add_epi32(vec_sum);
     #elif defined(USE_AVX2)
     auto vec_sum = _mm256_setzero_si256();
-    for (int i = 0; i < L2_SIZE / CHUNK_SIZE; i++) {
+    for (int i = 0; i < L2_SIZE / CHUNK_SIZE; i += 2) {
         auto weights_vec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(weights + i * CHUNK_SIZE));
         auto min = _mm256_set1_epi32(0);
         auto max = _mm256_set1_epi32(FT_QUANT);
 
-        auto in_vec0 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(inputs + (2 * i) * CHUNK_SIZE));
-        auto in_vec1 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(inputs + (2 * i + 1) * CHUNK_SIZE));
+        auto in_vec0 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(inputs + i * CHUNK_SIZE));
+        auto in_vec1 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(inputs + (i + 1) * CHUNK_SIZE));
         auto clipped0 = _mm256_min_epi32(_mm256_max_epi32(in_vec0, min), max);
         auto clipped1 = _mm256_min_epi32(_mm256_max_epi32(in_vec1, min), max);
         auto clipped = _mm256_packs_epi32(clipped0, clipped1);
