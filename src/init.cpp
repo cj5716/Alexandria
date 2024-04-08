@@ -183,7 +183,6 @@ void InitAll() {
     initializeLookupTables();
     initHashKeys();
     InitReductions();
-    // Init TT
     InitTT(16);
     nnue.init("nn.net");
 }
