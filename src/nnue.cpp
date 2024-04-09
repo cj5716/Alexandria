@@ -92,7 +92,7 @@ void NNUE::init(const char* file) {
         // Quantise L1 Weights
         for (int i = 0; i < 2 * L1_SIZE; ++i)
             for (int j = 0; j < L2_SIZE; ++j)
-                net.L1Weights[bucket][i * L2_SIZE + j] = static_cast<int16_t>(unquantisedNet.L1Weights[i][bucket][j] * QUANT);
+                net.L1Weights[bucket][j * 2 * L1_SIZE + i] = static_cast<int16_t>(unquantisedNet.L1Weights[i][bucket][j] * QUANT);
 
         // Quantise L1 Biases
         for (int i = 0; i < L2_SIZE; ++i)
