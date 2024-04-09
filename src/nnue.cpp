@@ -92,18 +92,18 @@ void NNUE::init(const char* file) {
         // Quantise L1 Weights
         for (int i = 0; i < 2 * L1_SIZE; ++i)
             for (int j = 0; j < L2_SIZE; ++j)
-                net.L1Weights[bucket][j * 2 * L1_SIZE + i] = static_cast<int16_t>(unquantisedNet.L1Weights[i][bucket][j] * QUANT);
+                net.L1Weights[bucket][j * 2 * L1_SIZE + i] = unquantisedNet.L1Weights[i][bucket][j];
 
         // Quantise L1 Biases
         for (int i = 0; i < L2_SIZE; ++i)
-            net.L1Biases[bucket][i] = static_cast<int16_t>(unquantisedNet.L1Biases[i][bucket] * QUANT);
+            net.L1Biases[bucket][i] = unquantisedNet.L1Biases[i][bucket];
 
         // Quantise L2 Weights
         for (int i = 0; i < L2_SIZE; ++i)
-            net.L2Weights[bucket][i] = static_cast<int16_t>(unquantisedNet.L2Weights[i][bucket] * QUANT);
+            net.L2Weights[bucket][i] = unquantisedNet.L2Weights[i][bucket];
 
         // Quantise L2 Biases
-        net.L2Biases[bucket] = static_cast<int16_t>(unquantisedNet.L2Biases[bucket] * QUANT);
+        net.L2Biases[bucket] = unquantisedNet.L2Biases[bucket];
     }
 
 }
@@ -196,71 +196,30 @@ int32_t NNUE::horizontal_add(const __m256i sum) {
 }
 #endif
 
-int32_t NNUE::flattenL1(const int16_t *us, const int16_t *them, const int16_t *us_weights, const int16_t *them_weights, const int16_t bias) {
-    int32_t sum = 0;
-    #if defined(USE_AVX512)
-    auto vec_sum = _mm512_setzero_si512();
-    constexpr int32_t CHUNK_SIZE = sizeof(__m512i) / sizeof(int16_t);
-    for (int i = 0; i < L1_SIZE / CHUNK_SIZE; i++) {
-        auto min = _mm512_set1_epi16(0);
-        auto max = _mm512_set1_epi16(QUANT);
+float NNUE::flattenL1(const int16_t *us, const int16_t *them, const float *us_weights, const float *them_weights, const float bias) {
+    float sum = 0;
 
-        auto us_weights_vec = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(us_weights + i * CHUNK_SIZE));
-        auto us_vector = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(us + i * CHUNK_SIZE));
-        auto us_clipped = _mm512_min_epi16(_mm512_max_epi16(us_vector, min), max);
-        auto us_mul = _mm512_madd_epi16(_mm512_mullo_epi16(us_clipped, us_weights_vec), us_clipped);
-        vec_sum = _mm512_add_epi32(vec_sum, us_mul);
-
-        auto them_weights_vec = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(them_weights + i * CHUNK_SIZE));
-        auto them_vector = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(them + i * CHUNK_SIZE));
-        auto them_clipped = _mm512_min_epi16(_mm512_max_epi16(them_vector, min), max);
-        auto them_mul = _mm512_madd_epi16(_mm512_mullo_epi16(them_clipped, them_weights_vec), them_clipped);
-        vec_sum = _mm512_add_epi32(vec_sum, them_mul);
-    }
-    sum = _mm512_reduce_add_epi32(vec_sum);
-    #elif defined(USE_AVX2)
-    auto vec_sum = _mm256_setzero_si256();
-    constexpr int32_t CHUNK_SIZE = sizeof(__m256i) / sizeof(int16_t);
-    for (int i = 0; i < L1_SIZE / CHUNK_SIZE; i++) {
-        auto min = _mm256_set1_epi16(0);
-        auto max = _mm256_set1_epi16(QUANT);
-
-        auto us_weights_vec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(us_weights + i * CHUNK_SIZE));
-        auto us_vector = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(us + i * CHUNK_SIZE));
-        auto us_clipped = _mm256_min_epi16(_mm256_max_epi16(us_vector, min), max);
-        auto us_mul = _mm256_madd_epi16(_mm256_mullo_epi16(us_clipped, us_weights_vec), us_clipped);
-        vec_sum = _mm256_add_epi32(vec_sum, us_mul);
-
-        auto them_weights_vec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(them_weights + i * CHUNK_SIZE));
-        auto them_vector = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(them + i * CHUNK_SIZE));
-        auto them_clipped = _mm256_min_epi16(_mm256_max_epi16(them_vector, min), max);
-        auto them_mul = _mm256_madd_epi16(_mm256_mullo_epi16(them_clipped, them_weights_vec), them_clipped);
-        vec_sum = _mm256_add_epi32(vec_sum, them_mul);
-    }
-    sum = horizontal_add(vec_sum);
-    #else
     for (int i = 0; i < L1_SIZE; i++) {
-        int32_t clipped = std::clamp(static_cast<int32_t>(us[i]), 0, QUANT);
-        sum += clipped * clipped * static_cast<int32_t>(us_weights[i]);
+        float clipped = std::clamp(static_cast<float>(us[i]) / static_cast<float>(QUANT), 0.0f, 1.0f);
+        sum += clipped * clipped * us_weights[i];
 
-        clipped = std::clamp(static_cast<int32_t>(them[i]), 0, QUANT);
-        sum += clipped * clipped * static_cast<int32_t>(them_weights[i]);
+        clipped = std::clamp(static_cast<float>(them[i]) / static_cast<float>(QUANT), 0.0f, 1.0f);
+        sum += clipped * clipped * them_weights[i];
     }
-    #endif
-    // Return the output value x QUANT. We use QUANT as the ONE value in later layers as well
-    return (sum / QUANT + bias) / QUANT;
+
+    return sum + bias;
 }
 
-int32_t NNUE::flattenL2(const int32_t* inputs, const int16_t *weights, const int16_t bias) {
+int32_t NNUE::flattenL2(const float *inputs, const float *weights, const float bias) {
 
-    int32_t sum = 0;
+    float sum = 0;
 
     for (int i = 0; i < L2_SIZE; i++) {
-        int32_t clipped = std::clamp(static_cast<int32_t>(inputs[i]), 0, QUANT);
-        sum += clipped * clipped * static_cast<int32_t>(weights[i]);
+        float clipped = std::clamp(inputs[i], 0.0f, 1.0f);
+        sum += clipped * clipped * weights[i];
     }
 
-    return (sum / QUANT + bias) * NET_SCALE / (QUANT * QUANT);
+    return static_cast<int32_t>((sum + bias) * NET_SCALE);
 }
 
 int32_t NNUE::output(const NNUE::accumulator& board_accumulator, const bool whiteToMove, const int outputBucket) {
@@ -276,7 +235,7 @@ int32_t NNUE::output(const NNUE::accumulator& board_accumulator, const bool whit
         them = board_accumulator[0].data();
     }
 
-    int32_t L1Outputs[L2_SIZE];
+    float L1Outputs[L2_SIZE];
     for (int i = 0; i < L2_SIZE; ++i)
         L1Outputs[i] = flattenL1(us,
                                  them,

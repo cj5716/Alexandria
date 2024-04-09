@@ -22,10 +22,10 @@ using NNUEIndices = std::pair<std::size_t, std::size_t>;
 struct Network {
     int16_t FTWeights[INPUT_SIZE * L1_SIZE];
     int16_t FTBiases[L1_SIZE];
-    int16_t L1Weights[OUTPUT_BUCKETS][2 * L1_SIZE * L2_SIZE];
-    int16_t L1Biases[OUTPUT_BUCKETS][L2_SIZE];
-    int16_t L2Weights[OUTPUT_BUCKETS][L2_SIZE];
-    int16_t L2Biases[OUTPUT_BUCKETS];
+    float L1Weights[OUTPUT_BUCKETS][2 * L1_SIZE * L2_SIZE];
+    float L1Biases[OUTPUT_BUCKETS][L2_SIZE];
+    float L2Weights[OUTPUT_BUCKETS][L2_SIZE];
+    float L2Biases[OUTPUT_BUCKETS];
 };
 
 struct UnquantisedNetwork {
@@ -48,8 +48,8 @@ public:
     void update(NNUE::accumulator& board_accumulator, std::vector<NNUEIndices>& NNUEAdd, std::vector<NNUEIndices>& NNUESub);
     void addSub(NNUE::accumulator& board_accumulator, NNUEIndices add, NNUEIndices sub);
     void addSubSub(NNUE::accumulator& board_accumulator, NNUEIndices add, NNUEIndices sub1, NNUEIndices sub2);
-    [[nodiscard]] int32_t flattenL1(const int16_t *us, const int16_t *them, const int16_t *us_weights, const int16_t *them_weights, const int16_t bias);
-    [[nodiscard]] int32_t flattenL2(const int32_t* inputs, const int16_t *weights, const int16_t bias);
+    [[nodiscard]] float flattenL1(const int16_t *us, const int16_t *them, const float *us_weights, const float *them_weights, const float bias);
+    [[nodiscard]] int32_t flattenL2(const float *inputs, const float *weights, const float bias);
     [[nodiscard]] int32_t output(const NNUE::accumulator& board_accumulator, const bool whiteToMove, const int outputBucket);
     [[nodiscard]] NNUEIndices GetIndex(const int piece, const int square);
     #if defined(USE_AVX2)
