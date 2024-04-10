@@ -32,7 +32,7 @@ struct UnquantisedNetwork {
     float FTWeights[INPUT_SIZE * L1_SIZE];
     float FTBiases[L1_SIZE];
     float L1Weights[2 * L1_SIZE][OUTPUT_BUCKETS][L2_SIZE];
-    float L1Biases[L2_SIZE][OUTPUT_BUCKETS];
+    float L1Biases[OUTPUT_BUCKETS][L2_SIZE];
     float L2Weights[L2_SIZE][OUTPUT_BUCKETS];
     float L2Biases[OUTPUT_BUCKETS];
 };
