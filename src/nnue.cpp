@@ -239,8 +239,8 @@ int32_t NNUE::output(const NNUE::accumulator& board_accumulator, const bool whit
     for (int i = 0; i < L2_SIZE; ++i)
         L1Outputs[i] = flattenL1(us,
                                  them,
-                                 net.L1Weights[outputBucket] + L1_SIZE * i,
-                                 net.L1Weights[outputBucket] + L1_SIZE * (L2_SIZE + i),
+                                 net.L1Weights[outputBucket] + i * 2 * L1_SIZE,
+                                 net.L1Weights[outputBucket] + i * 2 * L1_SIZE + L1_SIZE,
                                  net.L1Biases[outputBucket][i]);
 
     return flattenL2(L1Outputs, net.L2Weights[outputBucket], net.L2Biases[outputBucket]);
