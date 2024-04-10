@@ -80,11 +80,11 @@ void NNUE::init(const char* file) {
 
     // Quantise FT Weights
     for (int i = 0; i < INPUT_SIZE * L1_SIZE; ++i)
-        net.FTWeights[i] = static_cast<int16_t>(unquantisedNet.FTWeights[i] * QUANT);
+        net.FTWeights[i] = unquantisedNet.FTWeights[i];
 
     // Quantise FT Biases
     for (int i = 0; i < L1_SIZE; ++i)
-        net.FTBiases[i] = static_cast<int16_t>(unquantisedNet.FTBiases[i] * QUANT);
+        net.FTBiases[i] = unquantisedNet.FTBiases[i];
 
     // Transpose L1 and L2 weights and biases
     for (int bucket = 0; bucket < OUTPUT_BUCKETS; ++bucket) {
@@ -96,7 +96,7 @@ void NNUE::init(const char* file) {
 
         // Quantise L1 Biases
         for (int i = 0; i < L2_SIZE; ++i)
-            net.L1Biases[bucket][i] = unquantisedNet.L1Biases[i][bucket];
+            net.L1Biases[bucket][i] = unquantisedNet.L1Biases[bucket][i];
 
         // Quantise L2 Weights
         for (int i = 0; i < L2_SIZE; ++i)
@@ -196,14 +196,14 @@ int32_t NNUE::horizontal_add(const __m256i sum) {
 }
 #endif
 
-float NNUE::flattenL1(const int16_t *us, const int16_t *them, const float *us_weights, const float *them_weights, const float bias) {
+float NNUE::flattenL1(const float *us, const float *them, const float *us_weights, const float *them_weights, const float bias) {
     float sum = 0;
 
     for (int i = 0; i < L1_SIZE; i++) {
-        float clipped = std::clamp(static_cast<float>(us[i]) / static_cast<float>(QUANT), 0.0f, 1.0f);
+        float clipped = std::clamp(static_cast<float>(us[i]), 0.0f, 1.0f);
         sum += clipped * clipped * us_weights[i];
 
-        clipped = std::clamp(static_cast<float>(them[i]) / static_cast<float>(QUANT), 0.0f, 1.0f);
+        clipped = std::clamp(static_cast<float>(them[i]), 0.0f, 1.0f);
         sum += clipped * clipped * them_weights[i];
     }
 
@@ -225,8 +225,8 @@ int32_t NNUE::flattenL2(const float *inputs, const float *weights, const float b
 int32_t NNUE::output(const NNUE::accumulator& board_accumulator, const bool whiteToMove, const int outputBucket) {
     // this function takes the net output for the current accumulators and returns the eval of the position
     // according to the net
-    const int16_t* us;
-    const int16_t* them;
+    const float* us;
+    const float* them;
     if (whiteToMove) {
         us = board_accumulator[0].data();
         them = board_accumulator[1].data();
