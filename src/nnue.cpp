@@ -196,55 +196,41 @@ int32_t NNUE::horizontal_add(const __m256i sum) {
 }
 #endif
 
-int32_t NNUE::flattenL1(const int16_t *us, const int16_t *them, const int16_t *us_weights, const int16_t *them_weights, const int16_t bias) {
+int32_t NNUE::flattenL1(const int16_t *inputs, const int16_t *weights, const int16_t bias) {
     int32_t sum = 0;
     #if defined(USE_AVX512)
-    auto vec_sum = _mm512_setzero_si512();
+    __m512i vecSum = _mm512_setzero_si512();
     constexpr int32_t CHUNK_SIZE = sizeof(__m512i) / sizeof(int16_t);
-    for (int i = 0; i < L1_SIZE / CHUNK_SIZE; i++) {
-        auto min = _mm512_set1_epi16(0);
-        auto max = _mm512_set1_epi16(QUANT);
+    const __m512i zeroVec = _mm512_set1_epi16(0);
+    const __m512i oneVec = _mm512_set1_epi16(QUANT);
 
-        auto us_weights_vec = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(us_weights + i * CHUNK_SIZE));
-        auto us_vector = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(us + i * CHUNK_SIZE));
-        auto us_clipped = _mm512_min_epi16(_mm512_max_epi16(us_vector, min), max);
-        auto us_mul = _mm512_madd_epi16(_mm512_mullo_epi16(us_clipped, us_weights_vec), us_clipped);
-        vec_sum = _mm512_add_epi32(vec_sum, us_mul);
-
-        auto them_weights_vec = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(them_weights + i * CHUNK_SIZE));
-        auto them_vector = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(them + i * CHUNK_SIZE));
-        auto them_clipped = _mm512_min_epi16(_mm512_max_epi16(them_vector, min), max);
-        auto them_mul = _mm512_madd_epi16(_mm512_mullo_epi16(them_clipped, them_weights_vec), them_clipped);
-        vec_sum = _mm512_add_epi32(vec_sum, them_mul);
+    for (int i = 0; i < 2 * L1_SIZE / CHUNK_SIZE; i++) {
+        __m512i weightsVec = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(weights + i * CHUNK_SIZE));
+        __m512i inputsVec = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(inputs + i * CHUNK_SIZE));
+        __m512i clippedVec = _mm512_min_epi16(_mm512_max_epi16(inputsVec, zeroVec), oneVec);
+        __m512i productVec = _mm512_madd_epi16(_mm512_mullo_epi16(clippedVec, clippedVec), weightsVec);
+        vecSum = _mm512_add_epi32(vecSum, productVec);
     }
-    sum = _mm512_reduce_add_epi32(vec_sum);
+    sum = _mm512_reduce_add_epi32(vecSum);
+
     #elif defined(USE_AVX2)
-    auto vec_sum = _mm256_setzero_si256();
+    __m256i vecSum = _mm256_setzero_si256();
     constexpr int32_t CHUNK_SIZE = sizeof(__m256i) / sizeof(int16_t);
-    for (int i = 0; i < L1_SIZE / CHUNK_SIZE; i++) {
-        auto min = _mm256_set1_epi16(0);
-        auto max = _mm256_set1_epi16(QUANT);
+    const __m256i zeroVec = _mm256_set1_epi16(0);
+    const __m256i oneVec = _mm256_set1_epi16(QUANT);
 
-        auto us_weights_vec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(us_weights + i * CHUNK_SIZE));
-        auto us_vector = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(us + i * CHUNK_SIZE));
-        auto us_clipped = _mm256_min_epi16(_mm256_max_epi16(us_vector, min), max);
-        auto us_mul = _mm256_madd_epi16(_mm256_mullo_epi16(us_clipped, us_weights_vec), us_clipped);
-        vec_sum = _mm256_add_epi32(vec_sum, us_mul);
-
-        auto them_weights_vec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(them_weights + i * CHUNK_SIZE));
-        auto them_vector = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(them + i * CHUNK_SIZE));
-        auto them_clipped = _mm256_min_epi16(_mm256_max_epi16(them_vector, min), max);
-        auto them_mul = _mm256_madd_epi16(_mm256_mullo_epi16(them_clipped, them_weights_vec), them_clipped);
-        vec_sum = _mm256_add_epi32(vec_sum, them_mul);
+    for (int i = 0; i < 2 * L1_SIZE / CHUNK_SIZE; i++) {
+        __m256i weightsVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(weights + i * CHUNK_SIZE));
+        __m256i inputsVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(inputs + i * CHUNK_SIZE));
+        __m256i clippedVec = _mm256_min_epi16(_mm256_max_epi16(inputsVec, zeroVec), oneVec);
+        __m256i productVec = _mm256_madd_epi16(_mm256_mullo_epi16(clippedVec, clippedVec), weightsVec);
+        vecSum = _mm256_add_epi32(vecSum, productVec);
     }
-    sum = horizontal_add(vec_sum);
+    sum = horizontal_add(vecSum);
     #else
-    for (int i = 0; i < L1_SIZE; i++) {
-        int32_t clipped = std::clamp(static_cast<int32_t>(us[i]), 0, QUANT);
-        sum += clipped * clipped * static_cast<int32_t>(us_weights[i]);
-
-        clipped = std::clamp(static_cast<int32_t>(them[i]), 0, QUANT);
-        sum += clipped * clipped * static_cast<int32_t>(them_weights[i]);
+    for (int i = 0; i < 2 * L1_SIZE; i++) {
+        int32_t clipped = std::clamp(static_cast<int32_t>(inputs[i]), 0, QUANT);
+        sum += clipped * clipped * static_cast<int32_t>(weights[i]);
     }
     #endif
     // Return the output value x QUANT. We use QUANT as the ONE value in later layers as well
@@ -264,24 +250,21 @@ int32_t NNUE::flattenL2(const int32_t* inputs, const int16_t *weights, const int
 }
 
 int32_t NNUE::output(const NNUE::accumulator& board_accumulator, const bool whiteToMove, const int outputBucket) {
-    // this function takes the net output for the current accumulators and returns the eval of the position
-    // according to the net
-    const int16_t* us;
-    const int16_t* them;
-    if (whiteToMove) {
-        us = board_accumulator[0].data();
-        them = board_accumulator[1].data();
-    } else {
-        us = board_accumulator[1].data();
-        them = board_accumulator[0].data();
+
+    const std::array<int16_t, L1_SIZE> ourAcc = board_accumulator[!whiteToMove];
+    const std::array<int16_t, L1_SIZE> theirAcc = board_accumulator[whiteToMove];
+    std::array<int16_t, L1_SIZE * 2> bothAccs = {};
+
+    for (int i = 0; i < L1_SIZE; ++i)
+    {
+        bothAccs[i] = ourAcc[i];
+        bothAccs[i + L1_SIZE] = theirAcc[i];
     }
 
     int32_t L1Outputs[L2_SIZE];
     for (int i = 0; i < L2_SIZE; ++i)
-        L1Outputs[i] = flattenL1(us,
-                                 them,
+        L1Outputs[i] = flattenL1(bothAccs.data(),
                                  net.L1Weights[outputBucket] + i * 2 * L1_SIZE,
-                                 net.L1Weights[outputBucket] + i * 2 * L1_SIZE + L1_SIZE,
                                  net.L1Biases[outputBucket][i]);
 
     return flattenL2(L1Outputs, net.L2Weights[outputBucket], net.L2Biases[outputBucket]);
