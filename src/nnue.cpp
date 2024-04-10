@@ -199,7 +199,7 @@ int32_t NNUE::horizontal_add(const __m256i sum) {
 int32_t NNUE::flattenL1(const int16_t *inputs, const int16_t *weights, const int16_t bias) {
     int32_t sum = 0;
     #if defined(USE_AVX512)
-    __m512i vecSum = _mm512_setzero_si512();
+    __m512i sumVec = _mm512_setzero_si512();
     constexpr int32_t CHUNK_SIZE = sizeof(__m512i) / sizeof(int16_t);
     const __m512i zeroVec = _mm512_set1_epi16(0);
     const __m512i oneVec = _mm512_set1_epi16(QUANT);
@@ -209,12 +209,12 @@ int32_t NNUE::flattenL1(const int16_t *inputs, const int16_t *weights, const int
         __m512i inputsVec = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(inputs + i * CHUNK_SIZE));
         __m512i clippedVec = _mm512_min_epi16(_mm512_max_epi16(inputsVec, zeroVec), oneVec);
         __m512i productVec = _mm512_madd_epi16(_mm512_mullo_epi16(clippedVec, clippedVec), weightsVec);
-        vecSum = _mm512_add_epi32(vecSum, productVec);
+        sumVec = _mm512_add_epi32(sumVec, productVec);
     }
-    sum = _mm512_reduce_add_epi32(vecSum);
+    sum = _mm512_reduce_add_epi32(sumVec);
 
     #elif defined(USE_AVX2)
-    __m256i vecSum = _mm256_setzero_si256();
+    __m256i sumVec = _mm256_setzero_si256();
     constexpr int32_t CHUNK_SIZE = sizeof(__m256i) / sizeof(int16_t);
     const __m256i zeroVec = _mm256_set1_epi16(0);
     const __m256i oneVec = _mm256_set1_epi16(QUANT);
@@ -224,9 +224,9 @@ int32_t NNUE::flattenL1(const int16_t *inputs, const int16_t *weights, const int
         __m256i inputsVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(inputs + i * CHUNK_SIZE));
         __m256i clippedVec = _mm256_min_epi16(_mm256_max_epi16(inputsVec, zeroVec), oneVec);
         __m256i productVec = _mm256_madd_epi16(_mm256_mullo_epi16(clippedVec, clippedVec), weightsVec);
-        vecSum = _mm256_add_epi32(vecSum, productVec);
+        sumVec = _mm256_add_epi32(sumVec, productVec);
     }
-    sum = horizontal_add(vecSum);
+    sum = horizontal_add(sumVec);
     #else
     for (int i = 0; i < 2 * L1_SIZE; i++) {
         int32_t clipped = std::clamp(static_cast<int32_t>(inputs[i]), 0, QUANT);
@@ -240,12 +240,49 @@ int32_t NNUE::flattenL1(const int16_t *inputs, const int16_t *weights, const int
 int32_t NNUE::flattenL2(const int32_t* inputs, const int16_t *weights, const int16_t bias) {
 
     int32_t sum = 0;
+    #if defined(USE_AVX512)
+    __m512i sumVec = _mm512_setzero_si512();
+    constexpr int32_t CHUNK_SIZE = sizeof(__m512i) / sizeof(int32_t);
+    const __m512i zeroVec = _mm512_set1_epi32(0);
+    const __m512i oneVec = _mm512_set1_epi32(QUANT);
 
+    for (int i = 0; i < L2_SIZE / CHUNK_SIZE; i += 2) {
+        __m512i weightsVec = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(weights + i * CHUNK_SIZE));
+        __m512i inputsVec0 = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(inputs + i * CHUNK_SIZE));
+        __m512i inputsVec1 = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(inputs + (i + 1) * CHUNK_SIZE));
+        __m512i clippedVec0 = _mm512_min_epi32(_mm512_max_epi32(inputsVec0, zeroVec), oneVec);
+        __m512i clippedVec1 = _mm512_min_epi32(_mm512_max_epi32(inputsVec1, zeroVec), oneVec);
+        __m512i clippedVec = _mm512_packs_epi32(clippedVec0, clippedVec1);
+        clippedVec = _mm512_permutexvar_epi64(_mm512_setr_epi64(0, 2, 4, 6, 1, 3, 5, 7), clippedVec);
+        __m512i productVec = _mm512_madd_epi16(_mm512_mullo_epi16(clippedVec, clippedVec), weightsVec);
+        sumVec = _mm512_add_epi32(sumVec, productVec);
+    }
+    sum = _mm512_reduce_add_epi32(sumVec);
+
+    #elif defined(USE_AVX2)
+    __m256i sumVec = _mm256_setzero_si256();
+    constexpr int32_t CHUNK_SIZE = sizeof(__m256i) / sizeof(int32_t);
+    const __m256i zeroVec = _mm256_set1_epi32(0);
+    const __m256i oneVec = _mm256_set1_epi32(QUANT);
+
+    for (int i = 0; i < L2_SIZE / CHUNK_SIZE; i += 2) {
+        __m256i weightsVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(weights + i * CHUNK_SIZE));
+        __m256i inputsVec0 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(inputs + i * CHUNK_SIZE));
+        __m256i inputsVec1 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(inputs + (i + 1) * CHUNK_SIZE));
+        __m256i clippedVec0 = _mm256_min_epi32(_mm256_max_epi32(inputsVec0, zeroVec), oneVec);
+        __m256i clippedVec1 = _mm256_min_epi32(_mm256_max_epi32(inputsVec1, zeroVec), oneVec);
+        __m256i clippedVec = _mm256_packs_epi32(clippedVec0, clippedVec1);
+        clippedVec = _mm256_permute4x64_epi64(clippedVec, 0b11011000);
+        __m256i productVec = _mm256_madd_epi16(_mm256_mullo_epi16(clippedVec, clippedVec), weightsVec);
+        sumVec = _mm256_add_epi32(sumVec, productVec);
+    }
+    sum = horizontal_add(sumVec);
+    #else
     for (int i = 0; i < L2_SIZE; i++) {
         int32_t clipped = std::clamp(static_cast<int32_t>(inputs[i]), 0, QUANT);
         sum += clipped * clipped * static_cast<int32_t>(weights[i]);
     }
-
+    #endif
     return (sum / QUANT + bias) * NET_SCALE / (QUANT * QUANT);
 }
 
