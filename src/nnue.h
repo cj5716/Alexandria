@@ -24,8 +24,8 @@ struct Network {
     int16_t FTBiases[L1_SIZE];
     int16_t L1Weights[OUTPUT_BUCKETS][2 * L1_SIZE * L2_SIZE];
     int16_t L1Biases[OUTPUT_BUCKETS][L2_SIZE];
-    int16_t L2Weights[OUTPUT_BUCKETS][L2_SIZE];
-    int16_t L2Biases[OUTPUT_BUCKETS];
+    float   L2Weights[OUTPUT_BUCKETS][L2_SIZE];
+    float   L2Biases[OUTPUT_BUCKETS];
 };
 
 struct UnquantisedNetwork {
@@ -48,11 +48,11 @@ public:
     void update(NNUE::accumulator& board_accumulator, std::vector<NNUEIndices>& NNUEAdd, std::vector<NNUEIndices>& NNUESub);
     void addSub(NNUE::accumulator& board_accumulator, NNUEIndices add, NNUEIndices sub);
     void addSubSub(NNUE::accumulator& board_accumulator, NNUEIndices add, NNUEIndices sub1, NNUEIndices sub2);
-    [[nodiscard]] int32_t flattenL1(const int16_t *inputs, const int16_t *weights, const int16_t bias);
-    [[nodiscard]] int32_t flattenL2(const int32_t* inputs, const int16_t *weights, const int16_t bias);
+    [[nodiscard]] float ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, const int16_t bias);
+    [[nodiscard]] float ActivateL1AndAffineL2(const float *inputs, const float *weights, const float bias);
     [[nodiscard]] int32_t output(const NNUE::accumulator& board_accumulator, const bool whiteToMove, const int outputBucket);
     [[nodiscard]] NNUEIndices GetIndex(const int piece, const int square);
     #if defined(USE_AVX2)
-    [[nodiscard]] int32_t horizontal_add(const __m256i sum);
+    [[nodiscard]] int32_t hadd_int32(const __m256i sum);
     #endif
 };
