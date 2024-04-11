@@ -243,7 +243,7 @@ float NNUE::ActivateL1AndAffineL2(const float *inputs, const float *weights, con
     float sum = 0.0f;
     #if defined(USE_AVX512) || defined(USE_AVX2)
     __m256 sumVec = _mm256_setzero_ps();
-    constexpr int32_t CHUNK_SIZE = sizeof(__m256i) / sizeof(float);
+    constexpr int32_t CHUNK_SIZE = sizeof(__m256) / sizeof(float);
     const __m256 zeroVec = _mm256_set1_ps(0.0f);
     const __m256 oneVec  = _mm256_set1_ps(1.0f);
 
