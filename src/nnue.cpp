@@ -96,7 +96,7 @@ void NNUE::init(const char* file) {
 
         // Quantise L1 Biases
         for (int i = 0; i < L2_SIZE; ++i)
-            net.L1Biases[bucket][i] = static_cast<int16_t>(unquantisedNet.L1Biases[bucket][i] * QUANT * QUANT);
+            net.L1Biases[bucket][i] = unquantisedNet.L1Biases[bucket][i];
 
         // Quantise L2 Weights
         for (int i = 0; i < L2_SIZE; ++i)
@@ -180,23 +180,40 @@ void NNUE::addSubSub(NNUE::accumulator& board_accumulator, NNUEIndices add, NNUE
     }
 }
 
-#if defined(USE_AVX2) && !defined(USE_AVX512)
+#if defined(USE_AVX2)
 int32_t NNUE::hadd_int32(const __m256i sum) {
-    auto upper_128 = _mm256_extracti128_si256(sum, 1);
-    auto lower_128 = _mm256_castsi256_si128(sum);
-    auto sum_128 = _mm_add_epi32(upper_128, lower_128);
+    __m128i upper_128 = _mm256_extracti128_si256(sum, 1);
+    __m128i lower_128 = _mm256_castsi256_si128(sum);
+    __m128i sum_128 = _mm_add_epi32(upper_128, lower_128);
 
-    auto upper_64 = _mm_unpackhi_epi64(sum_128, sum_128);
-    auto sum_64 = _mm_add_epi32(upper_64, sum_128);
+    __m128i upper_64 = _mm_unpackhi_epi64(sum_128, sum_128);
+    __m128i sum_64 = _mm_add_epi32(upper_64, sum_128);
 
-    auto upper_32 = _mm_shuffle_epi32(sum_64, 1);
-    auto sum_32 = _mm_add_epi32(upper_32, sum_64);
+    __m128i upper_32 = _mm_shuffle_epi32(sum_64, 1);
+    __m128i sum_32 = _mm_add_epi32(upper_32, sum_64);
 
     return _mm_cvtsi128_si32(sum_32);
 }
 #endif
 
-float NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, const int16_t bias) {
+#if defined(USE_AVX512) || defined(USE_AVX2)
+float NNUE::hadd_ps(const __m256 sum) {
+    
+    __m128 upper_128 = _mm256_extractf128_ps(sum, 1);
+    __m128 lower_128 = _mm256_castps256_ps128(sum);
+    __m128 sum_128 = _mm_add_ps(upper_128, lower_128);
+
+    __m128 upper_64 = _mm_movehl_ps(sum_128, sum_128);
+    __m128 sum_64 = _mm_add_ps(upper_64, sum_128);
+
+    __m128 upper_32 = _mm_shuffle_ps(sum_64, sum_64, 1);
+    __m128 sum_32 = _mm_add_ss(upper_32, sum_64);
+
+    return _mm_cvtss_f32(sum_32);
+}
+#endif
+
+float NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, const float bias) {
     int32_t sum = 0;
     #if defined(USE_AVX512)
     __m512i sumVec = _mm512_setzero_si512();
@@ -235,7 +252,7 @@ float NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights,
     }
     #endif
 
-    return float(sum / float(QUANT) + bias) / float(QUANT * QUANT);
+    return float(sum) / float(QUANT * QUANT * QUANT) + bias;
 }
 
 float NNUE::ActivateL1AndAffineL2(const float *inputs, const float *weights, const float bias) {
@@ -251,14 +268,10 @@ float NNUE::ActivateL1AndAffineL2(const float *inputs, const float *weights, con
         __m256 weightsVec = _mm256_loadu_ps(weights + i * CHUNK_SIZE);
         __m256 inputsVec = _mm256_loadu_ps(inputs + i * CHUNK_SIZE);
         __m256 clippedVec = _mm256_min_ps(_mm256_max_ps(inputsVec, zeroVec), oneVec);
-        __m256 productVec = _mm256_mul_ps(_mm256_mul_ps(clippedVec, clippedVec), weightsVec);
-        sumVec = _mm256_add_ps(sumVec, productVec);
+        __m256 squaredVec = _mm256_mul_ps(clippedVec, clippedVec);
+        sumVec = _mm256_fmadd_ps(squaredVec, weightsVec, sumVec);
     }
-    float sums[CHUNK_SIZE];
-    _mm256_storeu_ps(sums, sumVec);
-    for (int i = 0; i < CHUNK_SIZE; ++i) {
-        sum += sums[i];
-    }
+    sum = hadd_ps(sumVec);
     #else
     for (int i = 0; i < L2_SIZE; i++) {
         float clipped = std::clamp(inputs[i], 0.0f, 1.0f);
