@@ -219,13 +219,12 @@ void NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, 
         int32_t sum = 0;
         #if defined(USE_AVX512)
         __m512i sumVec = _mm512_setzero_si512();
-        constexpr int32_t CHUNK_SIZE = sizeof(__m512i) / sizeof(int16_t);
         const __m512i zeroVec = _mm512_set1_epi16(0);
         const __m512i oneVec = _mm512_set1_epi16(FT_QUANT);
 
-        for (int i = 0; i < 2 * L1_SIZE / CHUNK_SIZE; i++) {
-            __m512i weightsVec = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(weights + i * CHUNK_SIZE + out * 2 * L1_SIZE));
-            __m512i inputsVec = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(inputs + i * CHUNK_SIZE));
+        for (int i = 0; i < 2 * L1_SIZE / L1_CHUNK_SIZE; i++) {
+            __m512i weightsVec = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(weights + i * L1_CHUNK_SIZE + out * 2 * L1_SIZE));
+            __m512i inputsVec = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(inputs + i * L1_CHUNK_SIZE));
             __m512i clippedVec = _mm512_min_epi16(_mm512_max_epi16(inputsVec, zeroVec), oneVec);
             __m512i productVec = _mm512_madd_epi16(_mm512_mullo_epi16(clippedVec, weightsVec), clippedVec);
             sumVec = _mm512_add_epi32(sumVec, productVec);
@@ -234,13 +233,12 @@ void NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, 
 
         #elif defined(USE_AVX2)
         __m256i sumVec = _mm256_setzero_si256();
-        constexpr int32_t CHUNK_SIZE = sizeof(__m256i) / sizeof(int16_t);
         const __m256i zeroVec = _mm256_set1_epi16(0);
         const __m256i oneVec = _mm256_set1_epi16(FT_QUANT);
 
-        for (int i = 0; i < 2 * L1_SIZE / CHUNK_SIZE; i++) {
-            __m256i weightsVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(weights + i * CHUNK_SIZE + out * 2 * L1_SIZE));
-            __m256i inputsVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(inputs + i * CHUNK_SIZE));
+        for (int i = 0; i < 2 * L1_SIZE / L1_CHUNK_SIZE; i++) {
+            __m256i weightsVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(weights + i * L1_CHUNK_SIZE + out * 2 * L1_SIZE));
+            __m256i inputsVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(inputs + i * L1_CHUNK_SIZE));
             __m256i clippedVec = _mm256_min_epi16(_mm256_max_epi16(inputsVec, zeroVec), oneVec);
             __m256i productVec = _mm256_madd_epi16(_mm256_mullo_epi16(clippedVec, weightsVec), clippedVec);
             sumVec = _mm256_add_epi32(sumVec, productVec);
@@ -261,13 +259,12 @@ void NNUE::ActivateL1AndAffineL2(const float *inputs, const float *weights, cons
     float sum = 0.0f;
     #if defined(USE_AVX512) || defined(USE_AVX2)
     __m256 sumVec = _mm256_setzero_ps();
-    constexpr int32_t CHUNK_SIZE = sizeof(__m256) / sizeof(float);
     const __m256 zeroVec = _mm256_set1_ps(0.0f);
     const __m256 oneVec  = _mm256_set1_ps(1.0f);
 
-    for (int i = 0; i < L2_SIZE / CHUNK_SIZE; ++i) {
-        __m256 weightsVec = _mm256_loadu_ps(weights + i * CHUNK_SIZE);
-        __m256 inputsVec = _mm256_loadu_ps(inputs + i * CHUNK_SIZE);
+    for (int i = 0; i < L2_SIZE / L2_CHUNK_SIZE; ++i) {
+        __m256 weightsVec = _mm256_loadu_ps(weights + i * L2_CHUNK_SIZE);
+        __m256 inputsVec = _mm256_loadu_ps(inputs + i * L2_CHUNK_SIZE);
         __m256 clippedVec = _mm256_min_ps(_mm256_max_ps(inputsVec, zeroVec), oneVec);
         __m256 squaredVec = _mm256_mul_ps(clippedVec, clippedVec);
         sumVec = _mm256_fmadd_ps(squaredVec, weightsVec, sumVec);
