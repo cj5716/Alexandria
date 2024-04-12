@@ -14,7 +14,8 @@ constexpr int L1_SIZE = 1536;
 constexpr int L2_SIZE = 8;
 constexpr int OUTPUT_BUCKETS = 8;
 
-constexpr int QUANT = 128;
+constexpr int FT_QUANT = 256;
+constexpr int L1_QUANT = 64;
 constexpr int NET_SCALE = 400;
 
 using NNUEIndices = std::pair<std::size_t, std::size_t>;
