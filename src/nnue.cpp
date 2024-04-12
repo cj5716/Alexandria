@@ -213,48 +213,50 @@ float NNUE::hadd_ps(const __m256 sum) {
 }
 #endif
 
-float NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, const float bias) {
-    int32_t sum = 0;
-    #if defined(USE_AVX512)
-    __m512i sumVec = _mm512_setzero_si512();
-    constexpr int32_t CHUNK_SIZE = sizeof(__m512i) / sizeof(int16_t);
-    const __m512i zeroVec = _mm512_set1_epi16(0);
-    const __m512i oneVec = _mm512_set1_epi16(FT_QUANT);
+void NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, const float *biases, float *output) {
+    for (int out = 0; out < L2_SIZE; ++out)
+    {
+        int32_t sum = 0;
+        #if defined(USE_AVX512)
+        __m512i sumVec = _mm512_setzero_si512();
+        constexpr int32_t CHUNK_SIZE = sizeof(__m512i) / sizeof(int16_t);
+        const __m512i zeroVec = _mm512_set1_epi16(0);
+        const __m512i oneVec = _mm512_set1_epi16(FT_QUANT);
 
-    for (int i = 0; i < 2 * L1_SIZE / CHUNK_SIZE; i++) {
-        __m512i weightsVec = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(weights + i * CHUNK_SIZE));
-        __m512i inputsVec = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(inputs + i * CHUNK_SIZE));
-        __m512i clippedVec = _mm512_min_epi16(_mm512_max_epi16(inputsVec, zeroVec), oneVec);
-        __m512i productVec = _mm512_madd_epi16(_mm512_mullo_epi16(clippedVec, weightsVec), clippedVec);
-        sumVec = _mm512_add_epi32(sumVec, productVec);
+        for (int i = 0; i < 2 * L1_SIZE / CHUNK_SIZE; i++) {
+            __m512i weightsVec = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(weights + i * CHUNK_SIZE + out * 2 * L1_SIZE));
+            __m512i inputsVec = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(inputs + i * CHUNK_SIZE));
+            __m512i clippedVec = _mm512_min_epi16(_mm512_max_epi16(inputsVec, zeroVec), oneVec);
+            __m512i productVec = _mm512_madd_epi16(_mm512_mullo_epi16(clippedVec, weightsVec), clippedVec);
+            sumVec = _mm512_add_epi32(sumVec, productVec);
+        }
+        sum = _mm512_reduce_add_epi32(sumVec);
+
+        #elif defined(USE_AVX2)
+        __m256i sumVec = _mm256_setzero_si256();
+        constexpr int32_t CHUNK_SIZE = sizeof(__m256i) / sizeof(int16_t);
+        const __m256i zeroVec = _mm256_set1_epi16(0);
+        const __m256i oneVec = _mm256_set1_epi16(FT_QUANT);
+
+        for (int i = 0; i < 2 * L1_SIZE / CHUNK_SIZE; i++) {
+            __m256i weightsVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(weights + i * CHUNK_SIZE + out * 2 * L1_SIZE));
+            __m256i inputsVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(inputs + i * CHUNK_SIZE));
+            __m256i clippedVec = _mm256_min_epi16(_mm256_max_epi16(inputsVec, zeroVec), oneVec);
+            __m256i productVec = _mm256_madd_epi16(_mm256_mullo_epi16(clippedVec, weightsVec), clippedVec);
+            sumVec = _mm256_add_epi32(sumVec, productVec);
+        }
+        sum = hadd_int32(sumVec);
+        #else
+        for (int i = 0; i < 2 * L1_SIZE; i++) {
+            int32_t clipped = std::clamp(static_cast<int32_t>(inputs[i]), 0, FT_QUANT);
+            sum += clipped * clipped * static_cast<int32_t>(weights[i + out * 2 * L1_SIZE]);
+        }
+        #endif
+        output[out] = float(sum) / float(FT_QUANT * FT_QUANT * L1_QUANT) + biases[out];
     }
-    sum = _mm512_reduce_add_epi32(sumVec);
-
-    #elif defined(USE_AVX2)
-    __m256i sumVec = _mm256_setzero_si256();
-    constexpr int32_t CHUNK_SIZE = sizeof(__m256i) / sizeof(int16_t);
-    const __m256i zeroVec = _mm256_set1_epi16(0);
-    const __m256i oneVec = _mm256_set1_epi16(FT_QUANT);
-
-    for (int i = 0; i < 2 * L1_SIZE / CHUNK_SIZE; i++) {
-        __m256i weightsVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(weights + i * CHUNK_SIZE));
-        __m256i inputsVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(inputs + i * CHUNK_SIZE));
-        __m256i clippedVec = _mm256_min_epi16(_mm256_max_epi16(inputsVec, zeroVec), oneVec);
-        __m256i productVec = _mm256_madd_epi16(_mm256_mullo_epi16(clippedVec, weightsVec), clippedVec);
-        sumVec = _mm256_add_epi32(sumVec, productVec);
-    }
-    sum = hadd_int32(sumVec);
-    #else
-    for (int i = 0; i < 2 * L1_SIZE; i++) {
-        int32_t clipped = std::clamp(static_cast<int32_t>(inputs[i]), 0, FT_QUANT);
-        sum += clipped * clipped * static_cast<int32_t>(weights[i]);
-    }
-    #endif
-
-    return float(sum) / float(FT_QUANT * FT_QUANT * L1_QUANT) + bias;
 }
 
-float NNUE::ActivateL1AndAffineL2(const float *inputs, const float *weights, const float bias) {
+void NNUE::ActivateL1AndAffineL2(const float *inputs, const float *weights, const float bias, float &output) {
 
     float sum = 0.0f;
     #if defined(USE_AVX512) || defined(USE_AVX2)
@@ -277,7 +279,7 @@ float NNUE::ActivateL1AndAffineL2(const float *inputs, const float *weights, con
         sum += clipped * clipped * weights[i];
     }
     #endif
-    return sum + bias;
+    output = sum + bias;
 }
 
 int32_t NNUE::output(const NNUE::accumulator& board_accumulator, const bool whiteToMove, const int outputBucket) {
@@ -293,12 +295,18 @@ int32_t NNUE::output(const NNUE::accumulator& board_accumulator, const bool whit
     }
 
     float L1Outputs[L2_SIZE];
-    for (int i = 0; i < L2_SIZE; ++i)
-        L1Outputs[i] = ActivateFTAndAffineL1(bothAccs.data(),
-                                             net.L1Weights[outputBucket] + i * 2 * L1_SIZE,
-                                             net.L1Biases[outputBucket][i]);
+    float L2Output;
+    ActivateFTAndAffineL1(bothAccs.data(),
+                          net.L1Weights[outputBucket],
+                          net.L1Biases[outputBucket],
+                          L1Outputs);
 
-    return ActivateL1AndAffineL2(L1Outputs, net.L2Weights[outputBucket], net.L2Biases[outputBucket]) * NET_SCALE;
+    ActivateL1AndAffineL2(L1Outputs,
+                          net.L2Weights[outputBucket],
+                          net.L2Biases[outputBucket],
+                          L2Output);
+
+    return L2Output * NET_SCALE;
 }
 
 NNUEIndices NNUE::GetIndex(const int piece, const int square) {
