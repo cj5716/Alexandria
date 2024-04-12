@@ -92,7 +92,7 @@ void NNUE::init(const char* file) {
         // Quantise L1 Weights
         for (int i = 0; i < 2 * L1_SIZE; ++i)
             for (int j = 0; j < L2_SIZE; ++j)
-                net.L1Weights[bucket][j * 2 * L1_SIZE + i] = static_cast<int16_t>(unquantisedNet.L1Weights[i][bucket][j] * QUANT);
+                net.L1Weights[bucket][j * 2 * L1_SIZE + i] = unquantisedNet.L1Weights[i][bucket][j];
 
         // Quantise L1 Biases
         for (int i = 0; i < L2_SIZE; ++i)
@@ -213,50 +213,32 @@ float NNUE::hadd_ps(const __m256 sum) {
 }
 #endif
 
-float NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, const float bias) {
-    int32_t sum = 0;
-    #if defined(USE_AVX512)
-    __m512i sumVec = _mm512_setzero_si512();
-    constexpr int32_t CHUNK_SIZE = sizeof(__m512i) / sizeof(int16_t);
-    const __m512i zeroVec = _mm512_set1_epi16(0);
-    const __m512i oneVec = _mm512_set1_epi16(QUANT);
+float NNUE::ActivateFTAndAffineL1(const float *inputs, const float *weights, const float bias) {
+    float sum = 0.0f;
+    #if defined(USE_AVX512) || defined(USE_AVX2)
+    __m256 sumVec = _mm256_setzero_ps();
+    constexpr int32_t CHUNK_SIZE = sizeof(__m256) / sizeof(float);
+    const __m256 zeroVec = _mm256_set1_ps(0.0f);
+    const __m256 oneVec  = _mm256_set1_ps(1.0f);
 
-    for (int i = 0; i < 2 * L1_SIZE / CHUNK_SIZE; i++) {
-        __m512i weightsVec = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(weights + i * CHUNK_SIZE));
-        __m512i inputsVec = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(inputs + i * CHUNK_SIZE));
-        __m512i clippedVec = _mm512_min_epi16(_mm512_max_epi16(inputsVec, zeroVec), oneVec);
-        __m512i productVec = _mm512_madd_epi16(_mm512_mullo_epi16(clippedVec, clippedVec), weightsVec);
-        sumVec = _mm512_add_epi32(sumVec, productVec);
+    for (int i = 0; i < 2 * L1_SIZE / CHUNK_SIZE; ++i) {
+        __m256 weightsVec = _mm256_loadu_ps(weights + i * CHUNK_SIZE);
+        __m256 inputsVec = _mm256_loadu_ps(inputs + i * CHUNK_SIZE);
+        __m256 clippedVec = _mm256_min_ps(_mm256_max_ps(inputsVec, zeroVec), oneVec);
+        __m256 squaredVec = _mm256_mul_ps(clippedVec, clippedVec);
+        sumVec = _mm256_fmadd_ps(squaredVec, weightsVec, sumVec);
     }
-    sum = _mm512_reduce_add_epi32(sumVec);
-
-    #elif defined(USE_AVX2)
-    __m256i sumVec = _mm256_setzero_si256();
-    constexpr int32_t CHUNK_SIZE = sizeof(__m256i) / sizeof(int16_t);
-    const __m256i zeroVec = _mm256_set1_epi16(0);
-    const __m256i oneVec = _mm256_set1_epi16(QUANT);
-
-    for (int i = 0; i < 2 * L1_SIZE / CHUNK_SIZE; i++) {
-        __m256i weightsVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(weights + i * CHUNK_SIZE));
-        __m256i inputsVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(inputs + i * CHUNK_SIZE));
-        __m256i clippedVec = _mm256_min_epi16(_mm256_max_epi16(inputsVec, zeroVec), oneVec);
-        __m256i productVec = _mm256_madd_epi16(_mm256_mullo_epi16(clippedVec, clippedVec), weightsVec);
-        sumVec = _mm256_add_epi32(sumVec, productVec);
-    }
-    sum = hadd_int32(sumVec);
+    sum = hadd_ps(sumVec);
     #else
     for (int i = 0; i < 2 * L1_SIZE; i++) {
-        int16_t clipped = std::clamp(inputs[i], 0, QUANT);
-        int16_t squared = clipped * clipped;
-        sum += clipped * clipped * static_cast<int32_t>(weights[i]);
+        float clipped = std::clamp(inputs[i], 0.0f, 1.0f);
+        sum += clipped * clipped * weights[i];
     }
     #endif
-
-    return float(sum) / float(QUANT * QUANT * QUANT) + bias;
+    return sum + bias;
 }
 
 float NNUE::ActivateL1AndAffineL2(const float *inputs, const float *weights, const float bias) {
-
     float sum = 0.0f;
     #if defined(USE_AVX512) || defined(USE_AVX2)
     __m256 sumVec = _mm256_setzero_ps();
@@ -285,12 +267,12 @@ int32_t NNUE::output(const NNUE::accumulator& board_accumulator, const bool whit
 
     const std::array<int16_t, L1_SIZE> ourAcc = board_accumulator[!whiteToMove];
     const std::array<int16_t, L1_SIZE> theirAcc = board_accumulator[whiteToMove];
-    std::array<int16_t, L1_SIZE * 2> bothAccs = {};
+    std::array<float, L1_SIZE * 2> bothAccs = {};
 
     for (int i = 0; i < L1_SIZE; ++i)
     {
-        bothAccs[i] = ourAcc[i];
-        bothAccs[i + L1_SIZE] = theirAcc[i];
+        bothAccs[i] = float(ourAcc[i]) / float(QUANT);
+        bothAccs[i + L1_SIZE] = float(theirAcc[i]) / float(QUANT);
     }
 
     float L1Outputs[L2_SIZE];
