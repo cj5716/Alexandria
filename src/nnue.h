@@ -18,6 +18,17 @@ constexpr int FT_QUANT = 256;
 constexpr int L1_QUANT = 64;
 constexpr int NET_SCALE = 400;
 
+#if defined(USE_AVX512)
+constexpr int L1_CHUNK_SIZE = sizeof(__m512i) / sizeof(int16_t);
+constexpr int L2_CHUNK_SIZE = sizeof(__m256) / sizeof(float);
+#elif defined(USE_AVX2)
+constexpr int L1_CHUNK_SIZE = sizeof(__m256i) / sizeof(int16_t);
+constexpr int L2_CHUNK_SIZE = sizeof(__m256) / sizeof(float);
+#else
+constexpr int L1_CHUNK_SIZE = 1;
+constexpr int L2_CHUNK_SIZE = 1;
+#endif
+
 using NNUEIndices = std::pair<std::size_t, std::size_t>;
 
 struct Network {
