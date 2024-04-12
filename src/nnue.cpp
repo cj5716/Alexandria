@@ -80,11 +80,11 @@ void NNUE::init(const char* file) {
 
     // Quantise FT Weights
     for (int i = 0; i < INPUT_SIZE * L1_SIZE; ++i)
-        net.FTWeights[i] = static_cast<int16_t>(unquantisedNet.FTWeights[i] * QUANT);
+        net.FTWeights[i] = static_cast<int16_t>(unquantisedNet.FTWeights[i] * FT_QUANT);
 
     // Quantise FT Biases
     for (int i = 0; i < L1_SIZE; ++i)
-        net.FTBiases[i] = static_cast<int16_t>(unquantisedNet.FTBiases[i] * QUANT);
+        net.FTBiases[i] = static_cast<int16_t>(unquantisedNet.FTBiases[i] * FT_QUANT);
 
     // Transpose L1 and L2 weights and biases
     for (int bucket = 0; bucket < OUTPUT_BUCKETS; ++bucket) {
@@ -92,7 +92,7 @@ void NNUE::init(const char* file) {
         // Quantise L1 Weights
         for (int i = 0; i < 2 * L1_SIZE; ++i)
             for (int j = 0; j < L2_SIZE; ++j)
-                net.L1Weights[bucket][j * 2 * L1_SIZE + i] = static_cast<int16_t>(unquantisedNet.L1Weights[i][bucket][j] * QUANT);
+                net.L1Weights[bucket][j * 2 * L1_SIZE + i] = static_cast<int16_t>(unquantisedNet.L1Weights[i][bucket][j] * L1_QUANT);
 
         // Quantise L1 Biases
         for (int i = 0; i < L2_SIZE; ++i)
@@ -219,13 +219,13 @@ float NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights,
     __m512i sumVec = _mm512_setzero_si512();
     constexpr int32_t CHUNK_SIZE = sizeof(__m512i) / sizeof(int16_t);
     const __m512i zeroVec = _mm512_set1_epi16(0);
-    const __m512i oneVec = _mm512_set1_epi16(QUANT);
+    const __m512i oneVec = _mm512_set1_epi16(FT_QUANT);
 
     for (int i = 0; i < 2 * L1_SIZE / CHUNK_SIZE; i++) {
         __m512i weightsVec = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(weights + i * CHUNK_SIZE));
         __m512i inputsVec = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(inputs + i * CHUNK_SIZE));
         __m512i clippedVec = _mm512_min_epi16(_mm512_max_epi16(inputsVec, zeroVec), oneVec);
-        __m512i productVec = _mm512_madd_epi16(_mm512_mullo_epi16(clippedVec, clippedVec), weightsVec);
+        __m512i productVec = _mm512_madd_epi16(_mm512_mullo_epi16(clippedVec, weightsVec), clippedVec);
         sumVec = _mm512_add_epi32(sumVec, productVec);
     }
     sum = _mm512_reduce_add_epi32(sumVec);
@@ -234,25 +234,24 @@ float NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights,
     __m256i sumVec = _mm256_setzero_si256();
     constexpr int32_t CHUNK_SIZE = sizeof(__m256i) / sizeof(int16_t);
     const __m256i zeroVec = _mm256_set1_epi16(0);
-    const __m256i oneVec = _mm256_set1_epi16(QUANT);
+    const __m256i oneVec = _mm256_set1_epi16(FT_QUANT);
 
     for (int i = 0; i < 2 * L1_SIZE / CHUNK_SIZE; i++) {
         __m256i weightsVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(weights + i * CHUNK_SIZE));
         __m256i inputsVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(inputs + i * CHUNK_SIZE));
         __m256i clippedVec = _mm256_min_epi16(_mm256_max_epi16(inputsVec, zeroVec), oneVec);
-        __m256i productVec = _mm256_madd_epi16(_mm256_mullo_epi16(clippedVec, clippedVec), weightsVec);
+        __m256i productVec = _mm256_madd_epi16(_mm256_mullo_epi16(clippedVec, weightsVec), clippedVec);
         sumVec = _mm256_add_epi32(sumVec, productVec);
     }
     sum = hadd_int32(sumVec);
     #else
     for (int i = 0; i < 2 * L1_SIZE; i++) {
-        int16_t clipped = std::clamp(inputs[i], 0, QUANT);
-        int16_t squared = clipped * clipped;
+        int32_t clipped = std::clamp(static_cast<int32_t>(inputs[i]), 0, FT_QUANT);
         sum += clipped * clipped * static_cast<int32_t>(weights[i]);
     }
     #endif
 
-    return float(sum) / float(QUANT * QUANT * QUANT) + bias;
+    return float(sum) / float(FT_QUANT * FT_QUANT * L1_QUANT) + bias;
 }
 
 float NNUE::ActivateL1AndAffineL2(const float *inputs, const float *weights, const float bias) {
