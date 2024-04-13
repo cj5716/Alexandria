@@ -263,7 +263,7 @@ void NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, 
         }
         #elif defined(USE_AVX2)
         const __m256i* weightsVecs = reinterpret_cast<const __m256i*>(weights + i * L2_SIZE * L1_CHUNK_SIZE);
-        const __m256i inputsVec = _mm256_loadu_si256(inputs + i * L1_CHUNK_SIZE);
+        const __m256i inputsVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(inputs + i * L1_CHUNK_SIZE));
         const __m256i clippedVec = _mm256_min_epi16(_mm256_max_epi16(inputsVec, zeroVec), oneVec);
         for (int out = 0; out < L2_SIZE; ++out) {
             const __m256i productVec = _mm256_madd_epi16(_mm256_mullo_epi16(clippedVec, weightsVecs[out]), clippedVec);
