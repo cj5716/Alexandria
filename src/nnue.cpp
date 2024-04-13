@@ -318,7 +318,7 @@ void NNUE::ActivateL1AndAffineL2(const float *inputs, const float *weights, cons
     }
 
     for (int i = 0; i < L3_SIZE; ++i) {
-        int sum = 0;
+        float sum = 0;
         #if defined(USE_AVX512) || defined(USE_AVX2)
         sum = hadd_ps(sumVecs[i]);
         #else
