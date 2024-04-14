@@ -11,7 +11,7 @@
 // Net Arch: (INPUT_SIZE -> L1_SIZE) x 2 -> (L2_SIZE -> 1) x OUTPUT_BUCKETS
 constexpr int INPUT_SIZE = 768;
 constexpr int L1_SIZE = 1536;
-constexpr int L2_SIZE = 8;
+constexpr int L2_SIZE = 32;
 constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int FT_QUANT = 256;
