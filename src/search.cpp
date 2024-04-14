@@ -269,11 +269,10 @@ int AspirationWindowSearch(int prev_eval, int depth, ThreadData* td) {
         (ss + i)->searchKillers[1] = NOMOVE;
         (ss + i)->staticEval = SCORE_NONE;
         (ss + i)->doubleExtensions = 0;
-        (ss + i)->contHistEntry = &sd->contHist[PieceTo(NOMOVE)];
+        (ss + i)->contHistEntry = &sd->contHist[false][PieceTo(NOMOVE)];
     }
     for (int i = 0; i < MAXDEPTH; i++) {
         (ss + i)->ply = i;
-        (ss + i)->contHistEntry = &sd->contHist[PieceTo(NOMOVE)];
     }
     // We set an expected window for the score at the next search depth, this window is not 100% accurate so we might need to try a bigger window and re-search the position
     int delta = 12;
@@ -460,7 +459,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
 
             ss->move = NOMOVE;
             const int R = 3 + depth / 3 + std::min((eval - beta) / 200, 3);
-            ss->contHistEntry = &sd->contHist[PieceTo(NOMOVE)];
+            ss->contHistEntry = &sd->contHist[false][PieceTo(NOMOVE)];
 
             MakeNullMove(pos);
 
@@ -516,8 +515,8 @@ moves_loop:
     InitMP(&mp, pos, sd, ss, ttMove, SEARCH);
 
     // Keep track of the played quiet and noisy moves
-    MoveList quietMoves, noisyMoves;
-    quietMoves.count = 0, noisyMoves.count = 0;
+    MoveList quietMoves, tacticalMoves;
+    quietMoves.count = 0, tacticalMoves.count = 0;
 
     // loop over moves within a movelist
     while ((move = NextMove(&mp, skipQuiets)) != NOMOVE) {
@@ -610,13 +609,13 @@ moves_loop:
 
         // Play the move
         MakeMove(move, pos);
-        ss->contHistEntry = &sd->contHist[PieceTo(move)];
+        ss->contHistEntry = &sd->contHist[isQuiet][PieceTo(move)];
 
         // Add any played move to the matching list
         if (isQuiet)
             AddMove(move, &quietMoves);
         else
-            AddMove(move, &noisyMoves);
+            AddMove(move, &tacticalMoves);
 
         // increment nodes count
         info->nodes++;
@@ -723,7 +722,7 @@ moves_loop:
                             sd->counterMoves[FromTo((ss - 1)->move)] = move;
                     }
                     // Update the history heuristics based on the new best move
-                    UpdateHistories(pos, sd, ss, depth + (eval <= alpha), bestMove, &quietMoves, &noisyMoves);
+                    UpdateHistories(pos, sd, ss, depth + (eval <= alpha), bestMove, &quietMoves, &tacticalMoves);
 
                     // node (move) fails high
                     break;
