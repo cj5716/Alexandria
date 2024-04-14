@@ -304,15 +304,15 @@ Bitboard GetPieceBB(const Position* pos, const int piecetype) {
     return pos->GetPieceColorBB(piecetype, WHITE) | pos->GetPieceColorBB(piecetype, BLACK);
 }
 
-bool oppCanWinMaterial(const Position* pos, const int side) {
+Bitboard GetHangingPieces(const Position* pos, const int side) {
+    Bitboard hanging = 0ULL;
     Bitboard occ = pos->Occupancy(BOTH);
     Bitboard  us = pos->Occupancy(side);
     Bitboard oppPawns = pos->GetPieceColorBB(PAWN, side ^ 1);
     Bitboard ourPawns = pos->GetPieceColorBB(PAWN, side);
     while (oppPawns) {
         const int source_square = popLsb(oppPawns);
-        if (pawn_attacks[side ^ 1][source_square] & (us ^ ourPawns))
-            return true;
+        hanging |= pawn_attacks[side ^ 1][source_square] & (us ^ ourPawns);
     }
 
     Bitboard oppKnights = pos->GetPieceColorBB(KNIGHT, side ^ 1);
@@ -321,31 +321,28 @@ bool oppCanWinMaterial(const Position* pos, const int side) {
     Bitboard ourBishops = pos->GetPieceColorBB(BISHOP, side);
     while (oppKnights) {
         const int source_square = popLsb(oppKnights);
-        if (knight_attacks[source_square] & (us ^ ourPawns ^ ourKnights ^ ourBishops))
-            return true;
+        hanging |= knight_attacks[source_square] & (us ^ ourPawns ^ ourKnights ^ ourBishops);
     }
 
     while (oppBishops) {
         const int source_square = popLsb(oppBishops);
-        if (GetBishopAttacks(source_square, occ) & (us ^ ourPawns ^ ourKnights ^ ourBishops))
-            return true;
+        hanging |= GetBishopAttacks(source_square, occ) & (us ^ ourPawns ^ ourKnights ^ ourBishops);
     }
 
     Bitboard oppRooks = pos->GetPieceColorBB(ROOK, side ^ 1);
     Bitboard ourRooks = pos->GetPieceColorBB(ROOK, side);
     while (oppRooks) {
         const int source_square = popLsb(oppRooks);
-        if (GetRookAttacks(source_square, occ) & (us ^ ourPawns ^ ourKnights ^ ourBishops ^ ourRooks))
-            return true;
+        hanging |= GetRookAttacks(source_square, occ) & (us ^ ourPawns ^ ourKnights ^ ourBishops ^ ourRooks);
     }
 
-    return false;
+    return hanging;
 }
 
-Bitboard getThreats(const Position* pos, const int side) {
+Bitboard GetThreats(const Position* pos, const int side) {
     // Take the occupancies of both positions, encoding where all the pieces on the board reside
     Bitboard occ = pos->Occupancy(BOTH);
-    uint64_t threats = 0;
+    Bitboard threats = 0ULL;
 
     // Get Pawn attacks
     Bitboard pawns = pos->GetPieceColorBB(PAWN, side);

@@ -508,6 +508,8 @@ moves_loop:
     int totalMoves = 0;
     bool skipQuiets = false;
 
+    Bitboard hangingPieces = GetHangingPieces(pos, pos->side);
+
     Movepicker mp;
     InitMP(&mp, pos, sd, ss, ttMove, SEARCH);
 
@@ -615,6 +617,7 @@ moves_loop:
         // increment nodes count
         info->nodes++;
         uint64_t nodesBeforeSearch = info->nodes;
+
         // Conditions to consider LMR. Calculate how much we should reduce the search depth.
         if (totalMoves > 1 + pvNode && depth >= 3 && (isQuiet || !ttPv)) {
 
@@ -636,6 +639,10 @@ moves_loop:
             // Reduce less if we have been on the PV
             if (ttPv)
                 depthReduction -= 1 + cutNode;
+
+            // Reduce less if we move a hanging piece
+            if (hangingPieces & (1ULL << From(move)))
+                depthReduction -= 1;
 
             // Decrease the reduction for moves that give check
             if (pos->checkers)

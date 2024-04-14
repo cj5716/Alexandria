@@ -187,9 +187,9 @@ void ResetInfo(SearchInfo* info);
 // Retrieve a generic piece (useful when we don't know what type of piece we are dealing with
 [[nodiscard]] Bitboard GetPieceBB(const Position* pos, const int piecetype);
 // Returns the threats bitboard of the pieces of <side> color
-[[nodiscard]] Bitboard getThreats(const Position* pos, const int side);
-// Returns whether the opponent of <side> has a guaranteed SEE > 0
-[[nodiscard]] bool oppCanWinMaterial(const Position* pos, const int side);
+[[nodiscard]] Bitboard GetThreats(const Position* pos, const int side);
+// Returns the hanging pieces on side <side>
+[[nodiscard]] Bitboard GetHangingPieces(const Position* pos, const int side);
 // Return a piece based on the type and the color
 [[nodiscard]] int GetPiece(const int piecetype, const int color);
 // Returns the piece_type of a piece
