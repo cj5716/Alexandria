@@ -19,7 +19,8 @@ enum {
 
 enum MovepickerType : uint8_t {
     SEARCH,
-    QSEARCH
+    QSEARCH,
+    PROBCUT
 };
 
 struct Movepicker {

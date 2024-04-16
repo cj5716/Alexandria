@@ -70,6 +70,12 @@ int NextMove(Movepicker* mp, const bool skip) {
             && mp->stage > PICK_GOOD_NOISY) {
             return NOMOVE;
         }
+
+        // In probcut, we only search captures that pass the threshold
+        if (   mp->movepickerType == PROBCUT
+            && mp->stage > PICK_GOOD_NOISY) {
+            return NOMOVE;
+        }
     }
     switch (mp->stage) {
     case PICK_TT:
@@ -95,7 +101,9 @@ int NextMove(Movepicker* mp, const bool skip) {
             partialInsertionSort(&mp->moveList, mp->idx);
             const int move = mp->moveList.moves[mp->idx].move;
             const int score = mp->moveList.moves[mp->idx].score;
-            const int SEEThreshold = mp->movepickerType == SEARCH ? -score / 64 : -108;
+            const int SEEThreshold = mp->movepickerType == SEARCH  ? -score / 64
+                                   : mp->movepickerType == QSEARCH ? -108
+                                                                   : 1; // Probcut
             ++mp->idx;
             if (move == mp->ttMove)
                 continue;
