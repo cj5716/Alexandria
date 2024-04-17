@@ -18,8 +18,10 @@ struct SearchStack {
 struct SearchData {
     int searchHistory[2][64 * 64] = {};
     int captHist[12 * 64][6] = {};
-    int counterMoves[64 * 64] = {};
     int contHist[12 * 64][12 * 64] = {};
+
+    int counterMoves[64 * 64] = {};
+    int followUpMoves[64 * 64] = {};
 };
 
 // a collection of all the data a thread needs to conduct a search

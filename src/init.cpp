@@ -196,6 +196,9 @@ void InitNewGame(ThreadData* td) {
     PvTable* pvTable = &td->pvTable;
 
     CleanHistories(sd);
+    std::memset(sd->counterMoves, NOMOVE, sizeof(sd->counterMoves));
+    std::memset(sd->followUpMoves, NOMOVE, sizeof(sd->followUpMoves));
+
 
     // Clean the PV Table
     for (int index = 0; index < MAXDEPTH + 1; ++index) {
@@ -204,8 +207,6 @@ void InitNewGame(ThreadData* td) {
             pvTable->pvArray[index][index2] = NOMOVE;
         }
     }
-
-    std::memset(sd->counterMoves, NOMOVE, sizeof(sd->counterMoves));
 
     // Reset plies and search info
     info->starttime = GetTimeMs();

@@ -53,6 +53,7 @@ void InitMP(Movepicker* mp, Position* pos, SearchData* sd, SearchStack* ss, cons
     mp->killer0 = ss->searchKillers[0];
     mp->killer1 = ss->searchKillers[1];
     mp->counter = sd->counterMoves[FromTo((ss - 1)->move)];
+    mp->followup = sd->counterMoves[FromTo((ss - 2)->move)];
 }
 
 int NextMove(Movepicker* mp, const bool skip) {
@@ -133,6 +134,13 @@ int NextMove(Movepicker* mp, const bool skip) {
 
         goto top;
 
+    case PICK_FOLLOWUP:
+        ++mp->stage;
+        if (!isTactical(mp->followup) && IsPseudoLegal(mp->pos, mp->followup))
+            return mp->followup;
+
+        goto top;
+
     case GEN_QUIETS:
         GenerateMoves(&mp->moveList, mp->pos, MOVEGEN_QUIET);
         ScoreMoves(mp);
@@ -147,7 +155,8 @@ int NextMove(Movepicker* mp, const bool skip) {
             if (   move == mp->ttMove
                 || move == mp->killer0
                 || move == mp->killer1
-                || move == mp->counter)
+                || move == mp->counter
+                || move == mp->followup)
                 continue;
 
             assert(!isTactical(move));

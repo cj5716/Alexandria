@@ -650,7 +650,7 @@ moves_loop:
                 depthReduction += 1;
 
             // Reduce less if the move is a refutation
-            if (move == mp.killer0 || move == mp.killer1 || move == mp.counter)
+            if (move == mp.killer0 || move == mp.killer1 || move == mp.counter || move == mp.followup)
                 depthReduction -= 1;
 
             // Reduce less if we have been on the PV
@@ -735,6 +735,10 @@ moves_loop:
                         // Save counterMoves
                         if (ss->ply >= 1)
                             sd->counterMoves[FromTo((ss - 1)->move)] = move;
+
+                        // Save followUpMoves
+                        if (ss->ply >= 2)
+                            sd->followUpMoves[FromTo((ss - 2)->move)] = move;
                     }
                     // Update the history heuristics based on the new best move
                     UpdateHistories(pos, sd, ss, depth + (eval <= alpha), bestMove, &quietMoves, &noisyMoves);

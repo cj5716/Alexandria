@@ -11,6 +11,7 @@ enum {
     PICK_KILLER_0,
     PICK_KILLER_1,
     PICK_COUNTER,
+    PICK_FOLLOWUP,
     GEN_QUIETS,
     PICK_QUIETS,
     GEN_BAD_NOISY,
@@ -35,6 +36,7 @@ struct Movepicker {
     int killer0;
     int killer1;
     int counter;
+    int followup;
 };
 
 void InitMP(Movepicker* mp, Position* pos, SearchData* sd, SearchStack* ss, const int ttMove, const MovepickerType movepickerType);
