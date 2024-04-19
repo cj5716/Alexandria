@@ -408,7 +408,9 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
     // IIR by Ed Schroder (That i find out about in Berserk source code)
     // http://talkchess.com/forum3/viewtopic.php?f=7&t=74769&sid=64085e3396554f0fba414404445b3120
     // https://github.com/jhonnold/berserk/blob/dd1678c278412898561d40a31a7bd08d49565636/src/search.c#L379
-    if (depth >= 4 && ttBound == HFNONE)
+    if (  (cutNode || pvNode)
+        && depth >= 6
+        && ttMove == NOMOVE)
         depth--;
 
     // clean killers and excluded move for the next ply
@@ -747,7 +749,7 @@ moves_loop:
         }
     }
 
-    // We don't have any legal moves to make in the current postion. If we are in singular search, return -infinite.
+    // We don't have any legal moves to make in the current position. If we are in singular search, return -infinite.
     // Otherwise, if the king is in check, return a mate score, assuming closest distance to mating position.
     // If we are in neither of these 2 cases, it is stalemate.
     if (totalMoves == 0) {
