@@ -257,16 +257,18 @@ void NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, 
         const __m512i* weightsVecs = reinterpret_cast<const __m512i*>(weights + i * L2_SIZE * L1_CHUNK_SIZE);
         const __m512i inputsVec = _mm512_loadu_si512(inputs + i * L1_CHUNK_SIZE);
         const __m512i clippedVec = _mm512_min_epi16(_mm512_max_epi16(inputsVec, zeroVec), oneVec);
+        const __m512i squaredVec = _mm512_mullo_epi16(clippedVec, clippedVec);
         for (int out = 0; out < L2_SIZE; ++out) {
-            const __m512i productVec = _mm512_madd_epi16(_mm512_mullo_epi16(clippedVec, weightsVecs[out]), clippedVec);
+            const __m512i productVec = _mm512_madd_epi16(squaredVec, weightsVecs[out]);
             sumVecs[out] = _mm512_add_epi32(sumVecs[out], productVec);
         }
         #elif defined(USE_AVX2)
         const __m256i* weightsVecs = reinterpret_cast<const __m256i*>(weights + i * L2_SIZE * L1_CHUNK_SIZE);
         const __m256i inputsVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(inputs + i * L1_CHUNK_SIZE));
         const __m256i clippedVec = _mm256_min_epi16(_mm256_max_epi16(inputsVec, zeroVec), oneVec);
+        const __m256i squaredVec = _mm256_mullo_epi16(clippedVec, clippedVec);
         for (int out = 0; out < L2_SIZE; ++out) {
-            const __m256i productVec = _mm256_madd_epi16(_mm256_mullo_epi16(clippedVec, weightsVecs[out]), clippedVec);
+            const __m256i productVec = _mm256_madd_epi16(squaredVec, weightsVecs[out]);
             sumVecs[out] = _mm256_add_epi32(sumVecs[out], productVec);
         }
         #else
