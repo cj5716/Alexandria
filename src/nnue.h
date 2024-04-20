@@ -15,16 +15,16 @@ constexpr int L2_SIZE = 8;
 constexpr int L3_SIZE = 16;
 constexpr int OUTPUT_BUCKETS = 8;
 
-constexpr int FT_QUANT = 181;
-constexpr int L1_QUANT = 256;
+constexpr int FT_QUANT = 127;
+constexpr int L1_QUANT = 64;
 constexpr int NET_SCALE = 400;
 
 #if defined(USE_AVX512)
-constexpr int L1_CHUNK_SIZE = sizeof(__m512i) / sizeof(int16_t);
+constexpr int L1_CHUNK_SIZE = sizeof(__m512i) / sizeof(int8_t);
 constexpr int L2_CHUNK_SIZE = sizeof(__m256) / sizeof(float);
 constexpr int L3_CHUNK_SIZE = sizeof(__m256) / sizeof(float);
 #elif defined(USE_AVX2)
-constexpr int L1_CHUNK_SIZE = sizeof(__m256i) / sizeof(int16_t);
+constexpr int L1_CHUNK_SIZE = sizeof(__m256i) / sizeof(int8_t);
 constexpr int L2_CHUNK_SIZE = sizeof(__m256) / sizeof(float);
 constexpr int L3_CHUNK_SIZE = sizeof(__m256) / sizeof(float);
 #else
@@ -38,7 +38,7 @@ using NNUEIndices = std::pair<std::size_t, std::size_t>;
 struct Network {
     int16_t FTWeights[INPUT_SIZE * L1_SIZE];
     int16_t FTBiases[L1_SIZE];
-    int16_t L1Weights[OUTPUT_BUCKETS][2 * L1_SIZE * L2_SIZE];
+    int8_t  L1Weights[OUTPUT_BUCKETS][2 * L1_SIZE * L2_SIZE];
     float   L1Biases[OUTPUT_BUCKETS][L2_SIZE];
     float   L2Weights[OUTPUT_BUCKETS][L2_SIZE * L3_SIZE];
     float   L2Biases[OUTPUT_BUCKETS][L3_SIZE];
@@ -68,7 +68,8 @@ public:
     void update(NNUE::accumulator& board_accumulator, std::vector<NNUEIndices>& NNUEAdd, std::vector<NNUEIndices>& NNUESub);
     void addSub(NNUE::accumulator& board_accumulator, NNUEIndices add, NNUEIndices sub);
     void addSubSub(NNUE::accumulator& board_accumulator, NNUEIndices add, NNUEIndices sub1, NNUEIndices sub2);
-    void ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, const float *biases, float *output);
+    void ActivateFT(const int16_t *inputs, uint8_t *output);
+    void AffineL1(const uint8_t *inputs, const int8_t *weights, const float *biases, float *output);
     void ActivateL1AndAffineL2(const float *inputs, const float *weights, const float *biases, float *output);
     void ActivateL2AndAffineL3(const float *inputs, const float *weights, const float bias, float &output);
     [[nodiscard]] int output(const NNUE::accumulator& board_accumulator, const bool whiteToMove, const int outputBucket);
