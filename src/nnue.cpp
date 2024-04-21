@@ -261,7 +261,9 @@ void NNUE::ActivateFT(const int16_t *inputs, uint8_t *output) {
         // This inaccuracy is accounted for later on
         const __m512i squaredVec0 = _mm512_srli_epi16(_mm512_mullo_epi16(clippedVec0, clippedVec0), 7);
         const __m512i squaredVec1 = _mm512_srli_epi16(_mm512_mullo_epi16(clippedVec1, clippedVec1), 7);
-        _mm512_storeu_si512(&output[i * L1_CHUNK_SIZE], _mm512_packs_epi16(squaredVec0, squaredVec1));
+        const __m512i packed =_mm512_permutexvar_epi64(_mm512_setr_epi64(0, 2, 4, 6, 1, 3, 5, 7),
+                                                       _mm512_packs_epi16(squaredVec0, squaredVec1));
+        _mm512_storeu_si512(&output[i * L1_CHUNK_SIZE], packed);
 
         #elif defined(USE_AVX2)
         const __m256i inputsVec0  = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(inputs + (2 * i) * L1_CHUNK_SIZE / 2));
@@ -273,7 +275,8 @@ void NNUE::ActivateFT(const int16_t *inputs, uint8_t *output) {
         // This inaccuracy is accounted for later on
         const __m256i squaredVec0 = _mm256_srli_epi16(_mm256_mullo_epi16(clippedVec0, clippedVec0), 7);
         const __m256i squaredVec1 = _mm256_srli_epi16(_mm256_mullo_epi16(clippedVec1, clippedVec1), 7);
-        _mm256_storeu_si256(reinterpret_cast<const __m256i*>(&output[i * L1_CHUNK_SIZE]), _mm256_packs_epi16(squaredVec0, squaredVec1));
+        const __m256i packed = _mm256_permute4x64_epi64(_mm256_packs_epi16(squaredVec0, squaredVec1), 0b11011000);
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(&output[i * L1_CHUNK_SIZE]), packed);
 
         #else
         const int16_t clamped = std::clamp(inputs[i], ZERO, ONE);
