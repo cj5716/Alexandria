@@ -11,23 +11,21 @@ GetScore: this is simply a getter for a specific entry of the history table
 */
 
 int history_bonus(const int depth) {
-    return std::min(16 * (depth + 1) * (depth + 1), 1200);
+    return std::min(28 * depth * depth + 5 * depth - 10, 2577);
 }
 
 void updateHHScore(const Position* pos, SearchData* sd, int move, int bonus) {
-    // Scale bonus to fix it in a [-32768;32768] range
-    const int scaledBonus = bonus - GetHHScore(pos, sd, move) * std::abs(bonus) / 32768;
+    // Scale bonus to fix it in a [-16384;16384] range
+    const int scaledBonus = bonus - GetHHScore(pos, sd, move) * std::abs(bonus) / 16384;
     // Update move score
     sd->searchHistory[pos->side][FromTo(move)] += scaledBonus;
 }
 
 void updateCHScore(SearchStack* ss, const int move, const int bonus) {
-    // Average out the bonus across the 3 conthist entries
-    const int scaledBonus = bonus - GetCHScore(ss, move) * std::abs(bonus) / 32768;
     // Update move score
-    updateSingleCHScore(ss, move, scaledBonus, 1);
-    updateSingleCHScore(ss, move, scaledBonus, 2);
-    updateSingleCHScore(ss, move, scaledBonus, 4);
+    updateSingleCHScore(ss, move, bonus, 1);
+    updateSingleCHScore(ss, move, bonus, 2);
+    updateSingleCHScore(ss, move, bonus, 4);
 }
 
 void updateSingleCHScore(SearchStack* ss, const int move, const int bonus, const int offset) {
@@ -38,8 +36,8 @@ void updateSingleCHScore(SearchStack* ss, const int move, const int bonus, const
 }
 
 void updateCapthistScore(const Position* pos, SearchData* sd, int move, int bonus) {
-    // Scale bonus to fix it in a [-32768;32768] range
-    const int scaledBonus = bonus - GetCapthistScore(pos, sd, move) * std::abs(bonus) / 32768;
+    // Scale bonus to fix it in a [-16384;16384] range
+    const int scaledBonus = bonus - GetCapthistScore(pos, sd, move) * std::abs(bonus) / 16384;
     int capturedPiece = isEnpassant(move) ? PAWN : GetPieceType(pos->PieceOn(To(move)));
     // If we captured an empty piece this means the move is a promotion, we can pretend we captured a pawn to use a slot of the table that would've otherwise went unused (you can't capture pawns on the 1st/8th rank)
     if (capturedPiece == EMPTY) capturedPiece = PAWN;
