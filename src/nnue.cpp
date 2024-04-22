@@ -257,10 +257,9 @@ void NNUE::ActivateFT(const int16_t *inputs, uint8_t *output) {
         const __m512i clippedVec0 = _mm512_min_epi16(_mm512_max_epi16(inputsVec0, zeroVec), oneVec);
         const __m512i clippedVec1 = _mm512_min_epi16(_mm512_max_epi16(inputsVec1, zeroVec), oneVec);
 
-        // We shift by 7 (divide by 128) rather than dividing by 127 because it is faster
-        // This inaccuracy is accounted for later on
-        const __m512i squaredVec0 = _mm512_srli_epi16(_mm512_mullo_epi16(clippedVec0, clippedVec0), 7);
-        const __m512i squaredVec1 = _mm512_srli_epi16(_mm512_mullo_epi16(clippedVec1, clippedVec1), 7);
+        // We shift by 6 (divide by 64)
+        const __m512i squaredVec0 = _mm512_srli_epi16(_mm512_mullo_epi16(clippedVec0, clippedVec0), 6);
+        const __m512i squaredVec1 = _mm512_srli_epi16(_mm512_mullo_epi16(clippedVec1, clippedVec1), 6);
         const __m512i packed =_mm512_permutexvar_epi64(_mm512_setr_epi64(0, 2, 4, 6, 1, 3, 5, 7),
                                                        _mm512_packs_epi16(squaredVec0, squaredVec1));
         _mm512_storeu_si512(&output[i * L1_CHUNK_SIZE], packed);
@@ -271,16 +270,15 @@ void NNUE::ActivateFT(const int16_t *inputs, uint8_t *output) {
         const __m256i clippedVec0 = _mm256_min_epi16(_mm256_max_epi16(inputsVec0, zeroVec), oneVec);
         const __m256i clippedVec1 = _mm256_min_epi16(_mm256_max_epi16(inputsVec1, zeroVec), oneVec);
 
-        // We shift by 7 (divide by 128) rather than dividing by 127 because it is faster
-        // This inaccuracy is accounted for later on
-        const __m256i squaredVec0 = _mm256_srli_epi16(_mm256_mullo_epi16(clippedVec0, clippedVec0), 7);
-        const __m256i squaredVec1 = _mm256_srli_epi16(_mm256_mullo_epi16(clippedVec1, clippedVec1), 7);
+        // We shift by 6 (divide by 64)
+        const __m256i squaredVec0 = _mm256_srli_epi16(_mm256_mullo_epi16(clippedVec0, clippedVec0), 6);
+        const __m256i squaredVec1 = _mm256_srli_epi16(_mm256_mullo_epi16(clippedVec1, clippedVec1), 6);
         const __m256i packed = _mm256_permute4x64_epi64(_mm256_packs_epi16(squaredVec0, squaredVec1), 0b11011000);
         _mm256_storeu_si256(reinterpret_cast<__m256i*>(&output[i * L1_CHUNK_SIZE]), packed);
 
         #else
         const int16_t clamped = std::clamp(inputs[i], ZERO, ONE);
-        output[i] = uint8_t(clamped * clamped / 128);
+        output[i] = uint8_t(clamped * clamped / 64);
         #endif
     }
 }
@@ -293,24 +291,35 @@ void NNUE::AffineL1(const uint8_t *inputs, const int8_t *weights, const float *b
     #else
     int sums[L2_SIZE] = {};
     #endif
-    for (int i = 0; i < 2 * L1_SIZE / L1_CHUNK_SIZE; ++i) {
+    for (int i = 0; i < 2 * L1_SIZE / L1_CHUNK_SIZE; i += 2) {
         #if defined(USE_AVX512)
-        const __m512i* weightsVecs = reinterpret_cast<const __m512i*>(weights + i * L2_SIZE * L1_CHUNK_SIZE);
-        const __m512i inputsVec = _mm512_loadu_si512(inputs + i * L1_CHUNK_SIZE);
+        const __m512i* weightsVecs0 = reinterpret_cast<const __m512i*>(weights + i * L2_SIZE * L1_CHUNK_SIZE);
+        const __m512i* weightsVecs1 = reinterpret_cast<const __m512i*>(weights + (i + 1) * L2_SIZE * L1_CHUNK_SIZE);
+        const __m512i inputsVec0 = _mm512_loadu_si512(inputs + i * L1_CHUNK_SIZE);
+        const __m512i inputsVec1 = _mm512_loadu_si512(inputs + (i + 1) * L1_CHUNK_SIZE);
         for (int out = 0; out < L2_SIZE; ++out) {
-            const __m512i productVec = _mm512_madd_epi16(_mm512_maddubs_epi16(inputsVec, weightsVecs[out]), _mm512_set1_epi16(1));
+            const __m512i productVec = _mm512_madd_epi16(_mm512_add_epi16(_mm512_maddubs_epi16(inputsVec0, weightsVecs0[out]),
+                                                                          _mm512_maddubs_epi16(inputsVec1, weightsVecs1[out])),
+                                                         _mm512_set1_epi16(1));
             sumVecs[out] = _mm512_add_epi32(sumVecs[out], productVec);
         }
         #elif defined(USE_AVX2)
-        const __m256i* weightsVecs = reinterpret_cast<const __m256i*>(weights + i * L2_SIZE * L1_CHUNK_SIZE);
-        const __m256i inputsVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(inputs + i * L1_CHUNK_SIZE));
+        const __m256i* weightsVecs0 = reinterpret_cast<const __m256i*>(weights + i * L2_SIZE * L1_CHUNK_SIZE);
+        const __m256i* weightsVecs1 = reinterpret_cast<const __m256i*>(weights + (i + 1) * L2_SIZE * L1_CHUNK_SIZE);
+        const __m256i inputsVec0 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(inputs + i * L1_CHUNK_SIZE));
+        const __m256i inputsVec1 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(inputs + (i + 1) * L1_CHUNK_SIZE));
         for (int out = 0; out < L2_SIZE; ++out) {
-            const __m256i productVec = _mm256_madd_epi16(_mm256_maddubs_epi16(inputsVec, weightsVecs[out]), _mm256_set1_epi16(1));
+            const __m256i productVec = _mm256_madd_epi16(_mm256_add_epi16(_mm256_maddubs_epi16(inputsVec0, weightsVecs0[out]),
+                                                                          _mm256_maddubs_epi16(inputsVec1, weightsVecs1[out])),
+                                                         _mm256_set1_epi16(1));
             sumVecs[out] = _mm256_add_epi32(sumVecs[out], productVec);
         }
         #else
         for (int out = 0; out < L2_SIZE; ++out)
+        {
             sums[out] += inputs[i] * weights[i * L2_SIZE + out];
+            sums[out] += inputs[i + 1] * weights[(i + 1) * L2_SIZE + out];
+        }
         #endif
     }
     for (int i = 0; i < L2_SIZE; ++i) {
@@ -322,8 +331,7 @@ void NNUE::AffineL1(const uint8_t *inputs, const int8_t *weights, const float *b
         #else
         sum = sums[i];
         #endif
-        // To speedup screlu, we divide by 128 rather than 127. Thus, we compensate by multiplying the weights by 128/127.
-        output[i] = float(sum) / float(FT_QUANT * FT_QUANT * L1_QUANT) * 128.0f + biases[i];
+        output[i] = float(sum) / float(FT_QUANT * L1_QUANT) + biases[i];
     }
 }
 
