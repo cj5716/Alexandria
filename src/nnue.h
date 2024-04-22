@@ -52,7 +52,7 @@ public:
     void update(NNUE::accumulator& board_accumulator, std::vector<NNUEIndices>& NNUEAdd, std::vector<NNUEIndices>& NNUESub);
     void addSub(NNUE::accumulator& board_accumulator, NNUEIndices add, NNUEIndices sub);
     void addSubSub(NNUE::accumulator& board_accumulator, NNUEIndices add, NNUEIndices sub1, NNUEIndices sub2);
-    void ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, const int32_t bias, int &output);
+    void ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, int &output);
     [[nodiscard]] int output(const NNUE::accumulator& board_accumulator, const bool whiteToMove, const int outputBucket);
     [[nodiscard]] NNUEIndices GetIndex(const int piece, const int square);
     #if defined(USE_AVX2)
