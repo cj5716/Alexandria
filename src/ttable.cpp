@@ -61,7 +61,7 @@ void StoreTTEntry(const ZobristKey key, const int16_t move, int score, int eval,
     // Overwrite less valuable entries (cheapest checks first)
     if (   bound == HFEXACT
         || key16 != tte->ttKey
-        || depth + 5 + 2 * pv > tte->depth
+        || (depth + pv) * 2 >= tte->depth
         || AgeFromTT(tte->ageBoundPV) != TTAge) {
         tte->ttKey = key16;
         tte->ageBoundPV = PackToTT(bound, wasPV, TTAge);
