@@ -238,7 +238,7 @@ float NNUE::hadd_ps(const __m256 sum) {
 }
 #endif
 
-void NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, const float *biases, float *output) {
+void NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, int *output) {
     #if defined(USE_AVX512)
     __m512i sumVecs[L2_SIZE] = {};
     const __m512i zeroVec = _mm512_set1_epi16(0);
@@ -252,7 +252,7 @@ void NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, 
     constexpr int ZERO = 0;
     constexpr int ONE = FT_QUANT;
     #endif
-    for (int i = 0; i < 2 * L1_SIZE / L1_CHUNK_SIZE; ++i) {
+    for (int i = 0; i < L1_SIZE / L1_CHUNK_SIZE; ++i) {
         #if defined(USE_AVX512)
         const __m512i* weightsVecs = reinterpret_cast<const __m512i*>(weights + i * L2_SIZE * L1_CHUNK_SIZE);
         const __m512i inputsVec = _mm512_loadu_si512(inputs + i * L1_CHUNK_SIZE);
@@ -287,7 +287,7 @@ void NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, 
         #else
         sum = sums[i];
         #endif
-        output[i] = float(sum) / float(FT_QUANT * FT_QUANT * L1_QUANT) + biases[i];
+        output[i] = sum;
     }
 }
 
@@ -356,25 +356,25 @@ void NNUE::ActivateL2AndAffineL3(const float *inputs, const float *weights, cons
 
 int NNUE::output(const NNUE::accumulator& board_accumulator, const bool whiteToMove, const int outputBucket) {
 
-    const std::array<int16_t, L1_SIZE> ourAcc = board_accumulator[!whiteToMove];
-    const std::array<int16_t, L1_SIZE> theirAcc = board_accumulator[whiteToMove];
-    std::array<int16_t, L1_SIZE * 2> bothAccs = {};
-
-    for (int i = 0; i < L1_SIZE; ++i)
-    {
-        bothAccs[i] = ourAcc[i];
-        bothAccs[i + L1_SIZE] = theirAcc[i];
-    }
-
-    float L1Outputs[L2_SIZE];
+    int   L1OutputsUs[L2_SIZE];
+    int   L1OutputsThem[L2_SIZE];
+    float L2Inputs[L2_SIZE];
     float L2Outputs[L3_SIZE];
     float L3Output;
-    ActivateFTAndAffineL1(bothAccs.data(),
-                          net.L1Weights[outputBucket],
-                          net.L1Biases[outputBucket],
-                          L1Outputs);
 
-    ActivateL1AndAffineL2(L1Outputs,
+    ActivateFTAndAffineL1(board_accumulator[!whiteToMove].data(),
+                          net.L1Weights[outputBucket],
+                          L1OutputsUs);
+
+    ActivateFTAndAffineL1(board_accumulator[whiteToMove].data(),
+                          net.L1Weights[outputBucket] + L1_SIZE * L2_SIZE,
+                          L1OutputsThem);
+
+    for (int i = 0; i < L2_SIZE; ++i) {
+        L2Inputs[i] = float(L1OutputsUs[i] + L1OutputsThem[i]) / float(FT_QUANT * FT_QUANT * L1_QUANT) + net.L1Biases[outputBucket][i];
+    }
+
+    ActivateL1AndAffineL2(L2Inputs,
                           net.L2Weights[outputBucket],
                           net.L2Biases[outputBucket],
                           L2Outputs);
