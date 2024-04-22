@@ -181,7 +181,7 @@ int NNUE::hadd_int32(const __m256i sum) {
 }
 #endif
 
-void NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, const int32_t bias, int &output) {
+void NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, int &output) {
     int sum = 0;
     #if defined(USE_AVX512)
     __m512i sumVec = _mm512_setzero_si512();
@@ -195,7 +195,7 @@ void NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, 
     constexpr int ZERO = 0;
     constexpr int ONE = FT_QUANT;
     #endif
-    for (int i = 0; i < 2 * L1_SIZE / L1_CHUNK_SIZE; ++i) {
+    for (int i = 0; i < L1_SIZE / L1_CHUNK_SIZE; ++i) {
         #if defined(USE_AVX512)
         const __m512i weightsVec = _mm512_loadu_si512(weights + i * L1_CHUNK_SIZE);
         const __m512i inputsVec = _mm512_loadu_si512(inputs + i * L1_CHUNK_SIZE);
@@ -221,28 +221,22 @@ void NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, 
     #elif defined(USE_AVX2)
     sum = hadd_int32(sumVec);
     #endif
-    output = (sum / FT_QUANT + bias) * NET_SCALE / (FT_QUANT * L1_QUANT);
+    output = sum;
 }
 
 int NNUE::output(const NNUE::accumulator& board_accumulator, const bool whiteToMove, const int outputBucket) {
 
-    const std::array<int16_t, L1_SIZE> ourAcc = board_accumulator[!whiteToMove];
-    const std::array<int16_t, L1_SIZE> theirAcc = board_accumulator[whiteToMove];
-    std::array<int16_t, L1_SIZE * 2> bothAccs = {};
-
-    for (int i = 0; i < L1_SIZE; ++i)
-    {
-        bothAccs[i] = ourAcc[i];
-        bothAccs[i + L1_SIZE] = theirAcc[i];
-    }
-
-    int output;
-    ActivateFTAndAffineL1(bothAccs.data(),
+    int outputUs;
+    int outputThem;
+    ActivateFTAndAffineL1(board_accumulator[!whiteToMove].data(),
                           net.L1Weights[outputBucket],
-                          net.L1Biases[outputBucket],
-                          output);
+                          outputUs);
 
-    return output;
+    ActivateFTAndAffineL1(board_accumulator[whiteToMove].data(),
+                          net.L1Weights[outputBucket] + L1_SIZE,
+                          outputThem);
+
+    return ((outputUs + outputThem) / FT_QUANT + net.L1Biases[outputBucket]) * NET_SCALE / (FT_QUANT * L1_QUANT);
 }
 
 NNUEIndices NNUE::GetIndex(const int piece, const int square) {
