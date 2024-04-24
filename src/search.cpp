@@ -403,6 +403,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
         return ttScore;
 
     const bool ttPv = pvNode || (ttHit && FormerPV(tte.ageBoundPV));
+    const bool ttTactical = ttMove != NOMOVE && isTactical(ttMove);
 
     // IIR by Ed Schroder (That i find out about in Berserk source code)
     // http://talkchess.com/forum3/viewtopic.php?f=7&t=74769&sid=64085e3396554f0fba414404445b3120
@@ -509,12 +510,12 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
                 return razorScore;
         }
 
-        int pcBeta = beta + (improving ? 369 : 193);
+        int pcBeta = beta + 369 - 176 * improving;
         if (   depth > 4
             && abs(beta) < MATE_FOUND
-            && (   ttScore == SCORE_NONE
-                || tte.depth < depth - 3
-                || ttScore >= pcBeta))
+            && (ttMove == NOMOVE || ttTactical)
+            && (ttScore == SCORE_NONE || (ttBound & HFLOWER))
+            && (ttScore == SCORE_NONE || tte.depth < depth - 3 || ttScore >= pcBeta))
         {
             Movepicker mp;
             int move;
@@ -632,7 +633,7 @@ moves_loop:
                     if (   !pvNode
                         &&  singularScore < singularBeta - 17
                         &&  ss->doubleExtensions <= 11) {
-                        extension = 2 + (!isTactical(ttMove) && singularScore < singularBeta - 100);
+                        extension = 2 + (!ttTactical && singularScore < singularBeta - 100);
                         ss->doubleExtensions = (ss - 1)->doubleExtensions + 1;
                         depth += depth < 10;
                     }
