@@ -1,6 +1,7 @@
 #include "nnue.h"
-#include <algorithm>
 #include "position.h"
+#include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <iostream>
@@ -90,11 +91,11 @@ void NNUE::init(const char* file) {
 
     // Quantise FT Weights
     for (int i = 0; i < INPUT_SIZE * L1_SIZE; ++i)
-        net.FTWeights[i] = static_cast<int16_t>(unquantisedNet.FTWeights[i] * FT_QUANT);
+        net.FTWeights[i] = static_cast<int16_t>(std::round(unquantisedNet.FTWeights[i] * FT_QUANT));
 
     // Quantise FT Biases
     for (int i = 0; i < L1_SIZE; ++i)
-        net.FTBiases[i] = static_cast<int16_t>(unquantisedNet.FTBiases[i] * FT_QUANT);
+        net.FTBiases[i] = static_cast<int16_t>(std::round(unquantisedNet.FTBiases[i] * FT_QUANT));
 
     // Transpose L1, L2 and L3 weights and biases
     for (int bucket = 0; bucket < OUTPUT_BUCKETS; ++bucket) {
@@ -105,7 +106,7 @@ void NNUE::init(const char* file) {
                 for (int k = 0; k < L1_CHUNK_SIZE; ++k)
                     net.L1Weights[bucket][  i * L1_CHUNK_SIZE * L2_SIZE
                                           + j * L1_CHUNK_SIZE
-                                          + k] = static_cast<int16_t>(unquantisedNet.L1Weights[i * L1_CHUNK_SIZE + k][bucket][j] * L1_QUANT);
+                                          + k] = static_cast<int16_t>(std::round(unquantisedNet.L1Weights[i * L1_CHUNK_SIZE + k][bucket][j] * L1_QUANT));
 
         // Quantise L1 Biases
         for (int i = 0; i < L2_SIZE; ++i)
