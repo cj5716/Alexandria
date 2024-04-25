@@ -205,36 +205,52 @@ void NNUE::addSubSub(NNUE::accumulator& board_accumulator, NNUEIndices add, NNUE
     }
 }
 
-#if defined(USE_AVX2)
-int NNUE::hadd_int32(const __m256i sum) {
-    __m128i upper_128 = _mm256_extracti128_si256(sum, 1);
-    __m128i lower_128 = _mm256_castsi256_si128(sum);
-    __m128i sum_128 = _mm_add_epi32(upper_128, lower_128);
+#if defined(USE_AVX512) || defined(USE_AVX2)
+float NNUE::_mm256_reduce_add_ps(const __m256 sum) {
+    
+    const __m128 upper_128 = _mm256_extractf128_ps(sum, 1);
+    const __m128 lower_128 = _mm256_castps256_ps128(sum);
+    const __m128 sum_128 = _mm_add_ps(upper_128, lower_128);
 
-    __m128i upper_64 = _mm_unpackhi_epi64(sum_128, sum_128);
-    __m128i sum_64 = _mm_add_epi32(upper_64, sum_128);
+    const __m128 upper_64 = _mm_movehl_ps(sum_128, sum_128);
+    const __m128 sum_64 = _mm_add_ps(upper_64, sum_128);
 
-    __m128i upper_32 = _mm_shuffle_epi32(sum_64, 1);
-    __m128i sum_32 = _mm_add_epi32(upper_32, sum_64);
+    const __m128 upper_32 = _mm_shuffle_ps(sum_64, sum_64, 1);
+    const __m128 sum_32 = _mm_add_ss(upper_32, sum_64);
 
-    return _mm_cvtsi128_si32(sum_32);
+    return _mm_cvtss_f32(sum_32);
+}
+
+__m256i NNUE::combine_m256(const __m256i in0, const __m256i in1) {
+    const __m128i in0_low = _mm256_castsi256_si128(in0);
+    const __m128i in0_hi = _mm256_extracti128_si256(in0, 1);
+    const __m128i in0_m128 = _mm_add_epi32(in0_low, in0_hi);
+
+    const __m128i in1_low = _mm256_castsi256_si128(in1);
+    const __m128i in1_hi = _mm256_extracti128_si256(in1, 1);
+    const __m128i in1_m128 = _mm_add_epi32(in1_low, in1_hi);
+
+    return _mm256_inserti128_si256(_mm256_castsi128_si256(in0_m128), in1_m128, 1);
 }
 #endif
 
-#if defined(USE_AVX512) || defined(USE_AVX2)
-float NNUE::hadd_ps(const __m256 sum) {
-    
-    __m128 upper_128 = _mm256_extractf128_ps(sum, 1);
-    __m128 lower_128 = _mm256_castps256_ps128(sum);
-    __m128 sum_128 = _mm_add_ps(upper_128, lower_128);
+#if defined(USE_AVX512)
+__m256i NNUE::m512_to_m256(const __m512i in) {
+    const __m256i upper256 = _mm512_extracti32x8_epi32(in, 1);
+    const __m256i lower256 = _mm512_castsi512_si256(in);
+    return _mm256_add_epi32(lower256, upper256);
+}
 
-    __m128 upper_64 = _mm_movehl_ps(sum_128, sum_128);
-    __m128 sum_64 = _mm_add_ps(upper_64, sum_128);
-
-    __m128 upper_32 = _mm_shuffle_ps(sum_64, sum_64, 1);
-    __m128 sum_32 = _mm_add_ss(upper_32, sum_64);
-
-    return _mm_cvtss_f32(sum_32);
+__m256i NNUE::hadd_epi32x4(const __m512i* in) {
+    const __m256i sum01 = _mm256_hadd_epi32(m512_to_m256(in[0]), m512_to_m256(in[1]));
+    const __m256i sum23 = _mm256_hadd_epi32(m512_to_m256(in[2]), m512_to_m256(in[3]));
+    return _mm256_hadd_epi32(sum01, sum23);
+}
+#elif defined(USE_AVX2)
+__m256i NNUE::hadd_epi32x4(const __m256i* in) {
+    const __m256i sum01 = _mm256_hadd_epi32(in[0], in[1]);
+    const __m256i sum23 = _mm256_hadd_epi32(in[2], in[3]);
+    return _mm256_hadd_epi32(sum01, sum23);
 }
 #endif
 
@@ -280,16 +296,15 @@ void NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, 
             sums[out] += squared * weights[i * L2_SIZE + out];
         #endif
     }
-    for (int i = 0; i < L2_SIZE; ++i) {
-        int sum = 0;
-        #if defined(USE_AVX512)
-        sum = _mm512_reduce_add_epi32(sumVecs[i]);
-        #elif defined(USE_AVX2)
-        sum = hadd_int32(sumVecs[i]);
+    for (int i = 0; i < L2_SIZE / L2_CHUNK_SIZE; ++i) {
+        #if defined(USE_AVX512) || defined(USE_AVX2)
+        const __m256i sum0123 = hadd_epi32x4(&sumVecs[i * L2_CHUNK_SIZE]);
+        const __m256i sum4567 = hadd_epi32x4(&sumVecs[i * L2_CHUNK_SIZE + 4]);
+        const __m256i sum = combine_m256(sum0123, sum4567);
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(&output[i]), sum);
         #else
-        sum = sums[i];
+        output[i] = sums[i];
         #endif
-        output[i] = sum;
     }
 }
 
@@ -324,7 +339,7 @@ void NNUE::ActivateL1AndAffineL2(const float *inputs, const float *weights, cons
     for (int i = 0; i < L3_SIZE; ++i) {
         float sum = 0;
         #if defined(USE_AVX512) || defined(USE_AVX2)
-        sum = hadd_ps(sumVecs[i]);
+        sum = _mm256_reduce_add_ps(sumVecs[i]);
         #else
         sum = sums[i];
         #endif
@@ -346,7 +361,7 @@ void NNUE::ActivateL2AndAffineL3(const float *inputs, const float *weights, cons
         const __m256 squaredVec = _mm256_mul_ps(clippedVec, clippedVec);
         sumVec = _mm256_fmadd_ps(squaredVec, weightsVec, sumVec);
     }
-    sum = hadd_ps(sumVec);
+    sum = _mm256_reduce_add_ps(sumVec);
     #else
     for (int i = 0; i < L3_SIZE; ++i) {
         const float clipped = std::clamp(inputs[i], 0.0f, 1.0f);
