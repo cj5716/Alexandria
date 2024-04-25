@@ -73,10 +73,14 @@ public:
     void ActivateL2AndAffineL3(const float *inputs, const float *weights, const float bias, float &output);
     [[nodiscard]] int output(const NNUE::accumulator& board_accumulator, const bool whiteToMove, const int outputBucket);
     [[nodiscard]] NNUEIndices GetIndex(const int piece, const int square);
-    #if defined(USE_AVX2)
-    [[nodiscard]] int hadd_int32(const __m256i sum);
-    #endif
     #if defined(USE_AVX512) || defined(USE_AVX2)
-    [[nodiscard]] float hadd_ps(const __m256 sum);
+    [[nodiscard]] float _mm256_reduce_add_ps(const __m256 sum);
+    [[nodiscard]] __m256i combine_m256(const __m256i in0, const __m256i in1);
+    #endif
+    #if defined(USE_AVX512)
+    [[nodiscard]] __m256i m512_to_m256(const __m512i in);
+    [[nodiscard]] __m256i hadd_epi32x4(const __m512i* in);
+    #elif defined(USE_AVX2)
+    [[nodiscard]] __m256i hadd_epi32x4(const __m256i* in);
     #endif
 };
