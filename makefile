@@ -116,7 +116,7 @@ endif
 ifeq ($(build), x86-64-avx512)
 	NATIVE    = -march=x86-64-v4 -mtune=znver4
 	ARCH      = -x86-64-avx512
-	CXXFLAGS += -DUSE_AVX512 -mavx512f -mavx512bw -mavx512dq -mfma
+	CXXFLAGS += -DUSE_AVX512 -DUSE_AVX2 -mavx2 -mavx512f -mavx512bw -mavx512dq -mfma
 endif
 
 ifeq ($(build), debug)
