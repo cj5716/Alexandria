@@ -514,7 +514,6 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
         if (   depth > 4
             && abs(beta) < MATE_FOUND
             && (ttMove == NOMOVE || ttTactical)
-            && (ttScore == SCORE_NONE || (ttBound & HFLOWER))
             && (ttScore == SCORE_NONE || tte.depth < depth - 3 || ttScore >= pcBeta))
         {
             Movepicker mp;
@@ -535,8 +534,12 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
                 // Play the move
                 MakeMove(move, pos);
 
-                int pcScore = -Quiescence<false>(-pcBeta, -pcBeta + 1, td, ss + 1);
-                if (pcScore >= pcBeta)
+                int pcScore;
+
+                if (depth >= 6)
+                    pcScore = -Quiescence<false>(-pcBeta, -pcBeta + 1, td, ss + 1);
+
+                if (depth < 6 || pcScore >= pcBeta)
                     pcScore = -Negamax<false>(-pcBeta, -pcBeta + 1, depth - 3 - 1, !cutNode, td, ss + 1);
 
                 // Take move back
