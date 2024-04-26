@@ -60,10 +60,12 @@ else
 				CXXFLAGS += -DUSE_AVX512 -mavx512f -mavx512bw -mavx512dq
 			endif
 		endif
-	else ifneq ($(findstring __BMI2__, $(PROPERTIES)),)
-		CXXFLAGS += -DUSE_AVX2 -mavx2 -mbmi2
-	else ifneq ($(findstring __AVX2__, $(PROPERTIES)),)
+	endif
+	ifneq ($(findstring __AVX2__, $(PROPERTIES)),)
 		CXXFLAGS += -DUSE_AVX2 -mavx2
+	endif
+	ifneq ($(findstring __BMI2__, $(PROPERTIES)),)
+		CXXFLAGS += -mbmi2
 	endif
 endif
 
@@ -78,10 +80,12 @@ ifeq ($(build), native)
 				CXXFLAGS += -DUSE_AVX512 -mavx512f -mavx512bw -mavx512dq
 			endif
 		endif
-	else ifneq ($(findstring __BMI2__, $(PROPERTIES)),)
-		CXXFLAGS += -DUSE_AVX2 -mavx2 -mbmi2
-	else ifneq ($(findstring __AVX2__, $(PROPERTIES)),)
+	endif
+	ifneq ($(findstring __AVX2__, $(PROPERTIES)),)
 		CXXFLAGS += -DUSE_AVX2 -mavx2
+	endif
+	ifneq ($(findstring __BMI2__, $(PROPERTIES)),)
+		CXXFLAGS += -mbmi2
 	endif
 endif
 
@@ -119,7 +123,6 @@ ifeq ($(build), debug)
 	CXXFLAGS = -O3 -g3 -fno-omit-frame-pointer -std=gnu++2a
 	NATIVE   = -msse -msse3 -mpopcnt
 	FLAGS    = -lpthread -lstdc++
-
 	PROPERTIES = $(shell echo | $(CXX) -march=native -E -dM -)
 	ifneq ($(findstring __AVX512F__, $(PROPERTIES)),)
 		ifneq ($(findstring __AVX512BW__, $(PROPERTIES)),)
@@ -127,10 +130,12 @@ ifeq ($(build), debug)
 				CXXFLAGS += -DUSE_AVX512 -mavx512f -mavx512bw -mavx512dq
 			endif
 		endif
-	else ifneq ($(findstring __BMI2__, $(PROPERTIES)),)
-		CXXFLAGS += -DUSE_AVX2 -mavx2 -mbmi2
-	else ifneq ($(findstring __AVX2__, $(PROPERTIES)),)
+	endif
+	ifneq ($(findstring __AVX2__, $(PROPERTIES)),)
 		CXXFLAGS += -DUSE_AVX2 -mavx2
+	endif
+	ifneq ($(findstring __BMI2__, $(PROPERTIES)),)
+		CXXFLAGS += -mbmi2
 	endif
 endif
 
