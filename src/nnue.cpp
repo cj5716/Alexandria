@@ -294,7 +294,8 @@ void NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, 
     for (int i = 0; i < L1_SIZE / L1_CHUNK_SIZE; ++i) {
         #if defined(USE_AVX512)
         const __m512i *weightsVec = &weightsVecs[i * L2_SIZE];
-        const __m512i clippedVec = _mm512_min_epi16(_mm512_max_epi16(inputsVecs[i], zeroVec), oneVec);
+        const __m512i inputVec = _mm512_loadu_si512(&inputsVecs[i]);
+        const __m512i clippedVec = _mm512_min_epi16(_mm512_max_epi16(inputVec, zeroVec), oneVec);
         const __m512i squaredVec = _mm512_mullo_epi16(clippedVec, clippedVec);
         for (int out = 0; out < L2_SIZE; ++out) {
             const __m512i productVec = _mm512_madd_epi16(squaredVec, weightsVec[out]);
