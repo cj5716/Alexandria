@@ -55,8 +55,8 @@ public:
     BoardState    history[MAXPLY];
     // Stores the zobrist keys of all the positions played in the game + the current search instance, used for 3-fold
     std::vector<ZobristKey> played_positions = {};
-    std::vector<NNUEIndices> NNUEAdd = {};
-    std::vector<NNUEIndices> NNUESub = {};
+    std::vector<int> NNUEAdd = {};
+    std::vector<int> NNUESub = {};
     Bitboard pinned;
 
     // Occupancies bitboards based on piece and side

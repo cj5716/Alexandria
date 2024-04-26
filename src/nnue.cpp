@@ -90,8 +90,18 @@ void NNUE::init(const char* file) {
     }
 
     // Quantise FT Weights
-    for (int i = 0; i < INPUT_SIZE * L1_SIZE; ++i)
-        net.FTWeights[i] = static_cast<int16_t>(std::round(unquantisedNet.FTWeights[i] * FT_QUANT));
+    // We duplicate the weights so that the weights for the same feature are adjacent
+    for (int c = 0; c < 2; ++c)
+        for (int pt = 0; pt < 6; ++pt)
+            for (int sq = 0; sq < 64; ++sq)
+                for (int n = 0; n < L1_SIZE; ++n) {
+                    constexpr int COLOR_STRIDE = 64 * 6;
+                    constexpr int PIECE_STRIDE = 64;
+                    int whiteIdx = c * COLOR_STRIDE + pt * PIECE_STRIDE + (sq ^ 0b111000);
+                    int blackIdx = (c ^ 1) * COLOR_STRIDE + pt * PIECE_STRIDE + sq;
+                    net.FTWeights[2 * whiteIdx * L1_SIZE + n] = static_cast<int16_t>(std::round(unquantisedNet.FTWeights[whiteIdx * L1_SIZE + n] * FT_QUANT));
+                    net.FTWeights[(2 * whiteIdx + 1) * L1_SIZE + n] = static_cast<int16_t>(std::round(unquantisedNet.FTWeights[blackIdx * L1_SIZE + n] * FT_QUANT));
+                }
 
     // Quantise FT Biases
     for (int i = 0; i < L1_SIZE; ++i)
@@ -135,18 +145,15 @@ void NNUE::init(const char* file) {
 }
 
 void NNUE::add(NNUE::accumulator& board_accumulator, const int piece, const int to) {
-    auto [whiteIdx, blackIdx] = GetIndex(piece, to);
-    auto whiteAdd = &net.FTWeights[whiteIdx * L1_SIZE];
-    auto blackAdd = &net.FTWeights[blackIdx * L1_SIZE];
-    for (int i = 0; i < L1_SIZE; i++) {
-        board_accumulator[0][i] += whiteAdd[i];
-    }
-    for (int i = 0; i < L1_SIZE; i++) {
-        board_accumulator[1][i] += blackAdd[i];
+    int idx = GetIndex(piece, to);
+    auto add = &net.FTWeights[idx * 2 * L1_SIZE];
+    auto acc = &board_accumulator[0][0];
+    for (int i = 0; i < 2 * L1_SIZE; ++i) {
+        acc[i] += add[i];
     }
 }
 
-void NNUE::update(NNUE::accumulator& board_accumulator, std::vector<NNUEIndices>& NNUEAdd, std::vector<NNUEIndices>& NNUESub) {
+void NNUE::update(NNUE::accumulator& board_accumulator, std::vector<int>& NNUEAdd, std::vector<int>& NNUESub) {
     int adds = NNUEAdd.size();
     int subs = NNUESub.size();
 
@@ -171,38 +178,24 @@ void NNUE::update(NNUE::accumulator& board_accumulator, std::vector<NNUEIndices>
     NNUESub.clear();
 }
 
-void NNUE::addSub(NNUE::accumulator& board_accumulator, NNUEIndices add, NNUEIndices sub) {
-    auto [whiteAddIdx, blackAddIdx] = add;
-    auto [whiteSubIdx, blackSubIdx] = sub;
-    auto whiteAdd = &net.FTWeights[whiteAddIdx * L1_SIZE];
-    auto whiteSub = &net.FTWeights[whiteSubIdx * L1_SIZE];
-    for (int i = 0; i < L1_SIZE; i++) {
-        board_accumulator[0][i] = board_accumulator[0][i] - whiteSub[i] + whiteAdd[i];
-    }
-    auto blackAdd = &net.FTWeights[blackAddIdx * L1_SIZE];
-    auto blackSub = &net.FTWeights[blackSubIdx * L1_SIZE];
-    for (int i = 0; i < L1_SIZE; i++) {
-        board_accumulator[1][i] = board_accumulator[1][i] - blackSub[i] + blackAdd[i];
+void NNUE::addSub(NNUE::accumulator& board_accumulator, int add, int sub) {
+    auto toAdd = &net.FTWeights[add * 2 * L1_SIZE];
+    auto toSub = &net.FTWeights[sub * 2 * L1_SIZE];
+    auto acc   = &board_accumulator[0][0];
+    for (int i = 0; i < 2 * L1_SIZE; i++) {
+        acc[i] += toAdd[i] - toSub[i];
     }
 }
 
-void NNUE::addSubSub(NNUE::accumulator& board_accumulator, NNUEIndices add, NNUEIndices sub1, NNUEIndices sub2) {
+void NNUE::addSubSub(NNUE::accumulator& board_accumulator, int add, int sub1, int sub2) {
 
-    auto [whiteAddIdx, blackAddIdx] = add;
-    auto [whiteSubIdx1, blackSubIdx1] = sub1;
-    auto [whiteSubIdx2, blackSubIdx2] = sub2;
+    auto toAdd  = &net.FTWeights[add  * 2 * L1_SIZE];
+    auto toSub1 = &net.FTWeights[sub1 * 2 * L1_SIZE];
+    auto toSub2 = &net.FTWeights[sub2 * 2 * L1_SIZE];
+    auto acc    = &board_accumulator[0][0];
 
-    auto whiteAdd = &net.FTWeights[whiteAddIdx * L1_SIZE];
-    auto whiteSub1 = &net.FTWeights[whiteSubIdx1 * L1_SIZE];
-    auto whiteSub2 = &net.FTWeights[whiteSubIdx2 * L1_SIZE];
-    for (int i = 0; i < L1_SIZE; i++) {
-        board_accumulator[0][i] = board_accumulator[0][i] - whiteSub1[i] - whiteSub2[i] + whiteAdd[i];
-    }
-    auto blackAdd = &net.FTWeights[blackAddIdx * L1_SIZE];
-    auto blackSub1 = &net.FTWeights[blackSubIdx1 * L1_SIZE];
-    auto blackSub2 = &net.FTWeights[blackSubIdx2 * L1_SIZE];
-    for (int i = 0; i < L1_SIZE; i++) {
-        board_accumulator[1][i] = board_accumulator[1][i] - blackSub1[i] - blackSub2[i] + blackAdd[i];
+    for (int i = 0; i < 2 * L1_SIZE; i++) {
+        acc[i] += toAdd[i] - toSub1[i] - toSub2[i];
     }
 }
 
@@ -427,12 +420,10 @@ int NNUE::output(const NNUE::accumulator& board_accumulator, const bool whiteToM
     return L3Output * NET_SCALE;
 }
 
-NNUEIndices NNUE::GetIndex(const int piece, const int square) {
-    constexpr std::size_t COLOR_STRIDE = 64 * 6;
-    constexpr std::size_t PIECE_STRIDE = 64;
-    int piecetype = GetPieceType(piece);
-    int color = Color[piece];
-    std::size_t whiteIdx = color * COLOR_STRIDE + piecetype * PIECE_STRIDE + (square ^ 0b111'000);
-    std::size_t blackIdx = (1 ^ color) * COLOR_STRIDE + piecetype * PIECE_STRIDE + square;
-    return {whiteIdx, blackIdx};
+int NNUE::GetIndex(const int piece, const int square) {
+    constexpr int COLOR_STRIDE = 64 * 6;
+    constexpr int PIECE_STRIDE = 64;
+    const int piecetype = GetPieceType(piece);
+    const int color = Color[piece];
+    return color * COLOR_STRIDE + piecetype * PIECE_STRIDE + (square ^ 0b111000);
 }

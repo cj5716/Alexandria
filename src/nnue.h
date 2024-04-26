@@ -33,10 +33,8 @@ constexpr int L2_CHUNK_SIZE = 1;
 constexpr int L3_CHUNK_SIZE = 1;
 #endif
 
-using NNUEIndices = std::pair<std::size_t, std::size_t>;
-
 struct Network {
-    int16_t FTWeights[INPUT_SIZE * L1_SIZE];
+    int16_t FTWeights[INPUT_SIZE * L1_SIZE * 2];
     int16_t FTBiases[L1_SIZE];
     int16_t L1Weights[OUTPUT_BUCKETS][2 * L1_SIZE * L2_SIZE];
     float   L1Biases[OUTPUT_BUCKETS][L2_SIZE];
@@ -65,14 +63,14 @@ public:
 
     void init(const char* file);
     void add(NNUE::accumulator& board_accumulator, const int piece, const int to);
-    void update(NNUE::accumulator& board_accumulator, std::vector<NNUEIndices>& NNUEAdd, std::vector<NNUEIndices>& NNUESub);
-    void addSub(NNUE::accumulator& board_accumulator, NNUEIndices add, NNUEIndices sub);
-    void addSubSub(NNUE::accumulator& board_accumulator, NNUEIndices add, NNUEIndices sub1, NNUEIndices sub2);
+    void update(NNUE::accumulator& board_accumulator, std::vector<int>& NNUEAdd, std::vector<int>& NNUESub);
+    void addSub(NNUE::accumulator& board_accumulator, int add, int sub);
+    void addSubSub(NNUE::accumulator& board_accumulator, int add, int sub1, int sub2);
     void ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, int *output);
     void ActivateL1AndAffineL2(const float *inputs, const float *weights, const float *biases, float *output);
     void ActivateL2AndAffineL3(const float *inputs, const float *weights, const float bias, float &output);
     [[nodiscard]] int output(const NNUE::accumulator& board_accumulator, const bool whiteToMove, const int outputBucket);
-    [[nodiscard]] NNUEIndices GetIndex(const int piece, const int square);
+    [[nodiscard]] int GetIndex(const int piece, const int square);
     #if defined(USE_AVX512) || defined(USE_AVX2)
     [[nodiscard]] float _mm256_reduce_add_ps(const __m256 sum);
     [[nodiscard]] __m256i combine_m256i(const __m256i in0, const __m256i in1);
