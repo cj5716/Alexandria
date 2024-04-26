@@ -315,6 +315,9 @@ void NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, 
             sums[out] += squared * weights[i * L2_SIZE + out];
         #endif
     }
+
+    std::cout << "L1 partially complete" << std::endl;
+
     for (int i = 0; i < L2_SIZE / L2_CHUNK_SIZE; ++i) {
         #if defined(USE_AVX512) || defined(USE_AVX2)
         const __m256i sum0123 = hadd_epi32x4(&sumVecs[i * L2_CHUNK_SIZE]);
