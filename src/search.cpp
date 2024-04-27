@@ -513,7 +513,6 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
         int pcBeta = beta + 369 - 176 * improving;
         if (   depth > 4
             && abs(beta) < MATE_FOUND
-            && (ttMove == NOMOVE || ttTactical)
             && (ttScore == SCORE_NONE || tte.depth < depth - 3 || ttScore >= pcBeta))
         {
             Movepicker mp;
