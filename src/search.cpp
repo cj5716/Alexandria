@@ -592,9 +592,18 @@ moves_loop:
                     if (   !pvNode
                         &&  singularScore < singularBeta - 17
                         &&  ss->doubleExtensions <= 11) {
-                        extension = 2 + (!isTactical(ttMove) && singularScore < singularBeta - 100);
+                        extension = 2;
                         ss->doubleExtensions = (ss - 1)->doubleExtensions + 1;
                         depth += depth < 10;
+
+                        if (!isTactical(ttMove) && singularScore < singularBeta - 100) {
+                            extension = 3;
+                            if (   singularScore <= ss->staticEval
+                                && singularScore < singularBeta - 345
+                                && ss->doubleExtensions <= 7)
+                                extension = 4;
+                        }
+
                     }
                 }
                 else if (singularBeta >= beta)
