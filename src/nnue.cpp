@@ -295,8 +295,9 @@ void NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, 
         #if defined(USE_AVX512)
         const __m512i *weightsVec = &weightsVecs[i * L2_SIZE];
         const __m512i inputsVec  = _mm512_loadu_si512(&inputsVecs[i]);
-        const __m512i clippedVec = _mm512_min_epi16(_mm512_max_epi16(inputsVec, zeroVec), oneVec);
-        const __m512i squaredVec = _mm512_srli_epi16(_mm512_mullo_epi16(clippedVec, clippedVec), 1); // We shift by 1 to fit into a signed int16
+        // We shift by 3 to fit into a signed int16, once before squaring and once after
+        const __m512i clippedVec = _mm512_srli_epi16(_mm512_min_epi16(_mm512_max_epi16(inputsVec, zeroVec), oneVec), 1);
+        const __m512i squaredVec = _mm512_srli_epi16(_mm512_mullo_epi16(clippedVec, clippedVec), 1);
         for (int out = 0; out < L2_SIZE; ++out) {
             const __m512i productVec = _mm512_madd_epi16(squaredVec, weightsVec[out]);
             sumVecs[out] = _mm512_add_epi32(sumVecs[out], productVec);
@@ -304,15 +305,16 @@ void NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, 
         #elif defined(USE_AVX2)
         const __m256i *weightsVec = &weightsVecs[i * L2_SIZE];
         const __m256i inputsVec  = _mm256_loadu_si256(&inputsVecs[i]);
-        const __m256i clippedVec = _mm256_min_epi16(_mm256_max_epi16(inputsVec, zeroVec), oneVec);
-        const __m256i squaredVec = _mm256_srli_epi16(_mm256_mullo_epi16(clippedVec, clippedVec), 1); // We shift by 1 to fit into a signed int16
+        // We shift by 3 to fit into a signed int16, once before squaring and once after
+        const __m256i clippedVec = _mm256_srli_epi16(_mm256_min_epi16(_mm256_max_epi16(inputsVec, zeroVec), oneVec), 1);
+        const __m256i squaredVec = _mm256_srli_epi16(_mm256_mullo_epi16(clippedVec, clippedVec), 1);
         for (int out = 0; out < L2_SIZE; ++out) {
             const __m256i productVec = _mm256_madd_epi16(squaredVec, weightsVec[out]);
             sumVecs[out] = _mm256_add_epi32(sumVecs[out], productVec);
         }
         #else
         const int clipped = std::clamp(static_cast<int>(inputs[i]), ZERO, ONE);
-        const int squared = clipped * clipped / 2; // We divide by 2 to keep consistent with SIMD
+        const int squared = clipped * clipped / 8; // We divide by 8 to keep consistent with SIMD
         for (int out = 0; out < L2_SIZE; ++out)
             sums[out] += squared * weights[i * L2_SIZE + out];
         #endif
@@ -411,8 +413,8 @@ int NNUE::output(const NNUE::accumulator& board_accumulator, const bool whiteToM
                           L1OutputsThem);
 
     for (int i = 0; i < L2_SIZE; ++i) {
-        // We multiply by 2 to compensate for the earlier shift
-        L2Inputs[i] = float(L1OutputsUs[i] + L1OutputsThem[i]) * 2 / float(FT_QUANT * FT_QUANT * L1_QUANT) + net.L1Biases[outputBucket][i];
+        // We multiply by 8 to compensate for the earlier shift
+        L2Inputs[i] = float(L1OutputsUs[i] + L1OutputsThem[i]) / float(FT_QUANT * FT_QUANT * L1_QUANT) * 8.0f + net.L1Biases[outputBucket][i];
     }
 
     ActivateL1AndAffineL2(L2Inputs,
