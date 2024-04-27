@@ -41,7 +41,7 @@ void partialInsertionSort(MoveList* moveList, const int moveNum) {
     std::swap(moveList->moves[moveNum], moveList->moves[bestNum]);
 }
 
-void InitMP(Movepicker* mp, Position* pos, SearchData* sd, SearchStack* ss, const int ttMove, const MovepickerType movepickerType) {
+void InitMP(Movepicker* mp, Position* pos, SearchData* sd, SearchStack* ss, const int ttMove, const int SEEThreshold, const MovepickerType movepickerType) {
 
     const int killer = ss->searchKiller;
     const int counter = sd->counterMoves[FromTo((ss - 1)->move)];
@@ -56,6 +56,7 @@ void InitMP(Movepicker* mp, Position* pos, SearchData* sd, SearchStack* ss, cons
     mp->stage = mp->ttMove ? PICK_TT : GEN_NOISY;
     mp->killer = killer != ttMove ? killer : NOMOVE;
     mp->counter = counter != ttMove && counter != killer ? counter : NOMOVE;
+    mp->SEEThreshold = SEEThreshold;
 }
 
 int NextMove(Movepicker* mp, const bool skip) {
@@ -83,12 +84,17 @@ int NextMove(Movepicker* mp, const bool skip) {
     switch (mp->stage) {
     case PICK_TT:
         ++mp->stage;
-        // If we are in qsearch and not in check, skip quiet TT moves
-        if (mp->movepickerType == QSEARCH && skip && !isTactical(mp->ttMove))
+        // If we are in qsearch and not in check, or we are in probcut, skip quiet TT moves
+        if ((mp->movepickerType == PROBCUT || (mp->movepickerType == QSEARCH && skip))
+            && !isTactical(mp->ttMove))
             goto top;
 
         // If the TT move if not pseudo legal we skip it too
         if (!IsPseudoLegal(mp->pos, mp->ttMove))
+            goto top;
+
+        // If we are in probcut and the TT move does not pass SEE, we skip it
+        if (mp->movepickerType == PROBCUT && !SEE(mp->pos, mp->ttMove, mp->SEEThreshold))
             goto top;
 
         return mp->ttMove;
@@ -104,9 +110,8 @@ int NextMove(Movepicker* mp, const bool skip) {
             partialInsertionSort(&mp->moveList, mp->idx);
             const int move = mp->moveList.moves[mp->idx].move;
             const int score = mp->moveList.moves[mp->idx].score;
-            const int SEEThreshold = mp->movepickerType == SEARCH  ? -score / 64
-                                   : mp->movepickerType == QSEARCH ? -108
-                                                                   : 1; // Probcut
+            const int SEEThreshold = mp->movepickerType == SEARCH ? -score / 64
+                                                                  : mp->SEEThreshold; // Probcut and qsearch
             ++mp->idx;
             if (move == mp->ttMove)
                 continue;

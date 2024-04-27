@@ -518,7 +518,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
         {
             Movepicker mp;
             int move;
-            InitMP(&mp, pos, sd, ss, NOMOVE, PROBCUT);
+            InitMP(&mp, pos, sd, ss, ttMove, 1, PROBCUT);
             while ((move = NextMove(&mp, true)) != NOMOVE) {
 
                 if (!IsLegal(pos, move))
@@ -563,7 +563,7 @@ moves_loop:
     bool skipQuiets = false;
 
     Movepicker mp;
-    InitMP(&mp, pos, sd, ss, ttMove, SEARCH);
+    InitMP(&mp, pos, sd, ss, ttMove, SCORE_NONE, SEARCH);
 
     // Keep track of the played quiet and noisy moves
     MoveList quietMoves, noisyMoves;
@@ -866,7 +866,7 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
 
     Movepicker mp;
     // If we aren't in check we generate just the captures, otherwise we generate all the moves
-    InitMP(&mp, pos, sd, ss, ttMove, QSEARCH);
+    InitMP(&mp, pos, sd, ss, ttMove, -107, QSEARCH);
 
     int bestmove = NOMOVE;
     int move;
