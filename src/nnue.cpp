@@ -273,6 +273,30 @@ __m256i NNUE::hadd_epi32x4(const __m256i* in) {
 }
 #endif
 
+void NNUE::FindNNZ(const int16_t *inputs, int *indices, int &count) {
+    count = 0;
+    for (int i = 0; i < L1_SIZE / L1_CHUNK_SIZE; ++i) {
+        #if defined(USE_AVX512)
+        const __m512i inputVec = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(&inputs[i * L1_CHUNK_SIZE]));
+        if (_mm512_cmpgt_epi16_mask(inputVec, _mm512_setzero_si512())) {
+            indices[count] = i;
+            count++;
+        }
+        #elif defined(USE_AVX2)
+        const __m256i inputVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(&inputs[i * L1_CHUNK_SIZE]));
+        if (_mm256_movemask_epi8(_mm256_cmpgt_epi16(inputVec, _mm256_setzero_si256()))) {
+            indices[count] = i;
+            count++;
+        }
+        #else
+        if (inputs[i] > 0) {
+            indices[count] = i;
+            count++;
+        }
+        #endif
+    }
+}
+
 void NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, int *output) {
     #if defined(USE_AVX512)
     __m512i sumVecs[L2_SIZE] = {};
@@ -291,7 +315,11 @@ void NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, 
     constexpr int ZERO = 0;
     constexpr int ONE = FT_QUANT;
     #endif
-    for (int i = 0; i < L1_SIZE / L1_CHUNK_SIZE; ++i) {
+    int indices[L1_SIZE / L1_CHUNK_SIZE];
+    int nnzCount;
+    FindNNZ(inputs, indices, nnzCount);
+    for (int nnz = 0; nnz < nnzCount; ++nnz) {
+        const int i = indices[nnz];
         #if defined(USE_AVX512)
         const __m512i *weightsVec = &weightsVecs[i * L2_SIZE];
         const __m512i inputsVec  = _mm512_loadu_si512(&inputsVecs[i]);
