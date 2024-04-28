@@ -313,8 +313,9 @@ void NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, 
             sumVecs[out] = _mm256_add_epi32(sumVecs[out], productVec);
         }
         #else
-        const int clipped = std::clamp(static_cast<int>(inputs[i]), ZERO, ONE);
-        const int squared = clipped * clipped / 8; // We divide by 8 to keep consistent with SIMD
+        // We shift by 3, once before squaring and once after
+        const int clipped = std::clamp(static_cast<int>(inputs[i]), ZERO, ONE) >> 1;
+        const int squared = clipped * clipped >> 1;
         for (int out = 0; out < L2_SIZE; ++out)
             sums[out] += squared * weights[i * L2_SIZE + out];
         #endif
