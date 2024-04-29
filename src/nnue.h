@@ -16,7 +16,7 @@ constexpr int L3_SIZE = 32;
 constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int FT_QUANT = 511;
-constexpr int L1_QUANT = 256;
+constexpr int L1_QUANT = 512;
 constexpr int NET_SCALE = 400;
 
 #if defined(USE_AVX512)
