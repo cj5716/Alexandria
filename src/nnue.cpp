@@ -273,51 +273,92 @@ __m256i NNUE::hadd_epi32x4(const __m256i* in) {
 }
 #endif
 
-void NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, int *output) {
+void NNUE::ActivateFT(const int16_t *us, const int16_t *them, int16_t *output) {
+    #if defined(USE_AVX512)
+    const __m512i *usVecs = reinterpret_cast<const __m512i*>(us);
+    const __m512i *themVecs = reinterpret_cast<const __m512i*>(them);
+    const __m512i zeroVec = _mm512_set1_epi16(0);
+    const __m512i oneVec = _mm512_set1_epi16(FT_QUANT);
+    #elif defined(USE_AVX2)
+    const __m256i *usVecs = reinterpret_cast<const __m256i*>(us);
+    const __m256i *themVecs = reinterpret_cast<const __m256i*>(them);
+    const __m256i zeroVec = _mm256_set1_epi16(0);
+    const __m256i oneVec = _mm256_set1_epi16(FT_QUANT);
+    #else
+    constexpr int16_t ZERO = 0;
+    constexpr int16_t ONE = FT_QUANT;
+    #endif
+
+    for (int i = 0; i < L1_SIZE / L1_CHUNK_SIZE; ++i) {
+        #if defined(USE_AVX512)
+        const __m512i usVec       = _mm512_loadu_si512(&usVecs[i]);
+        const __m512i themVec     = _mm512_loadu_si512(&themVecs[i]);
+
+        // We shift by 3 to fit into a signed int16, once before squaring and once after
+        const __m512i usClipped   = _mm512_srli_epi16(_mm512_min_epi16(_mm512_max_epi16(usVec, zeroVec), oneVec), 1);
+        const __m512i themClipped = _mm512_srli_epi16(_mm512_min_epi16(_mm512_max_epi16(themVec, zeroVec), oneVec), 1);
+
+        const __m512i usSquared   = _mm512_srli_epi16(_mm512_mullo_epi16(usClipped, usClipped), 1);
+        const __m512i themSquared = _mm512_srli_epi16(_mm512_mullo_epi16(themClipped, themClipped), 1);
+
+        _mm512_storeu_si512(reinterpret_cast<__m512i*>(&output[i * L1_CHUNK_SIZE]), usSquared);
+        _mm512_storeu_si512(reinterpret_cast<__m512i*>(&output[i * L1_CHUNK_SIZE + L1_SIZE]), themSquared);
+        #elif defined(USE_AVX2)
+        const __m256i usVec       = _mm256_loadu_si256(&usVecs[i]);
+        const __m256i themVec     = _mm256_loadu_si256(&themVecs[i]);
+
+        // We shift by 3 to fit into a signed int16, once before squaring and once after
+        const __m256i usClipped   = _mm256_srli_epi16(_mm256_min_epi16(_mm256_max_epi16(usVec, zeroVec), oneVec), 1);
+        const __m256i themClipped = _mm256_srli_epi16(_mm256_min_epi16(_mm256_max_epi16(themVec, zeroVec), oneVec), 1);
+
+        const __m256i usSquared   = _mm256_srli_epi16(_mm256_mullo_epi16(usClipped, usClipped), 1);
+        const __m256i themSquared = _mm256_srli_epi16(_mm256_mullo_epi16(themClipped, themClipped), 1);
+
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(&output[i * L1_CHUNK_SIZE]), usSquared);
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(&output[i * L1_CHUNK_SIZE + L1_SIZE]), themSquared);
+        #else
+        const int16_t usClipped = std::clamp(us[i], ZERO, ONE) >> 1;
+        const int16_t themClipped = std::clamp(them[i], ZERO, ONE) >> 1;
+
+        const int16_t usSquared = clipped * clipped >> 1;
+        const int16_t themSquared = clipped * clipped >> 1;
+
+        output[i] = usSquared;
+        output[i + L1_SIZE] = themSquared;
+        #endif
+    }
+}
+
+void NNUE::AffineL1(const int16_t *inputs, const int16_t *weights, int *output) {
     #if defined(USE_AVX512)
     __m512i sumVecs[L2_SIZE] = {};
     const __m512i *weightsVecs = reinterpret_cast<const __m512i*>(weights);
     const __m512i *inputsVecs = reinterpret_cast<const __m512i*>(inputs);
-    const __m512i zeroVec = _mm512_set1_epi16(0);
-    const __m512i oneVec = _mm512_set1_epi16(FT_QUANT);
     #elif defined(USE_AVX2)
     __m256i sumVecs[L2_SIZE] = {};
     const __m256i *weightsVecs = reinterpret_cast<const __m256i*>(weights);
     const __m256i *inputsVecs = reinterpret_cast<const __m256i*>(inputs);
-    const __m256i zeroVec = _mm256_set1_epi16(0);
-    const __m256i oneVec = _mm256_set1_epi16(FT_QUANT);
     #else
     int sums[L2_SIZE] = {};
-    constexpr int ZERO = 0;
-    constexpr int ONE = FT_QUANT;
     #endif
-    for (int i = 0; i < L1_SIZE / L1_CHUNK_SIZE; ++i) {
+    for (int i = 0; i < 2 * L1_SIZE / L1_CHUNK_SIZE; ++i) {
         #if defined(USE_AVX512)
         const __m512i *weightsVec = &weightsVecs[i * L2_SIZE];
         const __m512i inputsVec  = _mm512_loadu_si512(&inputsVecs[i]);
-        // We shift by 3 to fit into a signed int16, once before squaring and once after
-        const __m512i clippedVec = _mm512_srli_epi16(_mm512_min_epi16(_mm512_max_epi16(inputsVec, zeroVec), oneVec), 1);
-        const __m512i squaredVec = _mm512_srli_epi16(_mm512_mullo_epi16(clippedVec, clippedVec), 1);
         for (int out = 0; out < L2_SIZE; ++out) {
-            const __m512i productVec = _mm512_madd_epi16(squaredVec, weightsVec[out]);
+            const __m512i productVec = _mm512_madd_epi16(inputsVec, weightsVec[out]);
             sumVecs[out] = _mm512_add_epi32(sumVecs[out], productVec);
         }
         #elif defined(USE_AVX2)
         const __m256i *weightsVec = &weightsVecs[i * L2_SIZE];
         const __m256i inputsVec  = _mm256_loadu_si256(&inputsVecs[i]);
-        // We shift by 3 to fit into a signed int16, once before squaring and once after
-        const __m256i clippedVec = _mm256_srli_epi16(_mm256_min_epi16(_mm256_max_epi16(inputsVec, zeroVec), oneVec), 1);
-        const __m256i squaredVec = _mm256_srli_epi16(_mm256_mullo_epi16(clippedVec, clippedVec), 1);
         for (int out = 0; out < L2_SIZE; ++out) {
-            const __m256i productVec = _mm256_madd_epi16(squaredVec, weightsVec[out]);
+            const __m256i productVec = _mm256_madd_epi16(inputsVec, weightsVec[out]);
             sumVecs[out] = _mm256_add_epi32(sumVecs[out], productVec);
         }
         #else
-        // We shift by 3, once before squaring and once after
-        const int clipped = std::clamp(static_cast<int>(inputs[i]), ZERO, ONE) >> 1;
-        const int squared = clipped * clipped >> 1;
         for (int out = 0; out < L2_SIZE; ++out)
-            sums[out] += squared * weights[i * L2_SIZE + out];
+            sums[out] += inputs[i] * weights[i * L2_SIZE + out];
         #endif
     }
     for (int i = 0; i < L2_SIZE / L2_CHUNK_SIZE; ++i) {
@@ -325,7 +366,7 @@ void NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, 
         const __m256i sum0123 = hadd_epi32x4(&sumVecs[i * L2_CHUNK_SIZE]);
         const __m256i sum4567 = hadd_epi32x4(&sumVecs[i * L2_CHUNK_SIZE + 4]);
         const __m256i sum = combine_m256i(sum0123, sum4567);
-        _mm256_storeu_si256(reinterpret_cast<__m256i*>(&output[i]), sum);
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(&output[i * L2_CHUNK_SIZE]), sum);
         #else
         output[i] = sums[i];
         #endif
@@ -399,23 +440,23 @@ void NNUE::ActivateL2AndAffineL3(const float *inputs, const float *weights, cons
 
 int NNUE::output(const NNUE::accumulator& board_accumulator, const bool whiteToMove, const int outputBucket) {
 
-    int   L1OutputsUs[L2_SIZE];
-    int   L1OutputsThem[L2_SIZE];
-    float L2Inputs[L2_SIZE];
-    float L2Outputs[L3_SIZE];
-    float L3Output;
+    int16_t FTOutputs[2 * L1_SIZE];
+    int     L1Outputs[L2_SIZE];
+    float   L2Inputs [L2_SIZE];
+    float   L2Outputs[L3_SIZE];
+    float   L3Output;
 
-    ActivateFTAndAffineL1(board_accumulator[!whiteToMove].data(),
-                          net.L1Weights[outputBucket],
-                          L1OutputsUs);
+    ActivateFT(board_accumulator[!whiteToMove].data(),
+               board_accumulator[whiteToMove].data(),
+               FTOutputs);
 
-    ActivateFTAndAffineL1(board_accumulator[whiteToMove].data(),
-                          net.L1Weights[outputBucket] + L1_SIZE * L2_SIZE,
-                          L1OutputsThem);
+    AffineL1(FTOutputs,
+             net.L1Weights[outputBucket],
+             L1Outputs);
 
     for (int i = 0; i < L2_SIZE; ++i) {
         // We multiply by 8 to compensate for the earlier shift
-        L2Inputs[i] = float(L1OutputsUs[i] + L1OutputsThem[i]) / float(FT_QUANT * FT_QUANT * L1_QUANT) * 8.0f + net.L1Biases[outputBucket][i];
+        L2Inputs[i] = float(L1Outputs[i]) / float(FT_QUANT * FT_QUANT * L1_QUANT) * 8.0f + net.L1Biases[outputBucket][i];
     }
 
     ActivateL1AndAffineL2(L2Inputs,
