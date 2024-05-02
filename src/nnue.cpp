@@ -329,17 +329,25 @@ void NNUE::ActivateFT(const int16_t *us, const int16_t *them, int16_t *output) {
     }
 }
 
-void NNUE::AffineL1(const int16_t *inputs, const int16_t *weights, int *output) {
+void NNUE::AffineAndActivateL1(const int16_t *inputs, const int16_t *weights, float *biases, float *output) {
     #if defined(USE_AVX512)
     __m512i sumVecs[L2_SIZE] = {};
     const __m512i *weightsVecs = reinterpret_cast<const __m512i*>(weights);
     const __m512i *inputsVecs = reinterpret_cast<const __m512i*>(inputs);
+    const __m256  *biasVecs = reinterpret_cast<const __m256*>(biases);
+    const __m256  zeroVec  = _mm256_set1_ps(0.0f);
+    const __m256  oneVec   = _mm256_set1_ps(1.0f);
     #elif defined(USE_AVX2)
     __m256i sumVecs[L2_SIZE] = {};
     const __m256i *weightsVecs = reinterpret_cast<const __m256i*>(weights);
     const __m256i *inputsVecs = reinterpret_cast<const __m256i*>(inputs);
+    const __m256  *biasVecs = reinterpret_cast<const __m256*>(biases);
+    const __m256  zeroVec  = _mm256_set1_ps(0.0f);
+    const __m256  oneVec   = _mm256_set1_ps(1.0f);
     #else
     int sums[L2_SIZE] = {};
+    constexpr float ZERO = 0.0f;
+    constexpr float ONE  = 1.0f;
     #endif
     for (int i = 0; i < 2 * L1_SIZE / L1_CHUNK_SIZE; ++i) {
         #if defined(USE_AVX512)
@@ -366,14 +374,24 @@ void NNUE::AffineL1(const int16_t *inputs, const int16_t *weights, int *output) 
         const __m256i sum0123 = hadd_epi32x4(&sumVecs[i * L2_CHUNK_SIZE]);
         const __m256i sum4567 = hadd_epi32x4(&sumVecs[i * L2_CHUNK_SIZE + 4]);
         const __m256i sum = combine_m256i(sum0123, sum4567);
-        _mm256_storeu_si256(reinterpret_cast<__m256i*>(&output[i * L2_CHUNK_SIZE]), sum);
+
+        // We multiply by 8 to compensate for the earlier shift
+        const __m256  floatSum =_mm256_div_ps(_mm256_cvtepi32_ps(sum), _mm256_set1_ps(float(FT_QUANT * FT_QUANT * L1_QUANT / 8.0f)));
+        const __m256  out = _mm256_add_ps(floatSum, biasVecs[i]);
+        const __m256  clipped = _mm256_min_ps(_mm256_max_ps(out, zeroVec), oneVec);
+        const __m256  squared = _mm256_mul_ps(clipped, clipped);
+        _mm256_storeu_ps(&output[i * L2_CHUNK_SIZE], squared);
+
         #else
-        output[i] = sums[i];
+        // We multiply by 8 to compensate for the earlier shift
+        const float out = float(sums[i]) / (float(FT_QUANT * FT_QUANT * L1_QUANT) / 8.0f) + biases[i];
+        const float clipped = std::clamp(out, ZERO, ONE);
+        output[i] = clipped * clipped;
         #endif
     }
 }
 
-void NNUE::ActivateL1AndAffineL2(const float *inputs, const float *weights, const float *biases, float *output) {
+void NNUE::AffineL2(const float *inputs, const float *weights, const float *biases, float *output) {
 
     #if defined(USE_AVX512) || defined(USE_AVX2)
     __m256 sumVecs[L3_SIZE] = {};
@@ -389,15 +407,11 @@ void NNUE::ActivateL1AndAffineL2(const float *inputs, const float *weights, cons
         #if defined(USE_AVX512) || defined(USE_AVX2)
         const __m256 *weightsVecs = reinterpret_cast<const __m256*>(weights + i * L3_SIZE * L2_CHUNK_SIZE);
         const __m256 inputsVec = _mm256_loadu_ps(inputs + i * L2_CHUNK_SIZE);
-        const __m256 clippedVec = _mm256_min_ps(_mm256_max_ps(inputsVec, zeroVec), oneVec);
-        const __m256 squaredVec = _mm256_mul_ps(clippedVec, clippedVec);
         for (int out = 0; out < L3_SIZE; ++out)
-            sumVecs[out] = _mm256_fmadd_ps(squaredVec, weightsVecs[out], sumVecs[out]);
+            sumVecs[out] = _mm256_fmadd_ps(inputsVec, weightsVecs[out], sumVecs[out]);
         #else
-        const float clipped = std::clamp(inputs[i], ZERO, ONE);
-        const float squared = clipped * clipped;
         for (int out = 0; out < L3_SIZE; ++out)
-            sums[out] += squared * weights[i * L3_SIZE + out];
+            sums[out] += inputs[i] * weights[i * L3_SIZE + out];
         #endif
     }
 
@@ -441,8 +455,7 @@ void NNUE::ActivateL2AndAffineL3(const float *inputs, const float *weights, cons
 int NNUE::output(const NNUE::accumulator& board_accumulator, const bool whiteToMove, const int outputBucket) {
 
     int16_t FTOutputs[2 * L1_SIZE];
-    int     L1Outputs[L2_SIZE];
-    float   L2Inputs [L2_SIZE];
+    float   L1Outputs[L2_SIZE];
     float   L2Outputs[L3_SIZE];
     float   L3Output;
 
@@ -450,19 +463,15 @@ int NNUE::output(const NNUE::accumulator& board_accumulator, const bool whiteToM
                board_accumulator[whiteToMove].data(),
                FTOutputs);
 
-    AffineL1(FTOutputs,
-             net.L1Weights[outputBucket],
-             L1Outputs);
+    AffineAndActivateL1(FTOutputs,
+                        net.L1Weights[outputBucket],
+                        net.L1Biases[outputBucket],
+                        L1Outputs);
 
-    for (int i = 0; i < L2_SIZE; ++i) {
-        // We multiply by 8 to compensate for the earlier shift
-        L2Inputs[i] = float(L1Outputs[i]) / float(FT_QUANT * FT_QUANT * L1_QUANT) * 8.0f + net.L1Biases[outputBucket][i];
-    }
-
-    ActivateL1AndAffineL2(L2Inputs,
-                          net.L2Weights[outputBucket],
-                          net.L2Biases[outputBucket],
-                          L2Outputs);
+    AffineL2(L1Outputs,
+             net.L2Weights[outputBucket],
+             net.L2Biases[outputBucket],
+             L2Outputs);
 
     ActivateL2AndAffineL3(L2Outputs,
                           net.L3Weights[outputBucket],
