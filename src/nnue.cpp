@@ -391,7 +391,7 @@ void NNUE::AffineAndActivateL1(const int16_t *inputs, const int16_t *weights, fl
     }
 }
 
-void NNUE::AffineL2(const float *inputs, const float *weights, const float *biases, float *output) {
+void NNUE::AffineAndActivateL2(const float *inputs, const float *weights, const float *biases, float *output) {
 
     #if defined(USE_AVX512) || defined(USE_AVX2)
     __m256 sumVecs[L3_SIZE] = {};
@@ -421,33 +421,31 @@ void NNUE::AffineL2(const float *inputs, const float *weights, const float *bias
         const __m256 sum4567 = hadd_psx4(&sumVecs[i * L3_CHUNK_SIZE + 4]);
         const __m256 bias = _mm256_loadu_ps(&biases[i * L3_CHUNK_SIZE]);
         const __m256 sum = _mm256_add_ps(combine_m256(sum0123, sum4567), bias);
-        _mm256_storeu_ps(&output[i * L3_CHUNK_SIZE], sum);
+        const __m256 clipped = _mm256_min_ps(_mm256_max_ps(sum, zeroVec), oneVec);
+        const __m256 squared = _mm256_mul_ps(clipped, clipped);
+        _mm256_storeu_ps(&output[i * L3_CHUNK_SIZE], squared);
         #else
-        output[i] = sums[i] + biases[i];
+        const float clipped = std::clamp(sums[i] + biases[i], ZERO, ONE);
+        output[i] = clipped * clipped;
         #endif
     }
 }
 
-void NNUE::ActivateL2AndAffineL3(const float *inputs, const float *weights, const float bias, float &output) {
+void NNUE::AffineL3(const float *inputs, const float *weights, const float bias, float &output) {
     float sum = 0.0f;
+
     #if defined(USE_AVX512) || defined(USE_AVX2)
     __m256 sumVec = _mm256_setzero_ps();
-    const __m256 zeroVec = _mm256_set1_ps(0.0f);
-    const __m256 oneVec  = _mm256_set1_ps(1.0f);
-
     for (int i = 0; i < L3_SIZE / L3_CHUNK_SIZE; ++i) {
-        const __m256 weightsVec = _mm256_loadu_ps(weights + i * L3_CHUNK_SIZE);
         const __m256 inputsVec = _mm256_loadu_ps(inputs + i * L3_CHUNK_SIZE);
-        const __m256 clippedVec = _mm256_min_ps(_mm256_max_ps(inputsVec, zeroVec), oneVec);
-        const __m256 squaredVec = _mm256_mul_ps(clippedVec, clippedVec);
-        sumVec = _mm256_fmadd_ps(squaredVec, weightsVec, sumVec);
+        const __m256 weightsVec = _mm256_loadu_ps(weights + i * L3_CHUNK_SIZE);
+        sumVec = _mm256_fmadd_ps(inputsVec, weightsVec, sumVec);
     }
     sum = _mm256_reduce_add_ps(sumVec);
     #else
-    for (int i = 0; i < L3_SIZE; ++i) {
-        const float clipped = std::clamp(inputs[i], 0.0f, 1.0f);
-        sum += clipped * clipped * weights[i];
-    }
+    for (int i = 0; i < L3_SIZE; ++i)
+        sum += inputs[i] * weights[i];
+
     #endif
     output = sum + bias;
 }
@@ -468,15 +466,15 @@ int NNUE::output(const NNUE::accumulator& board_accumulator, const bool whiteToM
                         net.L1Biases[outputBucket],
                         L1Outputs);
 
-    AffineL2(L1Outputs,
-             net.L2Weights[outputBucket],
-             net.L2Biases[outputBucket],
-             L2Outputs);
+    AffineAndActivateL2(L1Outputs,
+                        net.L2Weights[outputBucket],
+                        net.L2Biases[outputBucket],
+                        L2Outputs);
 
-    ActivateL2AndAffineL3(L2Outputs,
-                          net.L3Weights[outputBucket],
-                          net.L3Biases[outputBucket],
-                          L3Output);
+    AffineL3(L2Outputs,
+             net.L3Weights[outputBucket],
+             net.L3Biases[outputBucket],
+             L3Output);
 
     return L3Output * NET_SCALE;
 }
