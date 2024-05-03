@@ -208,74 +208,8 @@ void NNUE::addSubSub(NNUE::accumulator& board_accumulator, NNUEIndices add, NNUE
     }
 }
 
-#if defined(USE_AVX512) || defined(USE_AVX2)
-float NNUE::_mm256_reduce_add_ps(const __m256 sum) {
-    
-    const __m128 upper_128 = _mm256_extractf128_ps(sum, 1);
-    const __m128 lower_128 = _mm256_castps256_ps128(sum);
-    const __m128 sum_128 = _mm_add_ps(upper_128, lower_128);
-
-    const __m128 upper_64 = _mm_movehl_ps(sum_128, sum_128);
-    const __m128 sum_64 = _mm_add_ps(upper_64, sum_128);
-
-    const __m128 upper_32 = _mm_shuffle_ps(sum_64, sum_64, 1);
-    const __m128 sum_32 = _mm_add_ss(upper_32, sum_64);
-
-    return _mm_cvtss_f32(sum_32);
-}
-
-__m256i NNUE::combine_m256i(const __m256i in0, const __m256i in1) {
-    const __m128i in0_low = _mm256_castsi256_si128(in0);
-    const __m128i in0_hi = _mm256_extracti128_si256(in0, 1);
-    const __m128i in0_m128 = _mm_add_epi32(in0_low, in0_hi);
-
-    const __m128i in1_low = _mm256_castsi256_si128(in1);
-    const __m128i in1_hi = _mm256_extracti128_si256(in1, 1);
-    const __m128i in1_m128 = _mm_add_epi32(in1_low, in1_hi);
-
-    return _mm256_inserti128_si256(_mm256_castsi128_si256(in0_m128), in1_m128, 1);
-}
-
-__m256 NNUE::combine_m256(const __m256 in0, const __m256 in1) {
-    const __m128 in0_low = _mm256_castps256_ps128(in0);
-    const __m128 in0_hi = _mm256_extractf128_ps(in0, 1);
-    const __m128 in0_m128 = _mm_add_ps(in0_low, in0_hi);
-
-    const __m128 in1_low = _mm256_castps256_ps128(in1);
-    const __m128 in1_hi = _mm256_extractf128_ps(in1, 1);
-    const __m128 in1_m128 = _mm_add_ps(in1_low, in1_hi);
-
-    return _mm256_insertf128_ps(_mm256_castps128_ps256(in0_m128), in1_m128, 1);
-}
-
-__m256 NNUE::hadd_psx4(const __m256* in) {
-    const __m256 sum01 = _mm256_hadd_ps(in[0], in[1]);
-    const __m256 sum23 = _mm256_hadd_ps(in[2], in[3]);
-    return _mm256_hadd_ps(sum01, sum23);
-}
-#endif
-
-#if defined(USE_AVX512)
-__m256i NNUE::m512_to_m256(const __m512i in) {
-    const __m256i upper256 = _mm512_extracti32x8_epi32(in, 1);
-    const __m256i lower256 = _mm512_castsi512_si256(in);
-    return _mm256_add_epi32(lower256, upper256);
-}
-
-__m256i NNUE::hadd_epi32x4(const __m512i* in) {
-    const __m256i sum01 = _mm256_hadd_epi32(m512_to_m256(in[0]), m512_to_m256(in[1]));
-    const __m256i sum23 = _mm256_hadd_epi32(m512_to_m256(in[2]), m512_to_m256(in[3]));
-    return _mm256_hadd_epi32(sum01, sum23);
-}
-#elif defined(USE_AVX2)
-__m256i NNUE::hadd_epi32x4(const __m256i* in) {
-    const __m256i sum01 = _mm256_hadd_epi32(in[0], in[1]);
-    const __m256i sum23 = _mm256_hadd_epi32(in[2], in[3]);
-    return _mm256_hadd_epi32(sum01, sum23);
-}
-#endif
-
 void NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, int *output) {
+
     #if defined(USE_AVX512)
     __m512i sumVecs[L2_SIZE] = {};
     const __m512i *weightsVecs = reinterpret_cast<const __m512i*>(weights);
@@ -442,3 +376,66 @@ NNUEIndices NNUE::GetIndex(const int piece, const int square) {
     std::size_t blackIdx = (1 ^ color) * COLOR_STRIDE + piecetype * PIECE_STRIDE + square;
     return {whiteIdx, blackIdx};
 }
+
+#if defined(USE_AVX512) || defined(USE_AVX2)
+float NNUE::_mm256_reduce_add_ps(const __m256 sum) {
+    
+    const __m128 upper_128 = _mm256_extractf128_ps(sum, 1);
+    const __m128 lower_128 = _mm256_castps256_ps128(sum);
+    const __m128 sum_128 = _mm_add_ps(upper_128, lower_128);
+
+    const __m128 upper_64 = _mm_movehl_ps(sum_128, sum_128);
+    const __m128 sum_64 = _mm_add_ps(upper_64, sum_128);
+
+    const __m128 upper_32 = _mm_shuffle_ps(sum_64, sum_64, 1);
+    const __m128 sum_32 = _mm_add_ss(upper_32, sum_64);
+
+    return _mm_cvtss_f32(sum_32);
+}
+
+__m256i NNUE::combine_m256i(const __m256i in0, const __m256i in1) {
+    const __m128i in0_low = _mm256_castsi256_si128(in0);
+    const __m128i in0_hi = _mm256_extracti128_si256(in0, 1);
+    const __m128i in0_m128 = _mm_add_epi32(in0_low, in0_hi);
+
+    const __m128i in1_low = _mm256_castsi256_si128(in1);
+    const __m128i in1_hi = _mm256_extracti128_si256(in1, 1);
+    const __m128i in1_m128 = _mm_add_epi32(in1_low, in1_hi);
+
+    return _mm256_inserti128_si256(_mm256_castsi128_si256(in0_m128), in1_m128, 1);
+}
+
+__m256i NNUE::hadd_epi32x4(const auto in) {
+    #if defined(USE_AVX512)
+    auto m512_to_m256 = [](const __m512i vec) {
+        const __m256i upper256 = _mm512_extracti32x8_epi32(vec, 1);
+        const __m256i lower256 = _mm512_castsi512_si256(vec);
+        return _mm256_add_epi32(lower256, upper256);
+    };
+    const __m256i sum01 = _mm256_hadd_epi32(m512_to_m256(in[0]), m512_to_m256(in[1]));
+    const __m256i sum23 = _mm256_hadd_epi32(m512_to_m256(in[2]), m512_to_m256(in[3]));
+    #elif defined(USE_AVX2)
+    const __m256i sum01 = _mm256_hadd_epi32(in[0], in[1]);
+    const __m256i sum23 = _mm256_hadd_epi32(in[2], in[3]);
+    #endif
+    return _mm256_hadd_epi32(sum01, sum23);
+}
+
+__m256 NNUE::combine_m256(const __m256 in0, const __m256 in1) {
+    const __m128 in0_low = _mm256_castps256_ps128(in0);
+    const __m128 in0_hi = _mm256_extractf128_ps(in0, 1);
+    const __m128 in0_m128 = _mm_add_ps(in0_low, in0_hi);
+
+    const __m128 in1_low = _mm256_castps256_ps128(in1);
+    const __m128 in1_hi = _mm256_extractf128_ps(in1, 1);
+    const __m128 in1_m128 = _mm_add_ps(in1_low, in1_hi);
+
+    return _mm256_insertf128_ps(_mm256_castps128_ps256(in0_m128), in1_m128, 1);
+}
+
+__m256 NNUE::hadd_psx4(const __m256* in) {
+    const __m256 sum01 = _mm256_hadd_ps(in[0], in[1]);
+    const __m256 sum23 = _mm256_hadd_ps(in[2], in[3]);
+    return _mm256_hadd_ps(sum01, sum23);
+}
+#endif
