@@ -27,12 +27,13 @@ const unsigned int gEVALSize = 1;
 #endif
 
 Network net;
-UnquantisedNetwork unquantisedNet;
 
 // Thanks to Disservin for having me look at his code and Luecx for the
 // invaluable help and the immense patience
 
 void NNUE::init(const char* file) {
+
+    UnquantisedNetwork *unquantisedNet = static_cast<UnquantisedNetwork*>(malloc(sizeof(UnquantisedNetwork)));
 
     // open the nn file
     FILE* nn = fopen(file, "rb");
@@ -44,17 +45,17 @@ void NNUE::init(const char* file) {
         const size_t fileSize = sizeof(UnquantisedNetwork);
         const size_t objectsExpected = fileSize / sizeof(float);
 
-        read += fread(unquantisedNet.FTWeights, sizeof(float), INPUT_SIZE * L1_SIZE, nn);
-        read += fread(unquantisedNet.FTBiases, sizeof(float), L1_SIZE, nn);
+        read += fread(unquantisedNet->FTWeights, sizeof(float), INPUT_SIZE * L1_SIZE, nn);
+        read += fread(unquantisedNet->FTBiases, sizeof(float), L1_SIZE, nn);
 
-        read += fread(unquantisedNet.L1Weights, sizeof(float), OUTPUT_BUCKETS * 2 * L1_SIZE * L2_SIZE, nn);
-        read += fread(unquantisedNet.L1Biases, sizeof(float), OUTPUT_BUCKETS * L2_SIZE, nn);
+        read += fread(unquantisedNet->L1Weights, sizeof(float), OUTPUT_BUCKETS * 2 * L1_SIZE * L2_SIZE, nn);
+        read += fread(unquantisedNet->L1Biases, sizeof(float), OUTPUT_BUCKETS * L2_SIZE, nn);
 
-        read += fread(unquantisedNet.L2Weights, sizeof(float), OUTPUT_BUCKETS * L2_SIZE * L3_SIZE, nn);
-        read += fread(unquantisedNet.L2Biases, sizeof(float), OUTPUT_BUCKETS * L3_SIZE, nn);
+        read += fread(unquantisedNet->L2Weights, sizeof(float), OUTPUT_BUCKETS * L2_SIZE * L3_SIZE, nn);
+        read += fread(unquantisedNet->L2Biases, sizeof(float), OUTPUT_BUCKETS * L3_SIZE, nn);
 
-        read += fread(unquantisedNet.L3Weights, sizeof(float), OUTPUT_BUCKETS * L3_SIZE, nn);
-        read += fread(unquantisedNet.L3Biases, sizeof(float), OUTPUT_BUCKETS, nn);
+        read += fread(unquantisedNet->L3Weights, sizeof(float), OUTPUT_BUCKETS * L3_SIZE, nn);
+        read += fread(unquantisedNet->L3Biases, sizeof(float), OUTPUT_BUCKETS, nn);
 
         if (read != objectsExpected) {
             std::cout << "Error loading the net, aborting ";
@@ -68,34 +69,34 @@ void NNUE::init(const char* file) {
     } else {
         // if we don't find the nnue file we use the net embedded in the exe
         uint64_t memoryIndex = 0;
-        std::memcpy(unquantisedNet.FTWeights, &gEVALData[memoryIndex], sizeof(float) * INPUT_SIZE * L1_SIZE);
+        std::memcpy(unquantisedNet->FTWeights, &gEVALData[memoryIndex], sizeof(float) * INPUT_SIZE * L1_SIZE);
         memoryIndex += sizeof(float) * INPUT_SIZE * L1_SIZE;
-        std::memcpy(unquantisedNet.FTBiases, &gEVALData[memoryIndex], sizeof(float) * L1_SIZE);
+        std::memcpy(unquantisedNet->FTBiases, &gEVALData[memoryIndex], sizeof(float) * L1_SIZE);
         memoryIndex += sizeof(float) * L1_SIZE;
 
-        std::memcpy(unquantisedNet.L1Weights, &gEVALData[memoryIndex], sizeof(float) * OUTPUT_BUCKETS * 2 * L1_SIZE * L2_SIZE);
+        std::memcpy(unquantisedNet->L1Weights, &gEVALData[memoryIndex], sizeof(float) * OUTPUT_BUCKETS * 2 * L1_SIZE * L2_SIZE);
         memoryIndex += sizeof(float) * OUTPUT_BUCKETS * 2 * L1_SIZE * L2_SIZE;
-        std::memcpy(unquantisedNet.L1Biases, &gEVALData[memoryIndex], sizeof(float) * OUTPUT_BUCKETS * L2_SIZE);
+        std::memcpy(unquantisedNet->L1Biases, &gEVALData[memoryIndex], sizeof(float) * OUTPUT_BUCKETS * L2_SIZE);
         memoryIndex += sizeof(float) * OUTPUT_BUCKETS * L2_SIZE;
 
-        std::memcpy(unquantisedNet.L2Weights, &gEVALData[memoryIndex], sizeof(float) * OUTPUT_BUCKETS * L2_SIZE * L3_SIZE);
+        std::memcpy(unquantisedNet->L2Weights, &gEVALData[memoryIndex], sizeof(float) * OUTPUT_BUCKETS * L2_SIZE * L3_SIZE);
         memoryIndex += sizeof(float) * OUTPUT_BUCKETS * L2_SIZE * L3_SIZE;
-        std::memcpy(unquantisedNet.L2Biases, &gEVALData[memoryIndex], sizeof(float) * OUTPUT_BUCKETS * L3_SIZE);
+        std::memcpy(unquantisedNet->L2Biases, &gEVALData[memoryIndex], sizeof(float) * OUTPUT_BUCKETS * L3_SIZE);
         memoryIndex += sizeof(float) * OUTPUT_BUCKETS * L3_SIZE;
 
-        std::memcpy(unquantisedNet.L3Weights, &gEVALData[memoryIndex], sizeof(float) * OUTPUT_BUCKETS * L3_SIZE);
+        std::memcpy(unquantisedNet->L3Weights, &gEVALData[memoryIndex], sizeof(float) * OUTPUT_BUCKETS * L3_SIZE);
         memoryIndex += sizeof(float) * OUTPUT_BUCKETS * L3_SIZE;
-        std::memcpy(unquantisedNet.L3Biases, &gEVALData[memoryIndex], sizeof(float) * OUTPUT_BUCKETS);
+        std::memcpy(unquantisedNet->L3Biases, &gEVALData[memoryIndex], sizeof(float) * OUTPUT_BUCKETS);
         memoryIndex += sizeof(float) * OUTPUT_BUCKETS;
     }
 
     // Quantise FT Weights
     for (int i = 0; i < INPUT_SIZE * L1_SIZE; ++i)
-        net.FTWeights[i] = static_cast<int16_t>(std::round(unquantisedNet.FTWeights[i] * FT_QUANT));
+        net.FTWeights[i] = static_cast<int16_t>(std::round(unquantisedNet->FTWeights[i] * FT_QUANT));
 
     // Quantise FT Biases
     for (int i = 0; i < L1_SIZE; ++i)
-        net.FTBiases[i] = static_cast<int16_t>(std::round(unquantisedNet.FTBiases[i] * FT_QUANT));
+        net.FTBiases[i] = static_cast<int16_t>(std::round(unquantisedNet->FTBiases[i] * FT_QUANT));
 
     // Transpose L1, L2 and L3 weights and biases
     for (int bucket = 0; bucket < OUTPUT_BUCKETS; ++bucket) {
@@ -106,11 +107,11 @@ void NNUE::init(const char* file) {
                 for (int k = 0; k < L1_CHUNK_SIZE; ++k)
                     net.L1Weights[bucket][  i * L1_CHUNK_SIZE * L2_SIZE
                                           + j * L1_CHUNK_SIZE
-                                          + k] = static_cast<int16_t>(std::round(unquantisedNet.L1Weights[i * L1_CHUNK_SIZE + k][bucket][j] * L1_QUANT));
+                                          + k] = static_cast<int16_t>(std::round(unquantisedNet->L1Weights[i * L1_CHUNK_SIZE + k][bucket][j] * L1_QUANT));
 
         // Quantise L1 Biases
         for (int i = 0; i < L2_SIZE; ++i)
-            net.L1Biases[bucket][i] = unquantisedNet.L1Biases[bucket][i];
+            net.L1Biases[bucket][i] = unquantisedNet->L1Biases[bucket][i];
 
         // Quantise L2 Weights
         for (int i = 0; i < L2_SIZE / L2_CHUNK_SIZE; ++i)
@@ -118,20 +119,21 @@ void NNUE::init(const char* file) {
                 for (int k = 0; k < L2_CHUNK_SIZE; ++k)
                     net.L2Weights[bucket][  i * L2_CHUNK_SIZE * L3_SIZE
                                           + j * L2_CHUNK_SIZE
-                                          + k] = unquantisedNet.L2Weights[i * L2_CHUNK_SIZE + k][bucket][j];
+                                          + k] = unquantisedNet->L2Weights[i * L2_CHUNK_SIZE + k][bucket][j];
 
         // Quantise L2 Biases
         for (int i = 0; i < L3_SIZE; ++i)
-            net.L2Biases[bucket][i] = unquantisedNet.L2Biases[bucket][i];
+            net.L2Biases[bucket][i] = unquantisedNet->L2Biases[bucket][i];
 
         // Quantise L3 Weights
         for (int i = 0; i < L3_SIZE; ++i)
-            net.L3Weights[bucket][i] = unquantisedNet.L3Weights[i][bucket];
+            net.L3Weights[bucket][i] = unquantisedNet->L3Weights[i][bucket];
 
         // Quantise L3 Biases
-        net.L3Biases[bucket] = unquantisedNet.L3Biases[bucket];
+        net.L3Biases[bucket] = unquantisedNet->L3Biases[bucket];
     }
 
+    free(unquantisedNet);
 }
 
 void NNUE::add(NNUE::accumulator& board_accumulator, const int piece, const int to) {
