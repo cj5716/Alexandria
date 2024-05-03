@@ -77,13 +77,8 @@ public:
     #if defined(USE_AVX512) || defined(USE_AVX2)
     [[nodiscard]] float _mm256_reduce_add_ps(const __m256 sum);
     [[nodiscard]] __m256i combine_m256i(const __m256i in0, const __m256i in1);
+    [[nodiscard]] __m256i hadd_epi32x4(const auto in);
     [[nodiscard]] __m256  combine_m256(const __m256 in0, const __m256 in1);
     [[nodiscard]] __m256  hadd_psx4(const __m256* in);
-    #endif
-    #if defined(USE_AVX512)
-    [[nodiscard]] __m256i m512_to_m256(const __m512i in);
-    [[nodiscard]] __m256i hadd_epi32x4(const __m512i* in);
-    #elif defined(USE_AVX2)
-    [[nodiscard]] __m256i hadd_epi32x4(const __m256i* in);
     #endif
 };
