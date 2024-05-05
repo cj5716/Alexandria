@@ -17,7 +17,7 @@ struct SearchStack {
 
 struct SearchData {
     int searchHistory[2][64 * 64] = {};
-    int captHist[12 * 64][6] = {};
+    int captHist[12 * 64][2][6] = {};
     int counterMoves[64 * 64] = {};
     int contHist[12 * 64][12 * 64] = {};
 };
