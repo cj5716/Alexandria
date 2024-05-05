@@ -571,7 +571,7 @@ moves_loop:
         int extension = 0;
         // Limit Extensions to try and curb search explosions
         if (ss->ply < td->RootDepth * 2) {
-            // Search extension
+            // Singular Extensions
             if (   !rootNode
                 &&  depth >= 7
                 &&  move == ttMove
@@ -609,6 +609,16 @@ moves_loop:
                 else if (cutNode)
                     extension = -1;
             }
+
+            // At lower depth, we use static eval as the judge as to whether our TT move is singular
+            else if (    depth < 7
+                     &&  move == ttMove
+                     && !excludedMove
+                     && (ttBound & HFLOWER)
+                     &&  abs(ttScore) < MATE_FOUND
+                     &&  tte.depth >= depth - 3
+                     &&  ss->staticEval <= ttScore - 128)
+                extension = 1;
         }
         // we adjust the search depth based on potential extensions
         int newDepth = depth - 1 + extension;
