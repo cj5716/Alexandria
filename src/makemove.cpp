@@ -352,14 +352,8 @@ void MakeUCIMove(const int move, Position* pos) {
     HashKey(pos, SideKey);
     // Update pinmasks and checkers
     UpdatePinsAndCheckers(pos, pos->side);
-    // If we are in check get the squares between the checking piece and the king
-    if (pos->checkers) {
-        const int kingSquare = KingSQ(pos, pos->side);
-        const int pieceLocation = GetLsbIndex(pos->checkers);
-        pos->checkMask = (1ULL << pieceLocation) | RayBetween(pieceLocation, kingSquare);
-    }
-    else
-        pos->checkMask = fullCheckmask;
+    // Update threat masks
+    UpdateThreats(pos);
 }
 
 // make move on chess board
@@ -410,14 +404,8 @@ void MakeMove(const int move, Position* pos) {
     HashKey(pos, SideKey);
     // Update pinmasks and checkers
     UpdatePinsAndCheckers(pos, pos->side);
-    // If we are in check get the squares between the checking piece and the king
-    if (pos->checkers) {
-        const int kingSquare = KingSQ(pos, pos->side);
-        const int pieceLocation = GetLsbIndex(pos->checkers);
-        pos->checkMask = (1ULL << pieceLocation) | RayBetween(pieceLocation, kingSquare);
-    }
-    else
-        pos->checkMask = fullCheckmask;
+    // Update threat masks
+    UpdateThreats(pos);
 }
 
 void UnmakeMove(const int move, Position* pos) {
@@ -518,6 +506,8 @@ void MakeNullMove(Position* pos) {
 
     // Update pinmasks and checkers
     UpdatePinsAndCheckers(pos, pos->side);
+    // Swap our and opp threats
+    std::swap(pos->ourThreats, pos->oppThreats);
 }
 
 // Take back a null move

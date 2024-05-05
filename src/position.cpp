@@ -207,14 +207,8 @@ void ParseFen(const std::string& command, Position* pos) {
     // Update pinmasks and checkers
     UpdatePinsAndCheckers(pos, pos->side);
 
-    // If we are in check get the squares between the checking piece and the king
-    if (pos->checkers) {
-        const int kingSquare = KingSQ(pos, pos->side);
-        const int pieceLocation = GetLsbIndex(pos->checkers);
-        pos->checkMask = (1ULL << pieceLocation) | RayBetween(pieceLocation, kingSquare);
-    }
-    else
-        pos->checkMask = fullCheckmask;
+    // Update threat masks
+    UpdateThreats(pos);
 
     // Update nnue accumulator to reflect board state
     Accumulate(pos->accumStack[0], pos);
@@ -344,8 +338,8 @@ bool oppCanWinMaterial(const Position* pos, const int side) {
 }
 
 Bitboard getThreats(const Position* pos, const int side) {
-    // Take the occupancies of both positions, encoding where all the pieces on the board reside
-    Bitboard occ = pos->Occupancy(BOTH);
+    // Take the occupancy of the board and remove opponent king to include X-ray attacks
+    Bitboard occ = pos->Occupancy(BOTH) ^ (1ULL << KingSQ(pos, side ^ 1));
     uint64_t threats = 0;
 
     // Get Pawn attacks
@@ -354,14 +348,12 @@ Bitboard getThreats(const Position* pos, const int side) {
         int source_square = popLsb(pawns);
         threats |= pawn_attacks[side][source_square];
     }
-
     // Get Knight attacks
     Bitboard knights = pos->GetPieceColorBB(KNIGHT, side);
     while (knights) {
         int source_square = popLsb(knights);
         threats |= knight_attacks[source_square];
     }
-
     // Get Bishop attacks
     Bitboard bishops = pos->GetPieceColorBB(BISHOP, side);
     while (bishops) {
@@ -425,12 +417,24 @@ void UpdatePinsAndCheckers(Position* pos, const int side) {
     while (sliderAttacks) {
         const int sq = popLsb(sliderAttacks);
         const Bitboard blockers = (RayBetween(kingSquare, sq) | (1ULL << sq)) & pos->Occupancy(side);
-        const int numBlockers = CountBits(blockers);
-        if (!numBlockers)
+        if (!blockers)
             pos->checkers |= 1ULL << sq;
-        else if (numBlockers == 1)
+        else if (CountBits(blockers) == 1)
             pos->pinned |= blockers;
     }
+
+    // If we are in check get the squares between the checking piece and the king
+    if (pos->checkers) {
+        const int checker = GetLsbIndex(pos->checkers);
+        pos->checkMask = (1ULL << checker) | RayBetween(checker, kingSquare);
+    }
+    else
+        pos->checkMask = fullCheckmask;
+}
+
+void UpdateThreats(Position* pos) {
+    pos->ourThreats = getThreats(pos, pos->side);
+    pos->oppThreats = getThreats(pos, pos->side ^ 1);
 }
 
 Bitboard RayBetween(int square1, int square2) {
@@ -460,7 +464,7 @@ ZobristKey keyAfter(const Position* pos, const int move) {
     const int sourceSquare = From(move);
     const int targetSquare = To(move);
     const int piece = Piece(move);
-    const int  captured = pos->PieceOn(targetSquare);
+    const int captured = pos->PieceOn(targetSquare);
 
     ZobristKey newKey = pos->GetPoskey() ^ SideKey ^ PieceKeys[piece][sourceSquare] ^ PieceKeys[piece][targetSquare];
 
@@ -471,24 +475,27 @@ ZobristKey keyAfter(const Position* pos, const int move) {
 }
 
 void saveBoardState(Position* pos) {
-    pos->history[pos->historyStackHead].fiftyMove = pos->fiftyMove;
-    pos->history[pos->historyStackHead].enPas = pos->enPas;
-    pos->history[pos->historyStackHead].castlePerm = pos->castleperm;
+    pos->history[pos->historyStackHead].fiftyMove   = pos->fiftyMove;
+    pos->history[pos->historyStackHead].enPas       = pos->enPas;
+    pos->history[pos->historyStackHead].castlePerm  = pos->castleperm;
     pos->history[pos->historyStackHead].plyFromNull = pos->plyFromNull;
-    pos->history[pos->historyStackHead].checkers = pos->checkers;
-    pos->history[pos->historyStackHead].checkMask = pos->checkMask;
-    pos->history[pos->historyStackHead].pinned = pos->pinned;
+    pos->history[pos->historyStackHead].checkers    = pos->checkers;
+    pos->history[pos->historyStackHead].checkMask   = pos->checkMask;
+    pos->history[pos->historyStackHead].pinned      = pos->pinned;
+    pos->history[pos->historyStackHead].ourThreats  = pos->ourThreats;
+    pos->history[pos->historyStackHead].oppThreats  = pos->oppThreats;
 }
 
-void restorePreviousBoardState(Position* pos)
-{
-    pos->enPas = pos->history[pos->historyStackHead].enPas;
-    pos->fiftyMove = pos->history[pos->historyStackHead].fiftyMove;
-    pos->castleperm = pos->history[pos->historyStackHead].castlePerm;
+void restorePreviousBoardState(Position* pos) {
+    pos->enPas       = pos->history[pos->historyStackHead].enPas;
+    pos->fiftyMove   = pos->history[pos->historyStackHead].fiftyMove;
+    pos->castleperm  = pos->history[pos->historyStackHead].castlePerm;
     pos->plyFromNull = pos->history[pos->historyStackHead].plyFromNull;
-    pos->checkers = pos->history[pos->historyStackHead].checkers;
-    pos->checkMask = pos->history[pos->historyStackHead].checkMask;
-    pos->pinned = pos->history[pos->historyStackHead].pinned;
+    pos->checkers    = pos->history[pos->historyStackHead].checkers;
+    pos->checkMask   = pos->history[pos->historyStackHead].checkMask;
+    pos->pinned      = pos->history[pos->historyStackHead].pinned;
+    pos->ourThreats  = pos->history[pos->historyStackHead].ourThreats;
+    pos->oppThreats  = pos->history[pos->historyStackHead].oppThreats;
 }
 
 bool hasGameCycle(Position* pos, int ply) {

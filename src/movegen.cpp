@@ -9,6 +9,7 @@
 
 // is the square given in input attacked by the current given side
 bool IsSquareAttacked(const Position* pos, const int square, const int side) {
+
     // Take the occupancies of both positions, encoding where all the pieces on the board reside
     Bitboard occ = pos->Occupancy(BOTH);
     // is the square attacked by pawns
