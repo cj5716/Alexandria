@@ -651,6 +651,10 @@ moves_loop:
             if (move == mp.killer || move == mp.counter)
                 depthReduction -= 1;
 
+            // Reduce less if the move is a serial killer (likely to fail high) and no TT move is present
+            if (ttMove == NOMOVE && move == ss->serialKiller)
+                depthReduction -= 1;
+
             // Reduce less if we have been on the PV
             if (ttPv)
                 depthReduction -= 1 + cutNode;
@@ -721,6 +725,11 @@ moves_loop:
                 }
 
                 if (score >= beta) {
+
+                    // Reset the serial killer if the killer did not fail high twice in a row
+                    ss->serialKiller = move == ss->searchKiller ? move
+                                                                : NOMOVE;
+
                     // If the move that caused the beta cutoff is quiet we have a killer move
                     if (isQuiet) {
                         ss->searchKiller = bestMove;
