@@ -349,6 +349,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
     int eval;
     bool improving;
     int score = -MAXSCORE;
+    int failLowCnt = 0;
     TTEntry tte;
 
     const int excludedMove = ss->excludedMove;
@@ -639,6 +640,10 @@ moves_loop:
             if (!improving)
                 depthReduction += 1;
 
+            // Reduce more if we have repeatedly failed low
+            if (failLowCnt > 6)
+                depthReduction += 1;
+
             // Reduce less if the move is a refutation
             if (move == mp.killer || move == mp.counter)
                 depthReduction -= 1;
@@ -693,6 +698,9 @@ moves_loop:
 
         if (info->stopped)
             return 0;
+
+        // Increment failLowCnt if we failed to raise alpha
+        failLowCnt += score <= alpha;
 
         // If the score of the current move is the best we've found until now
         if (score > bestScore) {
