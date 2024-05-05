@@ -34,6 +34,7 @@ struct BoardState {
     Bitboard checkers = 0ULL;
     Bitboard checkMask = fullCheckmask;
     Bitboard pinned;
+    Bitboard oppThreats;
 }; // stores a move and the state of the game before that move is made
 // for rollback purposes
 
@@ -57,14 +58,15 @@ public:
     std::vector<ZobristKey> played_positions = {};
     std::vector<NNUEIndices> NNUEAdd = {};
     std::vector<NNUEIndices> NNUESub = {};
-    Bitboard pinned;
 
     // Occupancies bitboards based on piece and side
     Bitboard bitboards[12] = {};
     Bitboard occupancies[2] = {};
     Bitboard checkers;
     Bitboard checkMask = fullCheckmask;
-  
+    Bitboard pinned;
+    Bitboard oppThreats;
+
     NNUE::accumulator accumStack[MAXPLY];
     int accumStackHead;
 
@@ -206,6 +208,8 @@ void ResetInfo(SearchInfo* info);
 [[nodiscard]] int KingSQ(const Position* pos, const int c);
 
 void UpdatePinsAndCheckers(Position* pos, const int side);
+
+void UpdateOppThreats(Position* pos);
 
 Bitboard RayBetween(int square1, int square2);
 
