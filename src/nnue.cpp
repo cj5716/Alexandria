@@ -217,14 +217,14 @@ void NNUE::FindNNZ(const int16_t *inputs, uint16_t *indices, int &count) {
         const __m512i zeroVec = _mm512_setzero_si512();
         const __m512i inputVec = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(&inputs[i]));
         uint8_t mask = _mm512_cmpgt_epi64_mask(inputVec, zeroVec);
-        i += lsbIndices[mask] * (sizeof(uint64_t) / sizeof(int16_t));
+        i += lsbIndices[mask] * sizeof(uint64_t) / sizeof(int16_t);
         indices[count] = i;
         count += !!mask;
         #elif defined(USE_AVX2)
         const __m256i zeroVec = _mm256_setzero_si256();
         const __m256i inputVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(&inputs[i]));
         uint8_t mask = _mm256_movemask_pd(_mm256_castsi256_pd(_mm256_cmpgt_epi64(inputVec, zeroVec)));
-        i += lsbIndices[mask] * (sizeof(uint64_t) / sizeof(int16_t));
+        i += lsbIndices[mask] * sizeof(uint64_t) / sizeof(int16_t);
         indices[count] = i;
         count += !!mask;
         #endif
