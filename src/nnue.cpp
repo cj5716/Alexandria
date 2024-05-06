@@ -103,12 +103,9 @@ void NNUE::init(const char* file) {
     for (int bucket = 0; bucket < OUTPUT_BUCKETS; ++bucket) {
 
         // Quantise L1 Weights
-        for (int i = 0; i < 2 * L1_SIZE / L1_CHUNK_SIZE; ++i)
+        for (int i = 0; i < 2 * L1_SIZE; ++i)
             for (int j = 0; j < L2_SIZE; ++j)
-                for (int k = 0; k < L1_CHUNK_SIZE; ++k)
-                    net.L1Weights[bucket][  i * L1_CHUNK_SIZE * L2_SIZE
-                                          + j * L1_CHUNK_SIZE
-                                          + k] = static_cast<int16_t>(std::round(unquantisedNet->L1Weights[i * L1_CHUNK_SIZE + k][bucket][j] * L1_QUANT));
+                net.L1Weights[bucket][j * 2 * L1_SIZE + i] = static_cast<int16_t>(std::round(unquantisedNet->L1Weights[i][bucket][j] * L1_QUANT));
 
         // Quantise L1 Biases
         for (int i = 0; i < L2_SIZE; ++i)
@@ -260,8 +257,8 @@ void NNUE::ActivateFT(const int16_t *us, const int16_t *them, int16_t *output) {
         const int16_t usClipped = std::clamp(us[i], ZERO, ONE) >> 1;
         const int16_t themClipped = std::clamp(them[i], ZERO, ONE) >> 1;
 
-        const int16_t usSquared = clipped * clipped >> 1;
-        const int16_t themSquared = clipped * clipped >> 1;
+        const int16_t usSquared = usClipped * usClipped >> 1;
+        const int16_t themSquared = themClipped * themClipped >> 1;
 
         output[i] = usSquared;
         output[i + L1_SIZE] = themSquared;
@@ -272,15 +269,11 @@ void NNUE::ActivateFT(const int16_t *us, const int16_t *them, int16_t *output) {
 void NNUE::AffineAndActivateL1(const int16_t *inputs, const int16_t *weights, float *biases, float *output) {
     #if defined(USE_AVX512)
     __m512i sumVecs[L2_SIZE] = {};
-    const __m512i *weightsVecs = reinterpret_cast<const __m512i*>(weights);
-    const __m512i *inputsVecs = reinterpret_cast<const __m512i*>(inputs);
     const __m256  *biasVecs = reinterpret_cast<const __m256*>(biases);
     const __m256  zeroVec  = _mm256_set1_ps(0.0f);
     const __m256  oneVec   = _mm256_set1_ps(1.0f);
     #elif defined(USE_AVX2)
     __m256i sumVecs[L2_SIZE] = {};
-    const __m256i *weightsVecs = reinterpret_cast<const __m256i*>(weights);
-    const __m256i *inputsVecs = reinterpret_cast<const __m256i*>(inputs);
     const __m256  *biasVecs = reinterpret_cast<const __m256*>(biases);
     const __m256  zeroVec  = _mm256_set1_ps(0.0f);
     const __m256  oneVec   = _mm256_set1_ps(1.0f);
@@ -289,24 +282,24 @@ void NNUE::AffineAndActivateL1(const int16_t *inputs, const int16_t *weights, fl
     constexpr float ZERO = 0.0f;
     constexpr float ONE  = 1.0f;
     #endif
-    for (int i = 0; i < 2 * L1_SIZE / L1_CHUNK_SIZE; ++i) {
+    for (int i = 0; i < 2 * L1_SIZE; i += L1_CHUNK_SIZE) {
         #if defined(USE_AVX512)
-        const __m512i *weightsVec = &weightsVecs[i * L2_SIZE];
-        const __m512i inputsVec  = _mm512_loadu_si512(&inputsVecs[i]);
+        const __m512i inputsVec = _mm512_loadu_si512(&inputs[i]);
         for (int out = 0; out < L2_SIZE; ++out) {
-            const __m512i productVec = _mm512_madd_epi16(inputsVec, weightsVec[out]);
+            const __m512i weightsVec = _mm512_loadu_si512(&weights[out * 2 * L1_SIZE + i]);
+            const __m512i productVec = _mm512_madd_epi16(inputsVec, weightsVec);
             sumVecs[out] = _mm512_add_epi32(sumVecs[out], productVec);
         }
         #elif defined(USE_AVX2)
-        const __m256i *weightsVec = &weightsVecs[i * L2_SIZE];
-        const __m256i inputsVec  = _mm256_loadu_si256(&inputsVecs[i]);
+        const __m256i inputsVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(&inputs[i]));
         for (int out = 0; out < L2_SIZE; ++out) {
-            const __m256i productVec = _mm256_madd_epi16(inputsVec, weightsVec[out]);
+            const __m256i weightsVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(&weights[out * 2 * L1_SIZE + i]));
+            const __m256i productVec = _mm256_madd_epi16(inputsVec, weightsVec);
             sumVecs[out] = _mm256_add_epi32(sumVecs[out], productVec);
         }
         #else
         for (int out = 0; out < L2_SIZE; ++out)
-            sums[out] += inputs[i] * weights[i * L2_SIZE + out];
+            sums[out] += inputs[i] * weights[out * 2 * L1_SIZE + i];
         #endif
     }
     for (int i = 0; i < L2_SIZE / L2_CHUNK_SIZE; ++i) {
