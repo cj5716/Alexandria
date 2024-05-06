@@ -417,7 +417,7 @@ void NNUE::AffineL3(const float *inputs, const float *weights, const float bias,
 
 int NNUE::output(const NNUE::accumulator& board_accumulator, const bool whiteToMove, const int outputBucket) {
 
-    int16_t FTOutputs[2 * L1_SIZE];
+    int16_t FTOutputs[2 * L1_SIZE + L1_CHUNK_SIZE] = {};
     float   L1Outputs[L2_SIZE];
     float   L2Outputs[L3_SIZE];
     float   L3Output;
