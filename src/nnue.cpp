@@ -27,6 +27,7 @@ const unsigned int gEVALSize = 1;
 #endif
 
 Network net;
+int lsbIndices[UINT8_MAX + 1];
 
 // Thanks to Disservin for having me look at his code and Luecx for the
 // invaluable help and the immense patience
@@ -134,6 +135,10 @@ void NNUE::init(const char* file) {
     }
 
     free(unquantisedNet);
+
+    // Initialise the LSB indices lookup
+    for (int i = 0; i <= UINT8_MAX; ++i)
+        lsbIndices[i] = i == 0 ? 0 : GetLsbIndex(Bitboard(i));
 }
 
 void NNUE::add(NNUE::accumulator& board_accumulator, const int piece, const int to) {
