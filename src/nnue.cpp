@@ -27,7 +27,7 @@ const unsigned int gEVALSize = 1;
 #endif
 
 Network net;
-int lsbIndices[UINT8_MAX + 1];
+uint8_t lsbIndices[std::numeric_limits<uint8_t>::max() + 1];
 
 // Thanks to Disservin for having me look at his code and Luecx for the
 // invaluable help and the immense patience
@@ -134,7 +134,7 @@ void NNUE::init(const char* file) {
     free(unquantisedNet);
 
     // Initialise the LSB indices lookup
-    for (int i = 0; i <= UINT8_MAX; ++i)
+    for (int i = 0; i <= std::numeric_limits<uint8_t>::max(); ++i)
         lsbIndices[i] = i == 0 ? 0 : GetLsbIndex(Bitboard(i));
 }
 
@@ -210,6 +210,28 @@ void NNUE::addSubSub(NNUE::accumulator& board_accumulator, NNUEIndices add, NNUE
     }
 }
 
+void NNUE::FindNNZ(const int16_t *inputs, uint16_t *indices, int &count) {
+    count = 0;
+    for (int i = 0; i < 2 * L1_SIZE;) {
+        #if defined(USE_AVX512)
+        const __m512i zeroVec = _mm512_setzero_si512();
+        const __m512i inputVec = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(&inputs[i]));
+        uint8_t mask = _mm512_cmpgt_epi64_mask(inputVec, zeroVec);
+        i += lsbIndices[mask] * (sizeof(uint64_t) / sizeof(int16_t));
+        indices[count] = i;
+        count += !mask;
+        #elif defined(USE_AVX2)
+        const __m256i zeroVec = _mm256_setzero_si256();
+        const __m256i inputVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(&inputs[i]));
+        uint8_t mask = _mm256_movemask_pd(_mm256_castsi256_pd(_mm256_cmpgt_epi64(inputVec, zeroVec)));
+        i += lsbIndices[mask] * (sizeof(uint64_t) / sizeof(int16_t));
+        indices[count] = i;
+        count += !mask;
+        #endif
+        i += L1_CHUNK_SIZE;
+    }
+}
+
 void NNUE::ActivateFT(const int16_t *us, const int16_t *them, int16_t *output) {
     #if defined(USE_AVX512)
     const __m512i *usVecs = reinterpret_cast<const __m512i*>(us);
@@ -282,7 +304,13 @@ void NNUE::AffineAndActivateL1(const int16_t *inputs, const int16_t *weights, fl
     constexpr float ZERO = 0.0f;
     constexpr float ONE  = 1.0f;
     #endif
-    for (int i = 0; i < 2 * L1_SIZE; i += L1_CHUNK_SIZE) {
+
+    #if defined(USE_AVX512) || defined(USE_AVX2)
+    uint16_t nnz[2 * L1_SIZE / L1_CHUNK_SIZE];
+    int nnzCount;
+    FindNNZ(inputs, nnz, nnzCount);
+    for (int nnzIdx = 0; nnzIdx < nnzCount; ++nnzIdx) {
+        int i = nnz[nnzIdx];
         #if defined(USE_AVX512)
         const __m512i inputsVec = _mm512_loadu_si512(&inputs[i]);
         for (int out = 0; out < L2_SIZE; ++out) {
@@ -297,11 +325,15 @@ void NNUE::AffineAndActivateL1(const int16_t *inputs, const int16_t *weights, fl
             const __m256i productVec = _mm256_madd_epi16(inputsVec, weightsVec);
             sumVecs[out] = _mm256_add_epi32(sumVecs[out], productVec);
         }
-        #else
-        for (int out = 0; out < L2_SIZE; ++out)
-            sums[out] += inputs[i] * weights[out * 2 * L1_SIZE + i];
         #endif
     }
+    #else
+    for (int i = 0; i < 2 * L1_SIZE; ++i) {
+        for (int out = 0; out < L2_SIZE; ++out)
+            sums[out] += inputs[i] * weights[out * 2 * L1_SIZE + i];
+    }
+    #endif
+
     for (int i = 0; i < L2_SIZE / L2_CHUNK_SIZE; ++i) {
         #if defined(USE_AVX512) || defined(USE_AVX2)
         const __m256i sum0123 = hadd_epi32x4(&sumVecs[i * L2_CHUNK_SIZE]);
