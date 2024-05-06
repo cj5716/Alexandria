@@ -27,7 +27,7 @@ const unsigned int gEVALSize = 1;
 #endif
 
 Network net;
-uint8_t lsbIndices[std::numeric_limits<uint8_t>::max() + 1];
+uint16_t lsbIndices[std::numeric_limits<uint8_t>::max() + 1];
 
 // Thanks to Disservin for having me look at his code and Luecx for the
 // invaluable help and the immense patience
@@ -219,14 +219,14 @@ void NNUE::FindNNZ(const int16_t *inputs, uint16_t *indices, int &count) {
         uint8_t mask = _mm512_cmpgt_epi64_mask(inputVec, zeroVec);
         i += lsbIndices[mask] * (sizeof(uint64_t) / sizeof(int16_t));
         indices[count] = i;
-        count += !mask;
+        count += !!mask;
         #elif defined(USE_AVX2)
         const __m256i zeroVec = _mm256_setzero_si256();
         const __m256i inputVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(&inputs[i]));
         uint8_t mask = _mm256_movemask_pd(_mm256_castsi256_pd(_mm256_cmpgt_epi64(inputVec, zeroVec)));
         i += lsbIndices[mask] * (sizeof(uint64_t) / sizeof(int16_t));
         indices[count] = i;
-        count += !mask;
+        count += !!mask;
         #endif
         i += L1_CHUNK_SIZE;
     }
