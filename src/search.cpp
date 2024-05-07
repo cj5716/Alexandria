@@ -528,6 +528,7 @@ moves_loop:
 
     int totalMoves = 0;
     bool skipQuiets = false;
+    const int origThreatCnt = CountBits(pos->ourThreats);
 
     Movepicker mp;
     InitMP(&mp, pos, sd, ss, ttMove, SEARCH);
@@ -646,6 +647,10 @@ moves_loop:
             // Reduce more if we are not improving
             if (!improving)
                 depthReduction += 1;
+
+            // Reduce more if we made many more threats
+            if (CountBits(pos->oppThreats) > origThreatCnt + 6)
+                depthReduction -= 1;
 
             // Reduce less if the move is a refutation
             if (move == mp.killer || move == mp.counter)
