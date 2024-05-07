@@ -105,25 +105,27 @@ void NNUE::add(NNUE::accumulator& board_accumulator, const int piece, const int 
     }
 }
 
-void NNUE::update(NNUE::accumulator& board_accumulator, std::vector<NNUEIndices>& NNUEAdd, std::vector<NNUEIndices>& NNUESub) {
+void NNUE::update(Position *pos, std::vector<NNUEIndices>& NNUEAdd, std::vector<NNUEIndices>& NNUESub) {
     int adds = NNUEAdd.size();
     int subs = NNUESub.size();
 
     if (adds == 0 && subs == 0)
         return;
 
+    pos->AccumulatorTop() = pos->accumStack[pos->accumStackHead - 2];
+
     // Quiets
     if (adds == 1 && subs == 1) {
-        addSub(board_accumulator, NNUEAdd[0], NNUESub[0]);
+        addSub(pos->AccumulatorTop(), NNUEAdd[0], NNUESub[0]);
     }
     // Captures
     else if (adds == 1 && subs == 2) {
-        addSubSub(board_accumulator, NNUEAdd[0], NNUESub[0], NNUESub[1]);
+        addSubSub(pos->AccumulatorTop(), NNUEAdd[0], NNUESub[0], NNUESub[1]);
     }
     // Castling
     else {
-        addSub(board_accumulator, NNUEAdd[0], NNUESub[0]);
-        addSub(board_accumulator, NNUEAdd[1], NNUESub[1]);
+        addSub(pos->AccumulatorTop(), NNUEAdd[0], NNUESub[0]);
+        addSub(pos->AccumulatorTop(), NNUEAdd[1], NNUESub[1]);
     }
     // Reset the add and sub vectors
     NNUEAdd.clear();

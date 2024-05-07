@@ -22,6 +22,7 @@ struct Network {
 };
 
 extern Network net;
+struct Position;
 
 class NNUE {
 public:
@@ -29,7 +30,7 @@ public:
 
     void init(const char* file);
     void add(NNUE::accumulator& board_accumulator, const int piece, const int to);
-    void update(NNUE::accumulator& board_accumulator, std::vector<NNUEIndices>& NNUEAdd, std::vector<NNUEIndices>& NNUESub);
+    void update(Position *pos, std::vector<NNUEIndices>& NNUEAdd, std::vector<NNUEIndices>& NNUESub);
     void addSub(NNUE::accumulator& board_accumulator, NNUEIndices add, NNUEIndices sub);
     void addSubSub(NNUE::accumulator& board_accumulator, NNUEIndices add, NNUEIndices sub1, NNUEIndices sub2);
     [[nodiscard]] int32_t flatten(const int16_t *acc, const int16_t *weights);
