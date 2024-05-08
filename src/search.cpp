@@ -651,8 +651,11 @@ moves_loop:
             if (move == mp.killer || move == mp.counter)
                 depthReduction -= 1;
 
-            // Reduce less if the move is a serial killer (likely to fail high) and no TT move is present
-            if (ttMove == NOMOVE && move == ss->serialKiller)
+            // Reduce less if the TT move is absent (indicates poorer move ordering)
+            // and move is the serial killer with a very good history (likely to fail high)
+            if (   ttMove == NOMOVE
+                && move   == ss->serialKiller
+                && moveHistory >= 32768)
                 depthReduction -= 1;
 
             // Reduce less if we have been on the PV
