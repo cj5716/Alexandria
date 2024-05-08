@@ -388,7 +388,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
             return alpha;
 
         // Upcoming repetition detection
-        if (alpha < 0 && hasGameCycle(pos,ss->ply))
+        if (alpha < 0 && hasGameCycle(pos, ss->ply))
         {
             alpha = 0;
             if (alpha >= beta)
@@ -400,11 +400,12 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
     const bool ttHit = !excludedMove && ProbeTTEntry(pos->GetPoskey(), &tte);
     const int ttScore = ttHit ? ScoreFromTT(tte.score, ss->ply) : SCORE_NONE;
     const int ttMove = ttHit ? MoveFromTT(pos, tte.move) : NOMOVE;
+    const int ttDepth = ttHit ? DepthFromTT(tte.depth) : DEPTH_NONE;
     const uint8_t ttBound = ttHit ? BoundFromTT(tte.ageBoundPV) : uint8_t(HFNONE);
     // If we found a value in the TT for this position, and the depth is equal or greater we can return it (pv nodes are excluded)
     if (   !pvNode
         &&  ttScore != SCORE_NONE
-        &&  tte.depth >= depth
+        &&  ttDepth >= depth
         && (   (ttBound == HFUPPER && ttScore <= alpha)
             || (ttBound == HFLOWER && ttScore >= beta)
             ||  ttBound == HFEXACT))
@@ -415,7 +416,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
     // IIR by Ed Schroder (That i find out about in Berserk source code)
     // http://talkchess.com/forum3/viewtopic.php?f=7&t=74769&sid=64085e3396554f0fba414404445b3120
     // https://github.com/jhonnold/berserk/blob/dd1678c278412898561d40a31a7bd08d49565636/src/search.c#L379
-    if (depth >= 4 && ttBound == HFNONE)
+    if (depth >= 4 && ttDepth == DEPTH_NONE)
         depth--;
 
     // clean killers and excluded move for the next ply
@@ -446,7 +447,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
         eval = ss->staticEval = EvalPosition(pos);
         if (!excludedMove)
             // Save the eval into the TT
-            StoreTTEntry(pos->posKey, NOMOVE, SCORE_NONE, eval, HFNONE, 0, pvNode, ttPv);
+            StoreTTEntry(pos->posKey, NOMOVE, SCORE_NONE, eval, HFNONE, DEPTH_NONE, pvNode, ttPv);
     }
 
     // Improving is a very important modifier to many heuristics. It checks if our static eval has improved since our last move.
@@ -586,7 +587,7 @@ moves_loop:
                 && !excludedMove
                 && (ttBound & HFLOWER)
                 &&  abs(ttScore) < MATE_FOUND
-                &&  tte.depth >= depth - 3) {
+                &&  ttDepth >= depth - 3) {
                 const int singularBeta = ttScore - depth;
                 const int singularDepth = (depth - 1) / 2;
 
@@ -795,10 +796,13 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
     const bool ttHit = ProbeTTEntry(pos->GetPoskey(), &tte);
     const int ttScore = ttHit ? ScoreFromTT(tte.score, ss->ply) : SCORE_NONE;
     const int ttMove = ttHit ? MoveFromTT(pos, tte.move) : NOMOVE;
+    const int ttDepth = ttHit ? DepthFromTT(tte.depth) : DEPTH_NONE;
     const uint8_t ttBound = ttHit ? BoundFromTT(tte.ageBoundPV) : uint8_t(HFNONE);
+
     // If we found a value in the TT for this position, we can return it (pv nodes are excluded)
     if (   !pvNode
         &&  ttScore != SCORE_NONE
+        &&  ttDepth >= 0
         && (   (ttBound == HFUPPER && ttScore <= alpha)
             || (ttBound == HFLOWER && ttScore >= beta)
             ||  ttBound == HFEXACT))

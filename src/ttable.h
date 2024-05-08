@@ -72,4 +72,8 @@ uint8_t AgeFromTT(uint8_t ageBoundPV);
 
 uint8_t PackToTT(uint8_t bound, bool wasPV, uint8_t age);
 
+int DepthFromTT(uint8_t depth);
+
+uint8_t DepthToTT(int depth);
+
 void UpdateTableAge();

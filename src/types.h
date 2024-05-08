@@ -21,6 +21,7 @@ constexpr int MATE_SCORE = 32000;
 constexpr int MATE_FOUND = MATE_SCORE - MAXPLY;
 constexpr int SCORE_NONE = 32001;
 constexpr int MAXSCORE = 32670;
+constexpr int DEPTH_NONE = -1;
 constexpr Bitboard fullCheckmask = 0xFFFFFFFFFFFFFFFF;
 
 // board squares

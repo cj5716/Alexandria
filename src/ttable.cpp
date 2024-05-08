@@ -47,8 +47,8 @@ void StoreTTEntry(const ZobristKey key, const int16_t move, int score, int eval,
             break;
         }
 
-        if (tte->depth - ((MAX_AGE + TTAge - AgeFromTT(tte->ageBoundPV)) & AGE_MASK) * 4
-            > entry->depth - ((MAX_AGE + TTAge - AgeFromTT(entry->ageBoundPV)) & AGE_MASK) * 4) {
+        if (DepthFromTT(tte->depth) - ((MAX_AGE + TTAge - AgeFromTT(tte->ageBoundPV)) & AGE_MASK) * 4
+            > DepthFromTT(entry->depth) - ((MAX_AGE + TTAge - AgeFromTT(entry->ageBoundPV)) & AGE_MASK) * 4) {
             tte = entry;
         }
     }
@@ -61,13 +61,13 @@ void StoreTTEntry(const ZobristKey key, const int16_t move, int score, int eval,
     // Overwrite less valuable entries (cheapest checks first)
     if (   bound == HFEXACT
         || key16 != tte->ttKey
-        || depth + 5 + 2 * pv > tte->depth
+        || depth + 5 + 2 * pv > DepthFromTT(tte->depth)
         || AgeFromTT(tte->ageBoundPV) != TTAge) {
         tte->ttKey = key16;
         tte->ageBoundPV = PackToTT(bound, wasPV, TTAge);
+        tte->depth = DepthToTT(depth);
         tte->score = static_cast<int16_t>(score);
         tte->eval = static_cast<int16_t>(eval);
-        tte->depth = static_cast<uint8_t>(depth);
     }
 }
 
@@ -160,6 +160,14 @@ uint8_t AgeFromTT(uint8_t ageBoundPV) {
 
 uint8_t PackToTT(uint8_t bound, bool wasPV, uint8_t age) {
     return static_cast<uint8_t>(bound + (wasPV << 2) + (age << 3));
+}
+
+int DepthFromTT(uint8_t depth) {
+    return static_cast<int>(depth) + DEPTH_NONE;
+}
+
+uint8_t DepthToTT(int depth) {
+    return static_cast<uint8_t>(depth - DEPTH_NONE);
 }
 
 void UpdateTableAge() {
