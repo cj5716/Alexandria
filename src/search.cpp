@@ -363,7 +363,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
 
     // recursion escape condition
     if (depth <= 0)
-        return Quiescence<pvNode>(alpha, beta, td, ss);
+        return Quiescence<pvNode>(alpha, beta, 0, td, ss);
 
     // check if more than Maxtime passed and we have to stop
     if (td->id == 0 && TimeOver(&td->info)) {
@@ -513,7 +513,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
         // Razoring
         if (depth <= 5 && eval + 256 * depth < alpha)
         {
-            const int razorScore = Quiescence<false>(alpha, beta, td, ss);
+            const int razorScore = Quiescence<false>(alpha, beta, 0, td, ss);
             if (razorScore <= alpha)
                 return razorScore;
         }
@@ -761,7 +761,7 @@ moves_loop:
 
 // Quiescence search to avoid the horizon effect
 template <bool pvNode>
-int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
+int Quiescence(int alpha, int beta, int depth, ThreadData* td, SearchStack* ss) {
     Position* pos = &td->pos;
     SearchData* sd = &td->sd;
     SearchInfo* info = &td->info;
@@ -802,7 +802,7 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
     // If we found a value in the TT for this position, we can return it (pv nodes are excluded)
     if (   !pvNode
         &&  ttScore != SCORE_NONE
-        &&  ttDepth >= 0
+        &&  ttDepth >= depth
         && (   (ttBound == HFUPPER && ttScore <= alpha)
             || (ttBound == HFLOWER && ttScore >= beta)
             ||  ttBound == HFEXACT))
@@ -832,8 +832,10 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
         bestScore = ss->staticEval = EvalPosition(pos);
 
     // Stand pat
-    if (bestScore >= beta)
+    if (bestScore >= beta) {
+        if (!ttHit) StoreTTEntry(pos->posKey, NOMOVE, ScoreToTT(bestScore, ss->ply), ss->staticEval, HFLOWER, DEPTH_NONE, pvNode, ttPv);
         return bestScore;
+    }
 
     // Adjust alpha based on eval
     alpha = std::max(alpha, bestScore);
@@ -872,7 +874,7 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
         // increment nodes count
         info->nodes++;
         // Call Quiescence search recursively
-        const int score = -Quiescence<pvNode>(-beta, -alpha, td, ss + 1);
+        const int score = -Quiescence<pvNode>(-beta, -alpha, 0, td, ss + 1);
 
         // take move back
         UnmakeMove(move, pos);
