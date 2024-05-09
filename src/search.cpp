@@ -652,10 +652,12 @@ moves_loop:
                 depthReduction -= 1;
 
             // Reduce less if the TT move is absent (indicates poorer move ordering)
-            // and move is the serial killer with a very good history (likely to fail high)
+            // and move is the serial killer (very good move in general)
+            // with a very good continuation history (good response to previous moves)
+            // Which makes this move very likely to fail high
             if (   ttMove == NOMOVE
                 && move   == ss->serialKiller
-                && moveHistory >= 32768)
+                && GetCHScore(ss, move) >= 16384)
                 depthReduction -= 1;
 
             // Reduce less if we have been on the PV
