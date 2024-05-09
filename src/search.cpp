@@ -662,10 +662,9 @@ moves_loop:
             // Decrease the reduction for moves that have a good history score and increase it for moves with a bad score
             depthReduction -= moveHistory / 16384;
 
-            // adjust the reduction so that we can't drop into Qsearch and to prevent extensions
-            depthReduction = std::clamp(depthReduction, 0, newDepth - 1);
+            // Allow LMR to drop into Qsearch or extend by 1 ply
+            const int reducedDepth = std::clamp(newDepth - depthReduction, 0, newDepth + 1);
 
-            int reducedDepth = newDepth - depthReduction;
             // search current move with reduced depth:
             score = -Negamax<false>(-alpha - 1, -alpha, reducedDepth, true, td, ss + 1);
 
