@@ -397,14 +397,15 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
     }
 
     // Probe the TT for useful previous search informations, we avoid doing so if we are searching a singular extension
-    const bool ttHit = !excludedMove && ProbeTTEntry(pos->GetPoskey(), &tte);
-    const int ttScore = ttHit ? ScoreFromTT(tte.score, ss->ply) : SCORE_NONE;
-    const int ttMove = ttHit ? MoveFromTT(pos, tte.move) : NOMOVE;
-    const uint8_t ttBound = ttHit ? BoundFromTT(tte.ageBoundPV) : uint8_t(HFNONE);
+    bool ttHit = !excludedMove && ProbeTTEntry(pos->GetPoskey(), &tte);
+    int ttScore = ttHit ? ScoreFromTT(tte.score, ss->ply) : SCORE_NONE;
+    int ttMove = ttHit ? MoveFromTT(pos, tte.move) : NOMOVE;
+    int ttDepth = ttHit ? tte.depth : 0;
+    uint8_t ttBound = ttHit ? BoundFromTT(tte.ageBoundPV) : uint8_t(HFNONE);
     // If we found a value in the TT for this position, and the depth is equal or greater we can return it (pv nodes are excluded)
     if (   !pvNode
         &&  ttScore != SCORE_NONE
-        &&  tte.depth >= depth
+        &&  ttDepth >= depth
         && (   (ttBound == HFUPPER && ttScore <= alpha)
             || (ttBound == HFLOWER && ttScore >= beta)
             ||  ttBound == HFEXACT))
@@ -510,11 +511,29 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
             }
         }
         // Razoring
-        if (depth <= 5 && eval + 256 * depth < alpha)
+        if (depth <= 5 && eval + 256 * depth <= alpha)
         {
             const int razorScore = Quiescence<false>(alpha, beta, td, ss);
+
+            // The qsearch reinforced our belief that we are going to fail low
             if (razorScore <= alpha)
                 return razorScore;
+
+            // The qsearch failed high, so if we don't have a TT entry beforehand we make use of search info from the qsearch
+            // Note that the last move searched will always be the one that caused the fail high
+            else if (!ttHit) {
+                ttHit = true;
+                ttScore = razorScore;
+                ttMove = ss->move;
+                ttBound = HFLOWER;
+                ttDepth = 0;
+
+                // We can also use the tt score as a more accurate form of eval
+                if (ttScore != SCORE_NONE && ttScore > eval)
+                    eval = ttScore;
+            }
+            else if (!ttMove)
+                ttMove = ss->move;
         }
     }
 
@@ -586,7 +605,7 @@ moves_loop:
                 && !excludedMove
                 && (ttBound & HFLOWER)
                 &&  abs(ttScore) < MATE_FOUND
-                &&  tte.depth >= depth - 3) {
+                &&  ttDepth >= depth - 3) {
                 const int singularBeta = ttScore - depth;
                 const int singularDepth = (depth - 1) / 2;
 
@@ -796,6 +815,7 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
     const int ttScore = ttHit ? ScoreFromTT(tte.score, ss->ply) : SCORE_NONE;
     const int ttMove = ttHit ? MoveFromTT(pos, tte.move) : NOMOVE;
     const uint8_t ttBound = ttHit ? BoundFromTT(tte.ageBoundPV) : uint8_t(HFNONE);
+
     // If we found a value in the TT for this position, we can return it (pv nodes are excluded)
     if (   !pvNode
         &&  ttScore != SCORE_NONE
