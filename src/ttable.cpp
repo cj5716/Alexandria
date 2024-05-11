@@ -42,7 +42,7 @@ void StoreTTEntry(const ZobristKey key, const int16_t move, int score, int eval,
     for (int i = 0; i < ENTRIES_PER_BUCKET; i++) {
         TTEntry* entry = &bucket->entries[i];
 
-        if (!entry->ttKey || entry->ttKey == key16) {
+        if (BoundFromTT(entry->ageBoundPV) == HFNONE || entry->ttKey == key16) {
             tte = entry;
             break;
         }
@@ -53,21 +53,21 @@ void StoreTTEntry(const ZobristKey key, const int16_t move, int score, int eval,
         }
     }
 
-    // Replacement strategy taken from Stockfish
-    // Preserve any existing move for the same position
-    if (move || key16 != tte->ttKey)
-        tte->move = move;
-
     // Overwrite less valuable entries (cheapest checks first)
     if (   bound == HFEXACT
         || key16 != tte->ttKey
         || depth + 5 + 2 * pv > tte->depth
         || AgeFromTT(tte->ageBoundPV) != TTAge) {
+
         tte->ttKey = key16;
         tte->ageBoundPV = PackToTT(bound, wasPV, TTAge);
         tte->score = static_cast<int16_t>(score);
         tte->eval = static_cast<int16_t>(eval);
         tte->depth = static_cast<uint8_t>(depth);
+
+        // Preserve any existing move for the same position
+        if (move || key16 != tte->ttKey)
+            tte->move = move;
     }
 }
 
