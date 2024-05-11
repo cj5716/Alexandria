@@ -207,6 +207,15 @@ void ParseFen(const std::string& command, Position* pos) {
     // Update pinmasks and checkers
     UpdatePinsAndCheckers(pos, pos->side);
 
+    // If we are in check get the squares between the checking piece and the king
+    if (pos->checkers) {
+        const int checker = GetLsbIndex(pos->checkers);
+        const int kingSquare = KingSQ(pos, pos->side);
+        pos->checkMask = (1ULL << checker) | RayBetween(checker, kingSquare);
+    }
+    else
+        pos->checkMask = fullCheckmask;
+
     // Update threat masks
     UpdateThreats(pos);
 
@@ -422,14 +431,6 @@ void UpdatePinsAndCheckers(Position* pos, const int side) {
         else if (CountBits(blockers) == 1)
             pos->pinned |= blockers;
     }
-
-    // If we are in check get the squares between the checking piece and the king
-    if (pos->checkers) {
-        const int checker = GetLsbIndex(pos->checkers);
-        pos->checkMask = (1ULL << checker) | RayBetween(checker, kingSquare);
-    }
-    else
-        pos->checkMask = fullCheckmask;
 }
 
 void UpdateThreats(Position* pos) {

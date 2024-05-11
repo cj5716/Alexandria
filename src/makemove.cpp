@@ -348,10 +348,22 @@ void MakeUCIMove(const int move, Position* pos) {
 
     // change side
     pos->ChangeSide();
+
     // Xor the new side into the key
     HashKey(pos, SideKey);
+
     // Update pinmasks and checkers
     UpdatePinsAndCheckers(pos, pos->side);
+
+    // If we are in check get the squares between the checking piece and the king
+    if (pos->checkers) {
+        const int checker = GetLsbIndex(pos->checkers);
+        const int kingSquare = KingSQ(pos, pos->side);
+        pos->checkMask = (1ULL << checker) | RayBetween(checker, kingSquare);
+    }
+    else
+        pos->checkMask = fullCheckmask;
+
     // Update threat masks
     UpdateThreats(pos);
 }
@@ -398,12 +410,25 @@ void MakeMove(const int move, Position* pos) {
         MakeCapture(move, pos);
     }
     pos->historyStackHead++;
+
     // change side
     pos->ChangeSide();
+
     // Xor the new side into the key
     HashKey(pos, SideKey);
+
     // Update pinmasks and checkers
     UpdatePinsAndCheckers(pos, pos->side);
+
+    // If we are in check get the squares between the checking piece and the king
+    if (pos->checkers) {
+        const int checker = GetLsbIndex(pos->checkers);
+        const int kingSquare = KingSQ(pos, pos->side);
+        pos->checkMask = (1ULL << checker) | RayBetween(checker, kingSquare);
+    }
+    else
+        pos->checkMask = fullCheckmask;
+
     // Update threat masks
     UpdateThreats(pos);
 }
