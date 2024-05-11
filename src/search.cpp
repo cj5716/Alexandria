@@ -617,6 +617,13 @@ moves_loop:
                 else if (cutNode)
                     extension = -1;
             }
+            // Extend the TT move at low depths if it is the serial killer
+            // and has a good history which makes it likely to fail high
+            else if (   depth <= 6
+                     && move == ttMove
+                     && move == ss->serialKiller
+                     && moveHistory >= 49152)
+                extension = 1;
         }
         // we adjust the search depth based on potential extensions
         int newDepth = depth - 1 + extension;
@@ -649,15 +656,6 @@ moves_loop:
 
             // Reduce less if the move is a refutation
             if (move == mp.killer || move == mp.counter)
-                depthReduction -= 1;
-
-            // Reduce less if the TT move is absent (indicates poorer move ordering)
-            // and move is the serial killer (very good move in general)
-            // with a very good continuation history (good response to previous moves)
-            // Which makes this move very likely to fail high
-            if (   ttMove == NOMOVE
-                && move   == ss->serialKiller
-                && GetCHScore(ss, move) >= 16384)
                 depthReduction -= 1;
 
             // Reduce less if we have been on the PV
