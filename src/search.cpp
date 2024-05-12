@@ -647,6 +647,12 @@ moves_loop:
             if (!improving)
                 depthReduction += 1;
 
+            // Reduce more if we are on the back of a null move and have not failed high after searching many moves
+            // This indicates that we are failing low (since we are on a non PV node, exact bound is impossible) and
+            // null move pruning is likely to be carried out for the previous ply
+            if (!rootNode && (ss - 1)->move == NOMOVE && totalMoves > 15)
+                depthReduction += 1;
+
             // Reduce less if the move is a refutation
             if (move == mp.killer || move == mp.counter)
                 depthReduction -= 1;
