@@ -421,6 +421,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
     // clean killers and excluded move for the next ply
     (ss + 1)->excludedMove = NOMOVE;
     (ss + 1)->searchKiller = NOMOVE;
+    ss->pvDistance         = pvNode ? 0 : (ss - 1)->pvDistance + 1;
 
     // If we are in check or searching a singular extension we avoid pruning before the move loop
     if (inCheck || excludedMove) {
@@ -641,7 +642,7 @@ moves_loop:
 
             // Fuck
             if (cutNode)
-                depthReduction += 2;
+                depthReduction += 1 + std::clamp((ss->pvDistance + 7) / 10, 0, 2);
 
             // Reduce more if we are not improving
             if (!improving)
