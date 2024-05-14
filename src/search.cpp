@@ -642,7 +642,7 @@ moves_loop:
 
             // Fuck
             if (cutNode)
-                depthReduction += 1 + std::clamp((ss->pvDistance + 7) / 10, 0, 2);
+                depthReduction += 1 + std::clamp((ss->pvDistance + 13) / 17, 0, 2);
 
             // Reduce more if we are not improving
             if (!improving)
