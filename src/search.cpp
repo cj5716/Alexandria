@@ -597,8 +597,8 @@ moves_loop:
                 if (singularScore < singularBeta) {
                     extension = 1;
                     // Avoid search explosion by limiting the number of double extensions
-                    const int doubleExtMargin = 17  + 259 * pvNode + 257 * isTactical(ttMove);
-                    const int tripleExtMargin = 432 + 523 * pvNode + 512 * isTactical(ttMove);
+                    const int doubleExtMargin = std::max( 17 + 424 * pvNode, 0);
+                    const int tripleExtMargin = std::max(100 + 623 * pvNode + 612 * isTactical(ttMove), 0);
                     if (   singularScore < singularBeta - doubleExtMargin
                         && ss->doubleExtensions <= 11) {
                         extension = 2 + (singularScore < singularBeta - tripleExtMargin);
