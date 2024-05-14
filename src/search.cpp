@@ -597,10 +597,9 @@ moves_loop:
                 if (singularScore < singularBeta) {
                     extension = 1;
                     // Avoid search explosion by limiting the number of double extensions
-                    if (   !pvNode
-                        &&  singularScore < singularBeta - 17
-                        &&  ss->doubleExtensions <= 11) {
-                        extension = 2 + (!isTactical(ttMove) && singularScore < singularBeta - 100);
+                    if (   singularScore < singularBeta - 17 - 87 * pvNode
+                        && ss->doubleExtensions <= 11) {
+                        extension = 2 + (!pvNode && !isTactical(ttMove) && singularScore < singularBeta - 100);
                         ss->doubleExtensions = (ss - 1)->doubleExtensions + 1;
                         depth += depth < 10;
                     }
