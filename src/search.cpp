@@ -591,15 +591,17 @@ moves_loop:
                 const int singularDepth = (depth - 1) / 2;
 
                 ss->excludedMove = ttMove;
-                int singularScore = Negamax<false>(singularBeta - 1, singularBeta, singularDepth, cutNode, td, ss);
+                const int singularScore = Negamax<false>(singularBeta - 1, singularBeta, singularDepth, cutNode, td, ss);
                 ss->excludedMove = NOMOVE;
 
                 if (singularScore < singularBeta) {
                     extension = 1;
                     // Avoid search explosion by limiting the number of double extensions
-                    if (   singularScore < singularBeta - 17 - 87 * pvNode
+                    const int doubleExtMargin = 17  + 259 * pvNode + 257 * isTactical(ttMove);
+                    const int tripleExtMargin = 432 + 523 * pvNode + 512 * isTactical(ttMove);
+                    if (   singularScore < singularBeta - doubleExtMargin
                         && ss->doubleExtensions <= 11) {
-                        extension = 2 + (!pvNode && !isTactical(ttMove) && singularScore < singularBeta - 100);
+                        extension = 2 + (singularScore < singularBeta - tripleExtMargin);
                         ss->doubleExtensions = (ss - 1)->doubleExtensions + 1;
                         depth += depth < 10;
                     }
