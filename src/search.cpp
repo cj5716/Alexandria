@@ -528,6 +528,7 @@ moves_loop:
 
     int totalMoves = 0;
     bool skipQuiets = false;
+    bool singularNode = false;
 
     Movepicker mp;
     InitMP(&mp, pos, sd, ss, ttMove, SEARCH);
@@ -596,6 +597,8 @@ moves_loop:
 
                 if (singularScore < singularBeta) {
                     extension = 1;
+                    singularNode = true;
+
                     // Avoid search explosion by limiting the number of double extensions
                     if (   !pvNode
                         &&  singularScore < singularBeta - 17
@@ -627,8 +630,14 @@ moves_loop:
         // Play the move
         MakeMove(move, pos);
         ss->contHistEntry = &sd->contHist[PieceTo(move)];
+
         // Add any played move to the matching list
         AddMove(move, isQuiet ? &quietMoves : &noisyMoves);
+
+        // Add the singular TT move extra times so it gets an extra penalty for each ply it extends
+        if (move == ttMove && singularNode)
+            for (int i = 0; i < extension; ++i)
+                AddMove(move, isQuiet ? &quietMoves : &noisyMoves);
 
         // increment nodes count
         info->nodes++;
