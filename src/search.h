@@ -4,6 +4,10 @@
 #include "position.h"
 #include "uci.h"
 
+extern int reductions[2][MAXDEPTH][64];
+extern int lmp_margin[MAXDEPTH][2][2];
+extern int see_margin[MAXDEPTH][2];
+
 struct SearchStack {
     // don't init, it will be init by search before entering the negamax method
     int excludedMove;

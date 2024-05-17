@@ -46,7 +46,7 @@ Bitboard rook_attacks[64][4096];
 Bitboard SQUARES_BETWEEN_BB[64][64];
 
 int reductions[2][MAXDEPTH][64];
-int lmp_margin[MAXDEPTH][2];
+int lmp_margin[MAXDEPTH][2][2];
 int see_margin[MAXDEPTH][2];
 
 // Initialize the Zobrist keys
@@ -159,11 +159,13 @@ void InitReductions() {
     }
 
     for (int depth = 0; depth < MAXDEPTH; depth++) {
-        lmp_margin[depth][0] = 1.5 + 0.5 * std::pow(depth, 2.0); // Not improving
-        lmp_margin[depth][1] = 3.0 + 1.0 * std::pow(depth, 2.0); // improving
+        lmp_margin[depth][0][0] = 1.50 + 0.50 * std::pow(depth, 2.00); // Non PV, not improving
+        lmp_margin[depth][0][1] = 3.00 + 1.00 * std::pow(depth, 2.00); // Non PV, is  improving
+        lmp_margin[depth][1][0] = 1.50 + 1.00 * std::pow(depth, 2.00); // Is  PV, not improving
+        lmp_margin[depth][1][1] = 3.00 + 2.00 * std::pow(depth, 2.00); // Is  PV, is  improving
 
-        see_margin[depth][1] = -80 * depth; // Quiet moves
-        see_margin[depth][0] = -30 * depth * depth; // Non quiets
+        see_margin[depth][1] = -80.0 * std::pow(depth, 1.00); // Quiet moves
+        see_margin[depth][0] = -30.0 * std::pow(depth, 2.00); // Non quiets
 
     }
 }

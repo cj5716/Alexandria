@@ -555,10 +555,9 @@ moves_loop:
 
             if (!skipQuiets) {
 
-                // Movecount pruning: if we searched enough moves and we are not in check we skip the rest
-                if (!pvNode
-                    && !inCheck
-                    && totalMoves > lmp_margin[depth][improving]) {
+                // Late move pruning: if we searched enough moves and we are not in check we skip searching quiet moves
+                if (   !inCheck
+                    &&  totalMoves > lmp_margin[depth][pvNode][improving]) {
                     skipQuiets = true;
                 }
 
