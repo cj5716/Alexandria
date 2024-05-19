@@ -102,24 +102,39 @@ void NNUE::init(const char* file) {
     for (int bucket = 0; bucket < OUTPUT_BUCKETS; ++bucket) {
 
         // Quantise L1 Weights
+        #if defined(USE_AVX512) || defined(USE_AVX2)
         for (int i = 0; i < 2 * L1_SIZE / L1_CHUNK_SIZE; ++i)
             for (int j = 0; j < L2_SIZE; ++j)
                 for (int k = 0; k < L1_CHUNK_SIZE; ++k)
                     net.L1Weights[bucket][  i * L1_CHUNK_SIZE * L2_SIZE
                                           + j * L1_CHUNK_SIZE
                                           + k] = static_cast<int16_t>(std::round(unquantisedNet->L1Weights[i * L1_CHUNK_SIZE + k][bucket][j] * L1_QUANT));
+        #else
+        for (int i = 0; i < 2; ++i)
+            for (int j = 0; j < L2_SIZE; ++j)
+                for (int k = 0; k < L1_SIZE; ++k)
+                    net.L1Weights[bucket][  i * L1_SIZE * L2_SIZE
+                                          + j * L1_SIZE
+                                          + k] = static_cast<int16_t>(std::round(unquantisedNet->L1Weights[i * L1_SIZE + k][bucket][j] * L1_QUANT));
+        #endif
 
         // Quantise L1 Biases
         for (int i = 0; i < L2_SIZE; ++i)
             net.L1Biases[bucket][i] = unquantisedNet->L1Biases[bucket][i];
 
         // Quantise L2 Weights
+        #if defined(USE_AVX512) || defined(USE_AVX2)
         for (int i = 0; i < L2_SIZE / L2_CHUNK_SIZE; ++i)
             for (int j = 0; j < L3_SIZE; ++j)
                 for (int k = 0; k < L2_CHUNK_SIZE; ++k)
                     net.L2Weights[bucket][  i * L2_CHUNK_SIZE * L3_SIZE
                                           + j * L2_CHUNK_SIZE
                                           + k] = unquantisedNet->L2Weights[i * L2_CHUNK_SIZE + k][bucket][j];
+        #else
+        for (int i = 0; i < L2_SIZE; ++i)
+            for (int j = 0; j < L3_SIZE; ++j)
+                net.L2Weights[bucket][j * L2_SIZE + i] = unquantisedNet->L2Weights[i][bucket][j];
+        #endif
 
         // Quantise L2 Biases
         for (int i = 0; i < L3_SIZE; ++i)
@@ -252,10 +267,10 @@ void NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, 
         }
         #else
         // We shift by 3, once before squaring and once after
-        const int clipped = std::clamp(static_cast<int>(inputs[i]), ZERO, ONE) >> 1;
-        const int squared = clipped * clipped >> 1;
+        const int16_t clipped = std::clamp(static_cast<int>(inputs[i]), ZERO, ONE) >> 1;
+        const int16_t squared = clipped * clipped >> 1;
         for (int out = 0; out < L2_SIZE; ++out)
-            sums[out] += squared * weights[i * L2_SIZE + out];
+            sums[out] += squared * weights[out * L1_SIZE + i];
         #endif
     }
     for (int i = 0; i < L2_SIZE / L2_CHUNK_SIZE; ++i) {
@@ -294,7 +309,7 @@ void NNUE::ActivateL1AndAffineL2(const float *inputs, const float *weights, cons
         const float clipped = std::clamp(inputs[i], ZERO, ONE);
         const float squared = clipped * clipped;
         for (int out = 0; out < L3_SIZE; ++out)
-            sums[out] += squared * weights[i * L3_SIZE + out];
+            sums[out] += squared * weights[out * L2_SIZE + i];
         #endif
     }
 
