@@ -58,6 +58,7 @@ struct UnquantisedNetwork {
 };
 
 extern Network net;
+struct Position;
 
 class NNUE {
 public:
@@ -65,9 +66,9 @@ public:
 
     void init(const char* file);
     void add(NNUE::accumulator& board_accumulator, const int piece, const int to);
-    void update(NNUE::accumulator& board_accumulator, std::vector<NNUEIndices>& NNUEAdd, std::vector<NNUEIndices>& NNUESub);
-    void addSub(NNUE::accumulator& board_accumulator, NNUEIndices add, NNUEIndices sub);
-    void addSubSub(NNUE::accumulator& board_accumulator, NNUEIndices add, NNUEIndices sub1, NNUEIndices sub2);
+    void update(Position *pos, std::vector<NNUEIndices>& NNUEAdd, std::vector<NNUEIndices>& NNUESub);
+    void addSub(NNUE::accumulator& new_acc, NNUE::accumulator& prev_acc, NNUEIndices add, NNUEIndices sub);
+    void addSubSub(NNUE::accumulator& new_acc, NNUE::accumulator& prev_acc, NNUEIndices add, NNUEIndices sub1, NNUEIndices sub2);
     void ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, int *output);
     void ActivateL1AndAffineL2(const float *inputs, const float *weights, const float *biases, float *output);
     void ActivateL2AndAffineL3(const float *inputs, const float *weights, const float bias, float &output);
