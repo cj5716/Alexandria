@@ -148,7 +148,7 @@ void NNUE::add(NNUE::accumulator& board_accumulator, const int piece, const int 
     }
 }
 
-void NNUE::update(NNUE::accumulator& board_accumulator, std::vector<NNUEIndices>& NNUEAdd, std::vector<NNUEIndices>& NNUESub) {
+void NNUE::update(Position *pos, std::vector<NNUEIndices>& NNUEAdd, std::vector<NNUEIndices>& NNUESub) {
     int adds = NNUEAdd.size();
     int subs = NNUESub.size();
 
@@ -157,38 +157,40 @@ void NNUE::update(NNUE::accumulator& board_accumulator, std::vector<NNUEIndices>
 
     // Quiets
     if (adds == 1 && subs == 1) {
-        addSub(board_accumulator, NNUEAdd[0], NNUESub[0]);
+        addSub(pos->accumStack[pos->accumStackHead - 1], pos->accumStack[pos->accumStackHead - 2], NNUEAdd[0], NNUESub[0]);
     }
     // Captures
     else if (adds == 1 && subs == 2) {
-        addSubSub(board_accumulator, NNUEAdd[0], NNUESub[0], NNUESub[1]);
+        addSubSub(pos->accumStack[pos->accumStackHead - 1], pos->accumStack[pos->accumStackHead - 2], NNUEAdd[0], NNUESub[0], NNUESub[1]);
     }
     // Castling
     else {
-        addSub(board_accumulator, NNUEAdd[0], NNUESub[0]);
-        addSub(board_accumulator, NNUEAdd[1], NNUESub[1]);
+        addSub(pos->accumStack[pos->accumStackHead - 1], pos->accumStack[pos->accumStackHead - 2], NNUEAdd[0], NNUESub[0]);
+        addSub(pos->accumStack[pos->accumStackHead - 1], pos->accumStack[pos->accumStackHead - 1], NNUEAdd[1], NNUESub[1]);
+        // Note that for second addSub, we put accumStack[pos->accumStackHead - 1] instead of 2 because we are updating on top of
+        // the half-updated accumulator
     }
     // Reset the add and sub vectors
     NNUEAdd.clear();
     NNUESub.clear();
 }
 
-void NNUE::addSub(NNUE::accumulator& board_accumulator, NNUEIndices add, NNUEIndices sub) {
+void NNUE::addSub(NNUE::accumulator& new_acc, NNUE::accumulator& prev_acc, NNUEIndices add, NNUEIndices sub) {
     auto [whiteAddIdx, blackAddIdx] = add;
     auto [whiteSubIdx, blackSubIdx] = sub;
     auto whiteAdd = &net.FTWeights[whiteAddIdx * L1_SIZE];
     auto whiteSub = &net.FTWeights[whiteSubIdx * L1_SIZE];
     for (int i = 0; i < L1_SIZE; i++) {
-        board_accumulator[0][i] = board_accumulator[0][i] - whiteSub[i] + whiteAdd[i];
+        new_acc[0][i] = prev_acc[0][i] - whiteSub[i] + whiteAdd[i];
     }
     auto blackAdd = &net.FTWeights[blackAddIdx * L1_SIZE];
     auto blackSub = &net.FTWeights[blackSubIdx * L1_SIZE];
     for (int i = 0; i < L1_SIZE; i++) {
-        board_accumulator[1][i] = board_accumulator[1][i] - blackSub[i] + blackAdd[i];
+        new_acc[1][i] = prev_acc[1][i] - blackSub[i] + blackAdd[i];
     }
 }
 
-void NNUE::addSubSub(NNUE::accumulator& board_accumulator, NNUEIndices add, NNUEIndices sub1, NNUEIndices sub2) {
+void NNUE::addSubSub(NNUE::accumulator& new_acc, NNUE::accumulator& prev_acc, NNUEIndices add, NNUEIndices sub1, NNUEIndices sub2) {
 
     auto [whiteAddIdx, blackAddIdx] = add;
     auto [whiteSubIdx1, blackSubIdx1] = sub1;
@@ -198,13 +200,13 @@ void NNUE::addSubSub(NNUE::accumulator& board_accumulator, NNUEIndices add, NNUE
     auto whiteSub1 = &net.FTWeights[whiteSubIdx1 * L1_SIZE];
     auto whiteSub2 = &net.FTWeights[whiteSubIdx2 * L1_SIZE];
     for (int i = 0; i < L1_SIZE; i++) {
-        board_accumulator[0][i] = board_accumulator[0][i] - whiteSub1[i] - whiteSub2[i] + whiteAdd[i];
+        new_acc[0][i] = prev_acc[0][i] - whiteSub1[i] - whiteSub2[i] + whiteAdd[i];
     }
     auto blackAdd = &net.FTWeights[blackAddIdx * L1_SIZE];
     auto blackSub1 = &net.FTWeights[blackSubIdx1 * L1_SIZE];
     auto blackSub2 = &net.FTWeights[blackSubIdx2 * L1_SIZE];
     for (int i = 0; i < L1_SIZE; i++) {
-        board_accumulator[1][i] = board_accumulator[1][i] - blackSub1[i] - blackSub2[i] + blackAdd[i];
+        new_acc[1][i] = prev_acc[1][i] - blackSub1[i] - blackSub2[i] + blackAdd[i];
     }
 }
 
