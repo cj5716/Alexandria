@@ -72,4 +72,6 @@ uint8_t AgeFromTT(uint8_t ageBoundPV);
 
 uint8_t PackToTT(uint8_t bound, bool wasPV, uint8_t age);
 
+int RelativeEntryAge(uint8_t age);
+
 void UpdateTableAge();

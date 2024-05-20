@@ -36,7 +36,6 @@ void StoreTTEntry(const ZobristKey key, const int16_t move, int score, int eval,
     // Calculate index based on the position key and get the entry that already fills that index
     const uint64_t index = Index(key);
     const TTKey key16 = static_cast<TTKey>(key);
-    const uint8_t TTAge = TT.age;
     TTBucket* bucket = &TT.pTable[index];
     TTEntry* tte = &bucket->entries[0];
     for (int i = 0; i < ENTRIES_PER_BUCKET; i++) {
@@ -47,8 +46,8 @@ void StoreTTEntry(const ZobristKey key, const int16_t move, int score, int eval,
             break;
         }
 
-        if (tte->depth - ((MAX_AGE + TTAge - AgeFromTT(tte->ageBoundPV)) & AGE_MASK) * 4
-            > entry->depth - ((MAX_AGE + TTAge - AgeFromTT(entry->ageBoundPV)) & AGE_MASK) * 4) {
+        if (tte->depth - RelativeEntryAge(AgeFromTT(tte->ageBoundPV)) * 4
+            > entry->depth - RelativeEntryAge(AgeFromTT(tte->ageBoundPV)) * 4) {
             tte = entry;
         }
     }
@@ -58,13 +57,12 @@ void StoreTTEntry(const ZobristKey key, const int16_t move, int score, int eval,
     if (move || key16 != tte->ttKey)
         tte->move = move;
 
-    // Overwrite less valuable entries (cheapest checks first)
+    // Overwrite less valuable entries
     if (   bound == HFEXACT
         || key16 != tte->ttKey
-        || depth + 5 + 2 * pv > tte->depth
-        || AgeFromTT(tte->ageBoundPV) != TTAge) {
+        || depth + 5 + 2 * pv > tte->depth - RelativeEntryAge(AgeFromTT(tte->ageBoundPV)) * 6) {
         tte->ttKey = key16;
-        tte->ageBoundPV = PackToTT(bound, wasPV, TTAge);
+        tte->ageBoundPV = PackToTT(bound, wasPV, TT.age);
         tte->score = static_cast<int16_t>(score);
         tte->eval = static_cast<int16_t>(eval);
         tte->depth = static_cast<uint8_t>(depth);
@@ -160,6 +158,10 @@ uint8_t AgeFromTT(uint8_t ageBoundPV) {
 
 uint8_t PackToTT(uint8_t bound, bool wasPV, uint8_t age) {
     return static_cast<uint8_t>(bound + (wasPV << 2) + (age << 3));
+}
+
+int RelativeEntryAge(uint8_t age) {
+    return static_cast<int>((MAX_AGE + TT.age - age) & AGE_MASK);
 }
 
 void UpdateTableAge() {
