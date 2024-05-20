@@ -521,7 +521,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
 moves_loop:
 
     // old value of alpha
-    const int old_alpha = alpha;
+    const int oldAlpha = alpha;
     int bestScore = -MAXSCORE;
     int move;
     int bestMove = NOMOVE;
@@ -730,7 +730,7 @@ moves_loop:
                             sd->counterMoves[FromTo((ss - 1)->move)] = move;
                     }
                     // Update the history heuristics based on the new best move
-                    UpdateHistories(pos, sd, ss, depth + (eval <= alpha), bestMove, &quietMoves, &noisyMoves);
+                    UpdateHistories(pos, sd, ss, depth + (eval <= oldAlpha) + (score >= beta + 256), bestMove, &quietMoves, &noisyMoves);
 
                     // node (move) fails high
                     break;
@@ -750,7 +750,7 @@ moves_loop:
                             : 0;
     }
     // Set the TT bound based on whether we failed high or raised alpha
-    int bound = bestScore >= beta ? HFLOWER : alpha != old_alpha ? HFEXACT : HFUPPER;
+    int bound = bestScore >= beta ? HFLOWER : alpha != oldAlpha ? HFEXACT : HFUPPER;
 
     if (!excludedMove)
         StoreTTEntry(pos->posKey, MoveToTT(bestMove), ScoreToTT(bestScore, ss->ply), ss->staticEval, bound, depth, pvNode, ttPv);
