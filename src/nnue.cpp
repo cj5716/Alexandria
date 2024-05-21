@@ -272,15 +272,16 @@ void NNUE::ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, cons
     }
     #else
     int sums[L2_SIZE] = {};
-    for (int i = 0; i < L1_SIZE; ++i) {
-        const int16_t clippedUs   = std::clamp(us[i], int16_t(0), FT_QUANT);
-        const int16_t clippedThem = std::clamp(them[i], int16_t(0), FT_QUANT);
-        const int16_t squaredUs   = (clippedUs * clippedUs) >> 3;
-        const int16_t squaredThem = (clippedThem * clippedThem) >> 3;
-        for (int out = 0; out < L2_SIZE; ++out) {
-            sums[out] += squaredUs   * weights[out * L1_SIZE + i];
-            sums[out] += squaredThem * weights[out * L1_SIZE + i + L1_SIZE * L2_SIZE];
+    int weightIdx = 0;
+    for (const int16_t *acc : {us, them}) {
+        for (int i = 0; i < L1_SIZE; ++i) {
+            const int16_t clipped = std::clamp(acc[i], int16_t(0), FT_QUANT);
+            const int16_t squared = (clipped * clipped) >> 3;
+            for (int out = 0; out < L2_SIZE; ++out) {
+                sums[out] += squared * weights[weightIdx + out * L1_SIZE + i];
+            }
         }
+        weightIdx += L1_SIZE * L2_SIZE;
     }
 
     for (int i = 0; i < L2_SIZE; ++i) {
