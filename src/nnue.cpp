@@ -1,4 +1,5 @@
 #include "nnue.h"
+#include "simd.h"
 #include "position.h"
 #include <algorithm>
 #include <cmath>
@@ -7,7 +8,7 @@
 #include <iostream>
 #include "incbin/incbin.h"
 
-#if defined(USE_AVX512) || defined(USE_AVX2)
+#if defined(USE_SIMD)
 #include <immintrin.h>
 #endif
 
@@ -102,7 +103,7 @@ void NNUE::init(const char* file) {
     for (int bucket = 0; bucket < OUTPUT_BUCKETS; ++bucket) {
 
         // Quantise L1 Weights
-        #if defined(USE_AVX512) || defined(USE_AVX2)
+        #if defined(USE_SIMD)
         for (int i = 0; i < 2 * L1_SIZE / L1_CHUNK_SIZE; ++i)
             for (int j = 0; j < L2_SIZE; ++j)
                 for (int k = 0; k < L1_CHUNK_SIZE; ++k)
@@ -123,7 +124,7 @@ void NNUE::init(const char* file) {
             net.L1Biases[bucket][i] = unquantisedNet->L1Biases[bucket][i];
 
         // Quantise L2 Weights
-        #if defined(USE_AVX512) || defined(USE_AVX2)
+        #if defined(USE_SIMD)
         for (int i = 0; i < L2_SIZE / L2_CHUNK_SIZE; ++i)
             for (int j = 0; j < L3_SIZE; ++j)
                 for (int k = 0; k < L2_CHUNK_SIZE; ++k)
@@ -225,100 +226,97 @@ void NNUE::addSubSub(NNUE::accumulator& new_acc, NNUE::accumulator& prev_acc, NN
     }
 }
 
-void NNUE::ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, int *output) {
+void NNUE::ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, const int16_t *weights, const float *biases, float *output) {
+    #if defined(USE_SIMD)
+    VecEpi sumVecs[L2_SIZE] = {};
+    const VecEpi Zero = vec_set1_epi16(0);
+    const VecEpi One  = vec_set1_epi16(FT_QUANT);
+    int weightIdx = 0;
 
-    #if defined(USE_AVX512)
-    __m512i sumVecs[L2_SIZE] = {};
-    const __m512i *weightsVecs = reinterpret_cast<const __m512i*>(weights);
-    const __m512i *inputsVecs = reinterpret_cast<const __m512i*>(inputs);
-    const __m512i zeroVec = _mm512_set1_epi16(0);
-    const __m512i oneVec = _mm512_set1_epi16(FT_QUANT);
-    #elif defined(USE_AVX2)
-    __m256i sumVecs[L2_SIZE] = {};
-    const __m256i *weightsVecs = reinterpret_cast<const __m256i*>(weights);
-    const __m256i *inputsVecs = reinterpret_cast<const __m256i*>(inputs);
-    const __m256i zeroVec = _mm256_set1_epi16(0);
-    const __m256i oneVec = _mm256_set1_epi16(FT_QUANT);
+    for (const int16_t *acc : {us, them}) {
+        for (int i = 0; i < L1_SIZE; i += L1_CHUNK_SIZE) {
+            const VecEpi *weightVecs = reinterpret_cast<const VecEpi*>(&weights[weightIdx + i * L2_SIZE]);
+            const VecEpi inputVec    = vec_loadu_epi(reinterpret_cast<const VecEpi*>(&acc[i]));
+            const VecEpi clippedVec  = vec_max_epi16(vec_min_epi16(inputVec, One), Zero);
+
+            // What we want to achieve is to get the product of the 2 vectors, shifted right by 3,
+            // without relying on intermediate epi32 vectors. To do this, we shift left by (6+7=13)
+            // before the multiplication, before using mulhi (which strips out the bottom 16 bits,
+            // effectively shifting right by 16). This process effectively results in a net shift
+            // of 3 to the right without losing precision by shifting right before the multiplication,
+            // or giving a large slowdown due to intermediate epi32 unpacking and repacking.
+            const VecEpi clippedVec0 = vec_slli_epi16(clippedVec, 6);
+            const VecEpi clippedVec1 = vec_slli_epi16(clippedVec, 7);
+            const VecEpi squaredVec  = vec_mulhi_epu16(clippedVec0, clippedVec1);
+
+            for (int out = 0; out < L2_SIZE; ++out) {
+                const VecEpi productVec = vec_madd_epi16(squaredVec, weightVecs[out]);
+                sumVecs[out] = vec_add_epi32(sumVecs[out], productVec);
+            }
+        }
+        weightIdx += L1_SIZE * L2_SIZE;
+    }
+
+    for (int i = 0; i < L2_SIZE; i += L2_CHUNK_SIZE) {
+        const Vec256Epi sum0123 = vec256_hadd_epi32x4(reinterpret_cast<const VecEpi*>(&sumVecs[i]));
+        const Vec256Epi sum4567 = vec256_hadd_epi32x4(reinterpret_cast<const VecEpi*>(&sumVecs[i + 4]));
+        const Vec256Epi sum     = vec256_comb_epi32(sum0123, sum4567);
+        const VecPs     biasVec = vec_loadu_ps(&biases[i]);
+        const VecPs     sumDiv  = vec_set1_ps(float(FT_QUANT * FT_QUANT * L1_QUANT) / 8.0f);
+        const VecPs     sumPs   = vec_add_ps(vec_div_ps(vec_cvtepi_ps(sum), sumDiv), biasVec);
+        const VecPs     L1Zero  = vec_set1_ps(0.0f);
+        const VecPs     L1One   = vec_set1_ps(1.0f);
+        const VecPs     clipped = vec_min_ps(vec_max_ps(sumPs, L1Zero), L1One);
+        const VecPs     squared = vec_mul_ps(clipped, clipped);
+        vec_storeu_ps(&output[i], squared);
+    }
     #else
     int sums[L2_SIZE] = {};
-    constexpr int ZERO = 0;
-    constexpr int ONE = FT_QUANT;
+    for (int i = 0; i < L1_SIZE; ++i) {
+        const int16_t clippedUs   = std::clamp(us[i],   0, FT_QUANT);
+        const int16_t clippedThem = std::clamp(them[i], 0, FT_QUANT);
+        const int16_t squaredUs   = (clippedUs * clippedUs) >> 3;
+        const int16_t squaredThem = (clippedThem * clippedThem) >> 3;
+        for (int out = 0; out < L2_SIZE; ++out) {
+            sums[out] += squaredUs   * weights[out * L1_SIZE + i];
+            sums[out] += squaredThem * weights[out * L1_SIZE + i + L1_SIZE * L2_SIZE];
+        }
+    }
+
+    for (int i = 0; i < L2_SIZE; ++i) {
+        const float sumDiv  = float(FT_QUANT * FT_QUANT * L1_QUANT) / 8.0f;
+        const float clipped = std::clamp(float(sums[i]) / sumDiv, 0.0f, 1.0f);
+        output[i] = clipped * clipped;
+    }
     #endif
-    for (int i = 0; i < L1_SIZE / L1_CHUNK_SIZE; ++i) {
-        #if defined(USE_AVX512)
-        const __m512i *weightsVec = &weightsVecs[i * L2_SIZE];
-        const __m512i inputsVec  = _mm512_loadu_si512(&inputsVecs[i]);
-        // We shift by 3 to fit into a signed int16, once before squaring and once after
-        const __m512i clippedVec = _mm512_srli_epi16(_mm512_min_epi16(_mm512_max_epi16(inputsVec, zeroVec), oneVec), 1);
-        const __m512i squaredVec = _mm512_srli_epi16(_mm512_mullo_epi16(clippedVec, clippedVec), 1);
-        for (int out = 0; out < L2_SIZE; ++out) {
-            const __m512i productVec = _mm512_madd_epi16(squaredVec, weightsVec[out]);
-            sumVecs[out] = _mm512_add_epi32(sumVecs[out], productVec);
-        }
-        #elif defined(USE_AVX2)
-        const __m256i *weightsVec = &weightsVecs[i * L2_SIZE];
-        const __m256i inputsVec  = _mm256_loadu_si256(&inputsVecs[i]);
-        // We shift by 3 to fit into a signed int16, once before squaring and once after
-        const __m256i clippedVec = _mm256_srli_epi16(_mm256_min_epi16(_mm256_max_epi16(inputsVec, zeroVec), oneVec), 1);
-        const __m256i squaredVec = _mm256_srli_epi16(_mm256_mullo_epi16(clippedVec, clippedVec), 1);
-        for (int out = 0; out < L2_SIZE; ++out) {
-            const __m256i productVec = _mm256_madd_epi16(squaredVec, weightsVec[out]);
-            sumVecs[out] = _mm256_add_epi32(sumVecs[out], productVec);
-        }
-        #else
-        // We shift by 3, once before squaring and once after
-        const int16_t clipped = std::clamp(static_cast<int>(inputs[i]), ZERO, ONE) >> 1;
-        const int16_t squared = clipped * clipped >> 1;
-        for (int out = 0; out < L2_SIZE; ++out)
-            sums[out] += squared * weights[out * L1_SIZE + i];
-        #endif
-    }
-    for (int i = 0; i < L2_SIZE / L2_CHUNK_SIZE; ++i) {
-        #if defined(USE_AVX512) || defined(USE_AVX2)
-        const __m256i sum0123 = hadd_epi32x4(&sumVecs[i * L2_CHUNK_SIZE]);
-        const __m256i sum4567 = hadd_epi32x4(&sumVecs[i * L2_CHUNK_SIZE + 4]);
-        const __m256i sum = combine_m256i(sum0123, sum4567);
-        _mm256_storeu_si256(reinterpret_cast<__m256i*>(&output[i]), sum);
-        #else
-        output[i] = sums[i];
-        #endif
-    }
 }
 
-void NNUE::ActivateL1AndAffineL2(const float *inputs, const float *weights, const float *biases, float *output) {
+void NNUE::AffineL2(const float *inputs, const float *weights, const float *biases, float *output) {
 
-    #if defined(USE_AVX512) || defined(USE_AVX2)
+    #if defined(USE_SIMD)
     __m256 sumVecs[L3_SIZE] = {};
-    const __m256 zeroVec = _mm256_set1_ps(0.0f);
-    const __m256 oneVec  = _mm256_set1_ps(1.0f);
     #else
     float sums[L3_SIZE] = {};
-    constexpr float ZERO = 0.0f;
-    constexpr float ONE  = 1.0f;
     #endif
 
     for (int i = 0; i < L2_SIZE / L2_CHUNK_SIZE; ++i) {
-        #if defined(USE_AVX512) || defined(USE_AVX2)
+        #if defined(USE_SIMD)
         const __m256 *weightsVecs = reinterpret_cast<const __m256*>(weights + i * L3_SIZE * L2_CHUNK_SIZE);
         const __m256 inputsVec = _mm256_loadu_ps(inputs + i * L2_CHUNK_SIZE);
-        const __m256 clippedVec = _mm256_min_ps(_mm256_max_ps(inputsVec, zeroVec), oneVec);
-        const __m256 squaredVec = _mm256_mul_ps(clippedVec, clippedVec);
         for (int out = 0; out < L3_SIZE; ++out)
-            sumVecs[out] = _mm256_fmadd_ps(squaredVec, weightsVecs[out], sumVecs[out]);
+            sumVecs[out] = _mm256_fmadd_ps(inputsVec, weightsVecs[out], sumVecs[out]);
         #else
-        const float clipped = std::clamp(inputs[i], ZERO, ONE);
-        const float squared = clipped * clipped;
         for (int out = 0; out < L3_SIZE; ++out)
-            sums[out] += squared * weights[out * L2_SIZE + i];
+            sums[out] += inputs[i] * weights[out * L2_SIZE + i];
         #endif
     }
 
     for (int i = 0; i < L3_SIZE / L3_CHUNK_SIZE; ++i) {
         #if defined(USE_AVX512) || defined(USE_AVX2)
-        const __m256 sum0123 = hadd_psx4(&sumVecs[i * L3_CHUNK_SIZE]);
-        const __m256 sum4567 = hadd_psx4(&sumVecs[i * L3_CHUNK_SIZE + 4]);
+        const __m256 sum0123 = vec_hadd_psx4(&sumVecs[i * L3_CHUNK_SIZE]);
+        const __m256 sum4567 = vec_hadd_psx4(&sumVecs[i * L3_CHUNK_SIZE + 4]);
         const __m256 bias = _mm256_loadu_ps(&biases[i * L3_CHUNK_SIZE]);
-        const __m256 sum = _mm256_add_ps(combine_m256(sum0123, sum4567), bias);
+        const __m256 sum = _mm256_add_ps(vec_comb_ps(sum0123, sum4567), bias);
         _mm256_storeu_ps(&output[i * L3_CHUNK_SIZE], sum);
         #else
         output[i] = sums[i] + biases[i];
@@ -328,7 +326,7 @@ void NNUE::ActivateL1AndAffineL2(const float *inputs, const float *weights, cons
 
 void NNUE::ActivateL2AndAffineL3(const float *inputs, const float *weights, const float bias, float &output) {
     float sum = 0.0f;
-    #if defined(USE_AVX512) || defined(USE_AVX2)
+    #if defined(USE_SIMD)
     __m256 sumVec = _mm256_setzero_ps();
     const __m256 zeroVec = _mm256_set1_ps(0.0f);
     const __m256 oneVec  = _mm256_set1_ps(1.0f);
@@ -340,7 +338,7 @@ void NNUE::ActivateL2AndAffineL3(const float *inputs, const float *weights, cons
         const __m256 squaredVec = _mm256_mul_ps(clippedVec, clippedVec);
         sumVec = _mm256_fmadd_ps(squaredVec, weightsVec, sumVec);
     }
-    sum = _mm256_reduce_add_ps(sumVec);
+    sum = vec_reduce_add_ps(sumVec);
     #else
     for (int i = 0; i < L3_SIZE; ++i) {
         const float clipped = std::clamp(inputs[i], 0.0f, 1.0f);
@@ -352,29 +350,20 @@ void NNUE::ActivateL2AndAffineL3(const float *inputs, const float *weights, cons
 
 int NNUE::output(const NNUE::accumulator& board_accumulator, const bool whiteToMove, const int outputBucket) {
 
-    int   L1OutputsUs[L2_SIZE];
-    int   L1OutputsThem[L2_SIZE];
-    float L2Inputs[L2_SIZE];
+    float L1Outputs[L2_SIZE];
     float L2Outputs[L3_SIZE];
     float L3Output;
 
-    ActivateFTAndAffineL1(board_accumulator[!whiteToMove].data(),
-                          net.L1Weights[outputBucket],
-                          L1OutputsUs);
+    ActivateFTAndPropagateL1(board_accumulator[!whiteToMove].data(),
+                             board_accumulator[whiteToMove].data(),
+                             net.L1Weights[outputBucket],
+                             net.L1Biases[outputBucket],
+                             L1Outputs);
 
-    ActivateFTAndAffineL1(board_accumulator[whiteToMove].data(),
-                          net.L1Weights[outputBucket] + L1_SIZE * L2_SIZE,
-                          L1OutputsThem);
-
-    for (int i = 0; i < L2_SIZE; ++i) {
-        // We multiply by 8 to compensate for the earlier shift
-        L2Inputs[i] = float(L1OutputsUs[i] + L1OutputsThem[i]) / float(FT_QUANT * FT_QUANT * L1_QUANT) * 8.0f + net.L1Biases[outputBucket][i];
-    }
-
-    ActivateL1AndAffineL2(L2Inputs,
-                          net.L2Weights[outputBucket],
-                          net.L2Biases[outputBucket],
-                          L2Outputs);
+    AffineL2(L1Outputs,
+             net.L2Weights[outputBucket],
+             net.L2Biases[outputBucket],
+             L2Outputs);
 
     ActivateL2AndAffineL3(L2Outputs,
                           net.L3Weights[outputBucket],
@@ -393,66 +382,3 @@ NNUEIndices NNUE::GetIndex(const int piece, const int square) {
     std::size_t blackIdx = (1 ^ color) * COLOR_STRIDE + piecetype * PIECE_STRIDE + square;
     return {whiteIdx, blackIdx};
 }
-
-#if defined(USE_AVX512) || defined(USE_AVX2)
-float NNUE::_mm256_reduce_add_ps(const __m256 sum) {
-    
-    const __m128 upper_128 = _mm256_extractf128_ps(sum, 1);
-    const __m128 lower_128 = _mm256_castps256_ps128(sum);
-    const __m128 sum_128 = _mm_add_ps(upper_128, lower_128);
-
-    const __m128 upper_64 = _mm_movehl_ps(sum_128, sum_128);
-    const __m128 sum_64 = _mm_add_ps(upper_64, sum_128);
-
-    const __m128 upper_32 = _mm_shuffle_ps(sum_64, sum_64, 1);
-    const __m128 sum_32 = _mm_add_ss(upper_32, sum_64);
-
-    return _mm_cvtss_f32(sum_32);
-}
-
-__m256i NNUE::combine_m256i(const __m256i in0, const __m256i in1) {
-    const __m128i in0_low = _mm256_castsi256_si128(in0);
-    const __m128i in0_hi = _mm256_extracti128_si256(in0, 1);
-    const __m128i in0_m128 = _mm_add_epi32(in0_low, in0_hi);
-
-    const __m128i in1_low = _mm256_castsi256_si128(in1);
-    const __m128i in1_hi = _mm256_extracti128_si256(in1, 1);
-    const __m128i in1_m128 = _mm_add_epi32(in1_low, in1_hi);
-
-    return _mm256_inserti128_si256(_mm256_castsi128_si256(in0_m128), in1_m128, 1);
-}
-
-__m256i NNUE::hadd_epi32x4(const auto in) {
-    #if defined(USE_AVX512)
-    auto m512_to_m256 = [](const __m512i vec) {
-        const __m256i upper256 = _mm512_extracti32x8_epi32(vec, 1);
-        const __m256i lower256 = _mm512_castsi512_si256(vec);
-        return _mm256_add_epi32(lower256, upper256);
-    };
-    const __m256i sum01 = _mm256_hadd_epi32(m512_to_m256(in[0]), m512_to_m256(in[1]));
-    const __m256i sum23 = _mm256_hadd_epi32(m512_to_m256(in[2]), m512_to_m256(in[3]));
-    #elif defined(USE_AVX2)
-    const __m256i sum01 = _mm256_hadd_epi32(in[0], in[1]);
-    const __m256i sum23 = _mm256_hadd_epi32(in[2], in[3]);
-    #endif
-    return _mm256_hadd_epi32(sum01, sum23);
-}
-
-__m256 NNUE::combine_m256(const __m256 in0, const __m256 in1) {
-    const __m128 in0_low = _mm256_castps256_ps128(in0);
-    const __m128 in0_hi = _mm256_extractf128_ps(in0, 1);
-    const __m128 in0_m128 = _mm_add_ps(in0_low, in0_hi);
-
-    const __m128 in1_low = _mm256_castps256_ps128(in1);
-    const __m128 in1_hi = _mm256_extractf128_ps(in1, 1);
-    const __m128 in1_m128 = _mm_add_ps(in1_low, in1_hi);
-
-    return _mm256_insertf128_ps(_mm256_castps128_ps256(in0_m128), in1_m128, 1);
-}
-
-__m256 NNUE::hadd_psx4(const __m256* in) {
-    const __m256 sum01 = _mm256_hadd_ps(in[0], in[1]);
-    const __m256 sum23 = _mm256_hadd_ps(in[2], in[3]);
-    return _mm256_hadd_ps(sum01, sum23);
-}
-#endif
