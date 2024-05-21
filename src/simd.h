@@ -38,8 +38,9 @@ float vec_reduce_add_ps(const VecPs vec);
 Vec256Epi vec256_hadd_epi32  (const Vec256Epi vec0, const Vec256Epi vec1);
 Vec256Epi vec256_hadd_epi32x4(const VecEpi *vecs);
 Vec256Epi vec256_comb_epi32(const Vec256Epi vec0, const Vec256Epi vec1);
+
 #elif defined(USE_AVX2)
-using VecEpi    = __m512i;
+using VecEpi    = __m256i;
 using Vec256Epi = __m256i;
 using VecPs     = __m256;
 
