@@ -16,8 +16,8 @@ constexpr int L2_SIZE = 8;
 constexpr int L3_SIZE = 32;
 constexpr int OUTPUT_BUCKETS = 8;
 
-constexpr int FT_QUANT = 511;
-constexpr int L1_QUANT = 512;
+constexpr int16_t FT_QUANT = 511;
+constexpr int16_t L1_QUANT = 512;
 constexpr int NET_SCALE = 400;
 
 #if defined(USE_SIMD)

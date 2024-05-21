@@ -273,8 +273,8 @@ void NNUE::ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, cons
     #else
     int sums[L2_SIZE] = {};
     for (int i = 0; i < L1_SIZE; ++i) {
-        const int16_t clippedUs   = std::clamp(us[i],   0, FT_QUANT);
-        const int16_t clippedThem = std::clamp(them[i], 0, FT_QUANT);
+        const int16_t clippedUs   = std::clamp(us[i], int16_t(0), FT_QUANT);
+        const int16_t clippedThem = std::clamp(them[i], int16_t(0), FT_QUANT);
         const int16_t squaredUs   = (clippedUs * clippedUs) >> 3;
         const int16_t squaredThem = (clippedThem * clippedThem) >> 3;
         for (int out = 0; out < L2_SIZE; ++out) {
@@ -285,7 +285,7 @@ void NNUE::ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, cons
 
     for (int i = 0; i < L2_SIZE; ++i) {
         const float sumDiv  = float(FT_QUANT * FT_QUANT * L1_QUANT) / 8.0f;
-        const float clipped = std::clamp(float(sums[i]) / sumDiv, 0.0f, 1.0f);
+        const float clipped = std::clamp(float(sums[i]) / sumDiv + biases[i], 0.0f, 1.0f);
         output[i] = clipped * clipped;
     }
     #endif
@@ -320,7 +320,7 @@ void NNUE::PropagateL2(const float *inputs, const float *weights, const float *b
 
     for (int i = 0; i < L2_SIZE; ++i) {
         for (int out = 0; out < L3_SIZE; ++out) {
-            sums[out] = inputs[i] * weights[out * L2_SIZE + i];
+            sums[out] += inputs[i] * weights[out * L2_SIZE + i];
         }
     }
 
