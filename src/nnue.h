@@ -67,8 +67,8 @@ public:
     void addSub(NNUE::accumulator& new_acc, NNUE::accumulator& prev_acc, NNUEIndices add, NNUEIndices sub);
     void addSubSub(NNUE::accumulator& new_acc, NNUE::accumulator& prev_acc, NNUEIndices add, NNUEIndices sub1, NNUEIndices sub2);
     void ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, const int16_t *weights, const float *biases, float *output);
-    void AffineL2(const float *inputs, const float *weights, const float *biases, float *output);
-    void ActivateL2AndAffineL3(const float *inputs, const float *weights, const float bias, float &output);
+    void PropagateL2(const float *inputs, const float *weights, const float *biases, float *output);
+    void PropagateL3(const float *inputs, const float *weights, const float bias, float &output);
     [[nodiscard]] int output(const NNUE::accumulator& board_accumulator, const bool whiteToMove, const int outputBucket);
     [[nodiscard]] NNUEIndices GetIndex(const int piece, const int square);
 };
