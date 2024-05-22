@@ -3,8 +3,9 @@
 #include <cstdint>
 #include <array>
 #include <vector>
+#include "simd.h"
 
-#if defined(USE_AVX512) || defined(USE_AVX2)
+#if defined(USE_SIMD)
 #include <immintrin.h>
 #endif
 
@@ -15,18 +16,14 @@ constexpr int L2_SIZE = 8;
 constexpr int L3_SIZE = 32;
 constexpr int OUTPUT_BUCKETS = 8;
 
-constexpr int FT_QUANT = 511;
-constexpr int L1_QUANT = 512;
+constexpr int16_t FT_QUANT = 511;
+constexpr int16_t L1_QUANT = 512;
 constexpr int NET_SCALE = 400;
 
-#if defined(USE_AVX512)
-constexpr int L1_CHUNK_SIZE = sizeof(__m512i) / sizeof(int16_t);
-constexpr int L2_CHUNK_SIZE = sizeof(__m256) / sizeof(float);
-constexpr int L3_CHUNK_SIZE = sizeof(__m256) / sizeof(float);
-#elif defined(USE_AVX2)
-constexpr int L1_CHUNK_SIZE = sizeof(__m256i) / sizeof(int16_t);
-constexpr int L2_CHUNK_SIZE = sizeof(__m256) / sizeof(float);
-constexpr int L3_CHUNK_SIZE = sizeof(__m256) / sizeof(float);
+#if defined(USE_SIMD)
+constexpr int L1_CHUNK_SIZE = sizeof(VecEpi) / sizeof(int16_t);
+constexpr int L2_CHUNK_SIZE = sizeof(VecPs) / sizeof(float);
+constexpr int L3_CHUNK_SIZE = sizeof(VecPs) / sizeof(float);
 #else
 constexpr int L1_CHUNK_SIZE = 1;
 constexpr int L2_CHUNK_SIZE = 1;
@@ -69,16 +66,9 @@ public:
     void update(Position *pos, std::vector<NNUEIndices>& NNUEAdd, std::vector<NNUEIndices>& NNUESub);
     void addSub(NNUE::accumulator& new_acc, NNUE::accumulator& prev_acc, NNUEIndices add, NNUEIndices sub);
     void addSubSub(NNUE::accumulator& new_acc, NNUE::accumulator& prev_acc, NNUEIndices add, NNUEIndices sub1, NNUEIndices sub2);
-    void ActivateFTAndAffineL1(const int16_t *inputs, const int16_t *weights, int *output);
-    void ActivateL1AndAffineL2(const float *inputs, const float *weights, const float *biases, float *output);
-    void ActivateL2AndAffineL3(const float *inputs, const float *weights, const float bias, float &output);
+    void ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, const int16_t *weights, const float *biases, float *output);
+    void PropagateL2(const float *inputs, const float *weights, const float *biases, float *output);
+    void PropagateL3(const float *inputs, const float *weights, const float bias, float &output);
     [[nodiscard]] int output(const NNUE::accumulator& board_accumulator, const bool whiteToMove, const int outputBucket);
     [[nodiscard]] NNUEIndices GetIndex(const int piece, const int square);
-    #if defined(USE_AVX512) || defined(USE_AVX2)
-    [[nodiscard]] float _mm256_reduce_add_ps(const __m256 sum);
-    [[nodiscard]] __m256i combine_m256i(const __m256i in0, const __m256i in1);
-    [[nodiscard]] __m256i hadd_epi32x4(const auto in);
-    [[nodiscard]] __m256  combine_m256(const __m256 in0, const __m256 in1);
-    [[nodiscard]] __m256  hadd_psx4(const __m256* in);
-    #endif
 };
