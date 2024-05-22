@@ -57,12 +57,12 @@ else
 	ifneq ($(findstring __AVX512F__, $(PROPERTIES)),)
 		ifneq ($(findstring __AVX512BW__, $(PROPERTIES)),)
 			ifneq ($(findstring __AVX512DQ__, $(PROPERTIES)),)
-				CXXFLAGS += -DUSE_AVX512 -mavx512f -mavx512bw -mavx512dq -mfma
+				CXXFLAGS += -DUSE_AVX512 -DUSE_SIMD -mavx512f -mavx512bw -mavx512dq -mfma
 			endif
 		endif
 	endif
 	ifneq ($(findstring __AVX2__, $(PROPERTIES)),)
-		CXXFLAGS += -DUSE_AVX2 -mavx2 -mfma
+		CXXFLAGS += -DUSE_AVX2 -DUSE_SIMD -mavx2 -mfma
 	endif
 	ifneq ($(findstring __BMI2__, $(PROPERTIES)),)
 		CXXFLAGS += -mbmi2
@@ -77,12 +77,12 @@ ifeq ($(build), native)
 	ifneq ($(findstring __AVX512F__, $(PROPERTIES)),)
 		ifneq ($(findstring __AVX512BW__, $(PROPERTIES)),)
 			ifneq ($(findstring __AVX512DQ__, $(PROPERTIES)),)
-				CXXFLAGS += -DUSE_AVX512 -mavx512f -mavx512bw -mavx512dq -mfma
+				CXXFLAGS += -DUSE_AVX512 -DUSE_SIMD -mavx512f -mavx512bw -mavx512dq -mfma
 			endif
 		endif
 	endif
 	ifneq ($(findstring __AVX2__, $(PROPERTIES)),)
-		CXXFLAGS += -DUSE_AVX2 -mavx2 -mfma
+		CXXFLAGS += -DUSE_AVX2 -DUSE_SIMD -mavx2 -mfma
 	endif
 	ifneq ($(findstring __BMI2__, $(PROPERTIES)),)
 		CXXFLAGS += -mbmi2
@@ -104,19 +104,19 @@ endif
 ifeq ($(build), x86-64-avx2)
 	NATIVE    = -march=bdver4 -mno-tbm -mno-sse4a -mno-bmi2
 	ARCH      = -x86-64-avx2
-	CXXFLAGS += -DUSE_AVX2 -mavx2 -mfma
+	CXXFLAGS += -DUSE_AVX2 -DUSE_SIMD -mavx2 -mfma
 endif
 
 ifeq ($(build), x86-64-bmi2)
 	NATIVE    = -march=haswell
 	ARCH      = -x86-64-bmi2
-	CXXFLAGS += -DUSE_AVX2 -mavx2 -mbmi2 -mfma
+	CXXFLAGS += -DUSE_AVX2 -DUSE_SIMD -mavx2 -mbmi2 -mfma
 endif
 
 ifeq ($(build), x86-64-avx512)
 	NATIVE    = -march=x86-64-v4 -mtune=znver4
 	ARCH      = -x86-64-avx512
-	CXXFLAGS += -DUSE_AVX512 -DUSE_AVX2 -mavx2 -mavx512f -mavx512bw -mavx512dq -mfma
+	CXXFLAGS += -DUSE_AVX512 -DUSE_AVX2 -DUSE_SIMD -mavx2 -mavx512f -mavx512bw -mavx512dq -mfma
 endif
 
 ifeq ($(build), debug)
@@ -127,12 +127,12 @@ ifeq ($(build), debug)
 	ifneq ($(findstring __AVX512F__, $(PROPERTIES)),)
 		ifneq ($(findstring __AVX512BW__, $(PROPERTIES)),)
 			ifneq ($(findstring __AVX512DQ__, $(PROPERTIES)),)
-				CXXFLAGS += -DUSE_AVX512 -mavx512f -mavx512bw -mavx512dq -mfma
+				CXXFLAGS += -DUSE_AVX512 -DUSE_SIMD -mavx512f -mavx512bw -mavx512dq -mfma
 			endif
 		endif
 	endif
 	ifneq ($(findstring __AVX2__, $(PROPERTIES)),)
-		CXXFLAGS += -DUSE_AVX2 -mavx2 -mfma
+		CXXFLAGS += -DUSE_AVX2 -DUSE_SIMD -mavx2 -mfma
 	endif
 	ifneq ($(findstring __BMI2__, $(PROPERTIES)),)
 		CXXFLAGS += -mbmi2
