@@ -235,54 +235,25 @@ void NNUE::ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, cons
 
     for (const int16_t *acc : {us, them}) {
         for (int i = 0; i < L1_SIZE; i += 4 * L1_CHUNK_SIZE) {
-            const int i0 = i + 0 * L1_CHUNK_SIZE;
-            const int i1 = i + 1 * L1_CHUNK_SIZE;
-            const int i2 = i + 2 * L1_CHUNK_SIZE;
-            const int i3 = i + 3 * L1_CHUNK_SIZE;
+            for (int j = i; j < i + 4 * L1_CHUNK_SIZE; j += L1_CHUNK_SIZE) {
+                const VecEpi *weightVecs = reinterpret_cast<const VecEpi*>(&weights[weightIdx + j * L2_SIZE]);
+                const VecEpi inputVec    = vec_loadu_epi(reinterpret_cast<const VecEpi*>(&acc[j]));
+                const VecEpi clippedVec  = vec_max_epi16(vec_min_epi16(inputVec, One), Zero);
 
-            const VecEpi inputVec0 = vec_loadu_epi(reinterpret_cast<const VecEpi*>(&acc[i0]));
-            const VecEpi inputVec1 = vec_loadu_epi(reinterpret_cast<const VecEpi*>(&acc[i1]));
-            const VecEpi inputVec2 = vec_loadu_epi(reinterpret_cast<const VecEpi*>(&acc[i2]));
-            const VecEpi inputVec3 = vec_loadu_epi(reinterpret_cast<const VecEpi*>(&acc[i3]));
+                // What we want to achieve is to get the product of the 2 vectors, shifted right by 3,
+                // without relying on intermediate epi32 vectors. To do this, we shift left by (6+7=13)
+                // before the multiplication, before using mulhi (which strips out the bottom 16 bits,
+                // effectively shifting right by 16). This process effectively results in a net shift
+                // of 3 to the right without losing precision by shifting right before the multiplication,
+                // or giving a large slowdown due to intermediate epi32 unpacking and repacking.
+                const VecEpi clippedVecA = vec_slli_epi16(clippedVec, 6);
+                const VecEpi clippedVecB = vec_slli_epi16(clippedVec, 7);
+                const VecEpi squaredVec  = vec_mulhi_epu16(clippedVecA, clippedVecB);
 
-            const VecEpi clippedVec0 = vec_max_epi16(vec_min_epi16(inputVec0, One), Zero);
-            const VecEpi clippedVec1 = vec_max_epi16(vec_min_epi16(inputVec1, One), Zero);
-            const VecEpi clippedVec2 = vec_max_epi16(vec_min_epi16(inputVec2, One), Zero);
-            const VecEpi clippedVec3 = vec_max_epi16(vec_min_epi16(inputVec3, One), Zero);
-
-            // What we want to achieve is to get the product of the 2 vectors, shifted right by 3,
-            // without relying on intermediate epi32 vectors. To do this, we shift left by (6+7=13)
-            // before the multiplication, before using mulhi (which strips out the bottom 16 bits,
-            // effectively shifting right by 16). This process effectively results in a net shift
-            // of 3 to the right without losing precision by shifting right before the multiplication,
-            // or giving a large slowdown due to intermediate epi32 unpacking and repacking.
-            const VecEpi clippedVec0A = vec_slli_epi16(clippedVec0, 6);
-            const VecEpi clippedVec0B = vec_slli_epi16(clippedVec0, 7);
-            const VecEpi clippedVec1A = vec_slli_epi16(clippedVec1, 6);
-            const VecEpi clippedVec1B = vec_slli_epi16(clippedVec1, 7);
-            const VecEpi clippedVec2A = vec_slli_epi16(clippedVec2, 6);
-            const VecEpi clippedVec2B = vec_slli_epi16(clippedVec2, 7);
-            const VecEpi clippedVec3A = vec_slli_epi16(clippedVec3, 6);
-            const VecEpi clippedVec3B = vec_slli_epi16(clippedVec3, 7);
-
-            const VecEpi squaredVec0  = vec_mulhi_epu16(clippedVec0A, clippedVec0B);
-            const VecEpi squaredVec1  = vec_mulhi_epu16(clippedVec1A, clippedVec1B);
-            const VecEpi squaredVec2  = vec_mulhi_epu16(clippedVec2A, clippedVec2B);
-            const VecEpi squaredVec3  = vec_mulhi_epu16(clippedVec3A, clippedVec3B);
-
-            const VecEpi *weightVecs0 = reinterpret_cast<const VecEpi*>(&weights[weightIdx + i0 * L2_SIZE]);
-            const VecEpi *weightVecs1 = reinterpret_cast<const VecEpi*>(&weights[weightIdx + i1 * L2_SIZE]);
-            const VecEpi *weightVecs2 = reinterpret_cast<const VecEpi*>(&weights[weightIdx + i2 * L2_SIZE]);
-            const VecEpi *weightVecs3 = reinterpret_cast<const VecEpi*>(&weights[weightIdx + i3 * L2_SIZE]);
-            for (int out = 0; out < L2_SIZE; ++out) {
-                const VecEpi productVec0 = vec_madd_epi16(squaredVec0, weightVecs0[out]);
-                const VecEpi productVec1 = vec_madd_epi16(squaredVec1, weightVecs1[out]);
-                const VecEpi productVec2 = vec_madd_epi16(squaredVec2, weightVecs2[out]);
-                const VecEpi productVec3 = vec_madd_epi16(squaredVec3, weightVecs3[out]);
-                sumVecs[out] = vec_add_epi32(sumVecs[out], productVec0);
-                sumVecs[out] = vec_add_epi32(sumVecs[out], productVec1);
-                sumVecs[out] = vec_add_epi32(sumVecs[out], productVec2);
-                sumVecs[out] = vec_add_epi32(sumVecs[out], productVec3);
+                for (int out = 0; out < L2_SIZE; ++out) {
+                    const VecEpi productVec = vec_madd_epi16(squaredVec, weightVecs[out]);
+                    sumVecs[out] = vec_add_epi32(sumVecs[out], productVec);
+                }
             }
         }
         weightIdx += L1_SIZE * L2_SIZE;
