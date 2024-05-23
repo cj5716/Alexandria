@@ -528,6 +528,7 @@ moves_loop:
 
     int totalMoves = 0;
     bool skipQuiets = false;
+    bool futilityPruned = false;
 
     Movepicker mp;
     InitMP(&mp, pos, sd, ss, ttMove, SEARCH);
@@ -553,22 +554,28 @@ moves_loop:
             // lmrDepth is the current depth minus the reduction the move would undergo in lmr, this is helpful because it helps us discriminate the bad moves with more accuracy
             const int lmrDepth = std::max(0, depth - reductions[isQuiet][depth][std::min(totalMoves, 63)] + moveHistory / 16384);
 
-            if (!skipQuiets) {
-
-                // Movecount pruning: if we searched enough moves and we are not in check we skip the rest
-                if (!pvNode
-                    && !inCheck
-                    && totalMoves > lmp_margin[depth][improving]) {
-                    skipQuiets = true;
-                }
-
-                // Futility pruning: if the static eval is so low that even after adding a bonus we are still under alpha we can stop trying quiet moves
-                if (!inCheck
-                    && lmrDepth < 11
-                    && ss->staticEval + 250 + 150 * lmrDepth <= alpha) {
-                    skipQuiets = true;
-                }
+            // Movecount pruning: if we searched enough moves and we are not in check we skip the rest
+            if (!pvNode
+                && !inCheck
+                && totalMoves > lmp_margin[depth][improving]) {
+                skipQuiets = true;
             }
+
+            // Futility pruning: if the static eval is so low that even after adding a bonus we are still under alpha we can stop trying quiet moves
+            if (!inCheck
+                && lmrDepth < 11
+                && ss->staticEval + 250 + 150 * lmrDepth <= alpha) {
+                skipQuiets = true;
+                futilityPruned = true;
+            }
+
+            // Bad capture pruning: if we have already activated futility pruning,
+            // we skip captures with very bad history
+            if (   depth <= 6
+                && futilityPruned
+                && mp.stage == PICK_BAD_NOISY
+                && moveHistory <= -5716 * depth)
+                continue;
 
             // See pruning: prune all the moves that have a SEE score that is lower than our threshold
             if (    depth <= 8
