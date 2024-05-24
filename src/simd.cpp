@@ -60,7 +60,7 @@ float vec_reduce_add_ps(const VecPs vec) {
 Vec256Epi vec256_hadd_epi32  (const Vec256Epi vec0, const Vec256Epi vec1) { return _mm256_hadd_epi32(vec0, vec1); }
 Vec256Epi vec256_hadd_epi32x4(const VecEpi *vecs) {
     auto cvt_vec512i_vec256i = [](const VecEpi vec) {
-        const Vec256Epi upper256 = _mm512_extracti32x8_epi32(vec, 1);
+        const Vec256Epi upper256 = _mm512_extracti64x4_epi64(vec, 1); // same as _mm512_extracti32x8_epi32, but doesn't require AVX512DQ
         const Vec256Epi lower256 = _mm512_castsi512_si256(vec);
         return _mm256_add_epi32(lower256, upper256);
     };

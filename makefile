@@ -9,7 +9,7 @@ CXXFLAGS    :=  -funroll-loops -O3 -flto -fno-exceptions -std=gnu++2a -DNDEBUG $
 NATIVE       = -march=native
 AVX2FLAGS    = -DUSE_AVX2 -DUSE_SIMD -mavx2 -mbmi -mfma
 BMI2FLAGS    = $(AVX2FLAGS) -mbmi2
-AVX512FLAGS  = $(BMI2FLAGS) -DUSE_AVX512 -mavx512f -mavx512bw -mavx512dq
+AVX512FLAGS  = $(BMI2FLAGS) -DUSE_AVX512 -mavx512f -mavx512bw
 
 # engine name
 NAME        := Alexandria
@@ -54,9 +54,7 @@ ARCH_DETECTED =
 PROPERTIES = $(shell echo | $(CXX) -march=native -E -dM -)
 ifneq ($(findstring __AVX512F__, $(PROPERTIES)),)
 	ifneq ($(findstring __AVX512BW__, $(PROPERTIES)),)
-		ifneq ($(findstring __AVX512DQ__, $(PROPERTIES)),)
-			ARCH_DETECTED = AVX512
-		endif
+		ARCH_DETECTED = AVX512
 	endif
 endif
 ifeq ($(ARCH_DETECTED),)
