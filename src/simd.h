@@ -72,9 +72,15 @@ inline Vec256Epi vec256_hadd_epi32x8(const VecEpi *vecs) {
     const Vec256Epi sum0123 = _mm256_hadd_epi32(sum01, sum23);
     const Vec256Epi sum4567 = _mm256_hadd_epi32(sum45, sum67);
 
-    const Vec256Epi sumA = _mm256_permute2x128_si256(sum0123, sum4567, 0x20);
-    const Vec256Epi sumB = _mm256_permute2x128_si256(sum0123, sum4567, 0x31);
-    return _mm256_add_epi32(sumA, sumB);
+    const __m128i sumALow = _mm256_castsi256_si128(sum0123);
+    const __m128i sumAHi  = _mm256_extracti128_si256(sum0123, 1);
+    const __m128i sumA    = _mm_add_epi32(sumALow, sumAHi);
+
+    const __m128i sumBLow = _mm256_castsi256_si128(sum4567);
+    const __m128i sumBHi  = _mm256_extracti128_si256(sum4567, 1);
+    const __m128i sumB    = _mm_add_epi32(sumBLow, sumBHi);
+
+    return _mm256_inserti128_si256(_mm256_castsi128_si256(sumA), sumB, 1);
 }
 
 #elif defined(USE_AVX2)
@@ -139,8 +145,14 @@ inline Vec256Epi vec256_hadd_epi32x8(const VecEpi *vecs) {
     const Vec256Epi sum0123 = _mm256_hadd_epi32(sum01, sum23);
     const Vec256Epi sum4567 = _mm256_hadd_epi32(sum45, sum67);
 
-    const Vec256Epi sumA = _mm256_permute2x128_si256(sum0123, sum4567, 0x20);
-    const Vec256Epi sumB = _mm256_permute2x128_si256(sum0123, sum4567, 0x31);
-    return _mm256_add_epi32(sumA, sumB);
+    const __m128i sumALow = _mm256_castsi256_si128(sum0123);
+    const __m128i sumAHi  = _mm256_extracti128_si256(sum0123, 1);
+    const __m128i sumA    = _mm_add_epi32(sumALow, sumAHi);
+
+    const __m128i sumBLow = _mm256_castsi256_si128(sum4567);
+    const __m128i sumBHi  = _mm256_extracti128_si256(sum4567, 1);
+    const __m128i sumB    = _mm_add_epi32(sumBLow, sumBHi);
+
+    return _mm256_inserti128_si256(_mm256_castsi128_si256(sumA), sumB, 1);
 }
 #endif
