@@ -30,23 +30,20 @@ inline VecPs vec_div_ps    (const VecPs vec0, const VecPs vec1) { return _mm256_
 inline VecPs vec_max_ps    (const VecPs vec0, const VecPs vec1) { return _mm256_max_ps(vec0, vec1); }
 inline VecPs vec_min_ps    (const VecPs vec0, const VecPs vec1) { return _mm256_min_ps(vec0, vec1); }
 inline VecPs vec_mul_add_ps(const VecPs vec0, const VecPs vec1, const VecPs vec2) { return _mm256_fmadd_ps(vec0, vec1, vec2); }
-inline VecPs vec_hadd_ps   (const VecPs vec0, const VecPs vec1) { return _mm256_hadd_ps(vec0, vec1); }
-inline VecPs vec_hadd_psx4 (const VecPs *vecs) {
-    const VecPs sum01 = vec_hadd_ps(vecs[0], vecs[1]);
-    const VecPs sum23 = vec_hadd_ps(vecs[2], vecs[3]);
-    return vec_hadd_ps(sum01, sum23);
-}
-inline VecPs vec_comb_ps(const VecPs vec0, const VecPs vec1) {
-    const __m128 vec0_low = _mm256_castps256_ps128(vec0);
-    const __m128 vec0_hi = _mm256_extractf128_ps(vec0, 1);
-    const __m128 vec0_m128 = _mm_add_ps(vec0_low, vec0_hi);
+inline VecPs vec_hadd_psx8 (const VecPs *vecs) {
+    const VecPs sum01 = _mm256_hadd_ps(vecs[0], vecs[1]);
+    const VecPs sum23 = _mm256_hadd_ps(vecs[2], vecs[3]);
+    const VecPs sum45 = _mm256_hadd_ps(vecs[4], vecs[5]);
+    const VecPs sum67 = _mm256_hadd_ps(vecs[6], vecs[7]);
 
-    const __m128 vec1_low = _mm256_castps256_ps128(vec1);
-    const __m128 vec1_hi = _mm256_extractf128_ps(vec1, 1);
-    const __m128 vec1_m128 = _mm_add_ps(vec1_low, vec1_hi);
+    const VecPs sum0123 = _mm256_hadd_ps(sum01, sum23);
+    const VecPs sum4567 = _mm256_hadd_ps(sum45, sum67);
 
-    return _mm256_insertf128_ps(_mm256_castps128_ps256(vec0_m128), vec1_m128, 1);
+    const VecPs sumA = _mm256_permute2f128_ps(sum0123, sum4567, 0x20);
+    const VecPs sumB = _mm256_permute2f128_ps(sum0123, sum4567, 0x31);
+    return _mm256_add_ps(sumA, sumB);
 }
+
 inline float vec_reduce_add_ps(const VecPs vec) {
     const __m128 upper_128 = _mm256_extractf128_ps(vec, 1);
     const __m128 lower_128 = _mm256_castps256_ps128(vec);
@@ -61,8 +58,7 @@ inline float vec_reduce_add_ps(const VecPs vec) {
     return _mm_cvtss_f32(sum_32);
 }
 
-inline Vec256Epi vec256_hadd_epi32  (const Vec256Epi vec0, const Vec256Epi vec1) { return _mm256_hadd_epi32(vec0, vec1); }
-inline Vec256Epi vec256_hadd_epi32x4(const VecEpi *vecs) {
+inline Vec256Epi vec256_hadd_epi32x8(const VecEpi *vecs) {
     auto cvt_vec512i_vec256i = [](const VecEpi vec) {
         const Vec256Epi upper256 = _mm512_extracti64x4_epi64(vec, 1); // same as _mm512_extracti32x8_epi32, but doesn't require AVX512DQ
         const Vec256Epi lower256 = _mm512_castsi512_si256(vec);
@@ -70,18 +66,15 @@ inline Vec256Epi vec256_hadd_epi32x4(const VecEpi *vecs) {
     };
     const Vec256Epi sum01 = _mm256_hadd_epi32(cvt_vec512i_vec256i(vecs[0]), cvt_vec512i_vec256i(vecs[1]));
     const Vec256Epi sum23 = _mm256_hadd_epi32(cvt_vec512i_vec256i(vecs[2]), cvt_vec512i_vec256i(vecs[3]));
-    return _mm256_hadd_epi32(sum01, sum23);
-}
-inline Vec256Epi vec256_comb_epi32(const Vec256Epi vec0, const Vec256Epi vec1) {
-    const __m128i vec0_low = _mm256_castsi256_si128(vec0);
-    const __m128i vec0_hi = _mm256_extracti128_si256(vec0, 1);
-    const __m128i vec0_m128 = _mm_add_epi32(vec0_low, vec0_hi);
+    const Vec256Epi sum45 = _mm256_hadd_epi32(cvt_vec512i_vec256i(vecs[4]), cvt_vec512i_vec256i(vecs[5]));
+    const Vec256Epi sum67 = _mm256_hadd_epi32(cvt_vec512i_vec256i(vecs[6]), cvt_vec512i_vec256i(vecs[7]));
 
-    const __m128i vec1_low = _mm256_castsi256_si128(vec1);
-    const __m128i vec1_hi = _mm256_extracti128_si256(vec1, 1);
-    const __m128i vec1_m128 = _mm_add_epi32(vec1_low, vec1_hi);
+    const Vec256Epi sum0123 = _mm256_hadd_epi32(sum01, sum23);
+    const Vec256Epi sum4567 = _mm256_hadd_epi32(sum45, sum67);
 
-    return _mm256_inserti128_si256(_mm256_castsi128_si256(vec0_m128), vec1_m128, 1);
+    const Vec256Epi sumA = _mm256_permute2x128_si256(sum0123, sum4567, 0x20);
+    const Vec256Epi sumB = _mm256_permute2x128_si256(sum0123, sum4567, 0x31);
+    return _mm256_add_epi32(sumA, sumB);
 }
 
 #elif defined(USE_AVX2)
@@ -109,23 +102,20 @@ inline VecPs vec_div_ps    (const VecPs vec0, const VecPs vec1) { return _mm256_
 inline VecPs vec_max_ps    (const VecPs vec0, const VecPs vec1) { return _mm256_max_ps(vec0, vec1); }
 inline VecPs vec_min_ps    (const VecPs vec0, const VecPs vec1) { return _mm256_min_ps(vec0, vec1); }
 inline VecPs vec_mul_add_ps(const VecPs vec0, const VecPs vec1, const VecPs vec2) { return _mm256_fmadd_ps(vec0, vec1, vec2); }
-inline VecPs vec_hadd_ps   (const VecPs vec0, const VecPs vec1) { return _mm256_hadd_ps(vec0, vec1); }
-inline VecPs vec_hadd_psx4 (const VecPs *vecs) {
-    const VecPs sum01 = vec_hadd_ps(vecs[0], vecs[1]);
-    const VecPs sum23 = vec_hadd_ps(vecs[2], vecs[3]);
-    return vec_hadd_ps(sum01, sum23);
-}
-inline VecPs vec_comb_ps(const VecPs vec0, const VecPs vec1) {
-    const __m128 vec0_low = _mm256_castps256_ps128(vec0);
-    const __m128 vec0_hi = _mm256_extractf128_ps(vec0, 1);
-    const __m128 vec0_m128 = _mm_add_ps(vec0_low, vec0_hi);
+inline VecPs vec_hadd_psx8 (const VecPs *vecs) {
+    const VecPs sum01 = _mm256_hadd_ps(vecs[0], vecs[1]);
+    const VecPs sum23 = _mm256_hadd_ps(vecs[2], vecs[3]);
+    const VecPs sum45 = _mm256_hadd_ps(vecs[4], vecs[5]);
+    const VecPs sum67 = _mm256_hadd_ps(vecs[6], vecs[7]);
 
-    const __m128 vec1_low = _mm256_castps256_ps128(vec1);
-    const __m128 vec1_hi = _mm256_extractf128_ps(vec1, 1);
-    const __m128 vec1_m128 = _mm_add_ps(vec1_low, vec1_hi);
+    const VecPs sum0123 = _mm256_hadd_ps(sum01, sum23);
+    const VecPs sum4567 = _mm256_hadd_ps(sum45, sum67);
 
-    return _mm256_insertf128_ps(_mm256_castps128_ps256(vec0_m128), vec1_m128, 1);
+    const VecPs sumA = _mm256_permute2f128_ps(sum0123, sum4567, 0x20);
+    const VecPs sumB = _mm256_permute2f128_ps(sum0123, sum4567, 0x31);
+    return _mm256_add_ps(sumA, sumB);
 }
+
 inline float vec_reduce_add_ps(const VecPs vec) {
     const __m128 upper_128 = _mm256_extractf128_ps(vec, 1);
     const __m128 lower_128 = _mm256_castps256_ps128(vec);
@@ -140,21 +130,17 @@ inline float vec_reduce_add_ps(const VecPs vec) {
     return _mm_cvtss_f32(sum_32);
 }
 
-inline Vec256Epi vec256_hadd_epi32  (const Vec256Epi vec0, const Vec256Epi vec1) { return _mm256_hadd_epi32(vec0, vec1); }
-inline Vec256Epi vec256_hadd_epi32x4(const VecEpi *vecs) {
+inline Vec256Epi vec256_hadd_epi32x8(const VecEpi *vecs) {
     const Vec256Epi sum01 = _mm256_hadd_epi32(vecs[0], vecs[1]);
     const Vec256Epi sum23 = _mm256_hadd_epi32(vecs[2], vecs[3]);
-    return _mm256_hadd_epi32(sum01, sum23);
-}
-inline Vec256Epi vec256_comb_epi32(const Vec256Epi vec0, const Vec256Epi vec1) {
-    const __m128i vec0_low = _mm256_castsi256_si128(vec0);
-    const __m128i vec0_hi = _mm256_extracti128_si256(vec0, 1);
-    const __m128i vec0_m128 = _mm_add_epi32(vec0_low, vec0_hi);
+    const Vec256Epi sum45 = _mm256_hadd_epi32(vecs[4], vecs[5]);
+    const Vec256Epi sum67 = _mm256_hadd_epi32(vecs[6], vecs[7]);
 
-    const __m128i vec1_low = _mm256_castsi256_si128(vec1);
-    const __m128i vec1_hi = _mm256_extracti128_si256(vec1, 1);
-    const __m128i vec1_m128 = _mm_add_epi32(vec1_low, vec1_hi);
+    const Vec256Epi sum0123 = _mm256_hadd_epi32(sum01, sum23);
+    const Vec256Epi sum4567 = _mm256_hadd_epi32(sum45, sum67);
 
-    return _mm256_inserti128_si256(_mm256_castsi128_si256(vec0_m128), vec1_m128, 1);
+    const Vec256Epi sumA = _mm256_permute2x128_si256(sum0123, sum4567, 0x20);
+    const Vec256Epi sumB = _mm256_permute2x128_si256(sum0123, sum4567, 0x31);
+    return _mm256_add_epi32(sumA, sumB);
 }
 #endif
