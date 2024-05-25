@@ -6,6 +6,9 @@
 #include "xmmintrin.h"
 #endif
 
+#if defined(__INTEL_COMPILER) || defined(_MSC_VER)
+#include "xmmintrin.h"
+#endif
 TTable TT;
 
 void ClearTT() {
