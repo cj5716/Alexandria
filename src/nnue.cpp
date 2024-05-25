@@ -258,9 +258,7 @@ void NNUE::ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, cons
     }
 
     for (int i = 0; i < L2_SIZE; i += L2_CHUNK_SIZE) {
-        const Vec256Epi sum0123 = vec256_hadd_epi32x4(reinterpret_cast<const VecEpi*>(&sumVecs[i]));
-        const Vec256Epi sum4567 = vec256_hadd_epi32x4(reinterpret_cast<const VecEpi*>(&sumVecs[i + 4]));
-        const Vec256Epi sum     = vec256_comb_epi32(sum0123, sum4567);
+        const Vec256Epi sum     = vec256_hadd_epi32x8(reinterpret_cast<const VecEpi*>(&sumVecs[i]));
         const VecPs     biasVec = vec_loadu_ps(&biases[i]);
         const VecPs     sumDiv  = vec_set1_ps(float(FT_QUANT * FT_QUANT * L1_QUANT) / 8.0f);
         const VecPs     sumPs   = vec_add_ps(vec_div_ps(vec_cvtepi_ps(sum), sumDiv), biasVec);
@@ -303,10 +301,8 @@ void NNUE::PropagateL2(const float *inputs, const float *weights, const float *b
     }
 
     for (int i = 0; i < L3_SIZE; i += L3_CHUNK_SIZE) {
-        const VecPs sum0123 = vec_hadd_psx4(&sumVecs[i]);
-        const VecPs sum4567 = vec_hadd_psx4(&sumVecs[i + 4]);
         const VecPs biasVec = vec_loadu_ps(&biases[i]);
-        const VecPs sum     = vec_add_ps(vec_comb_ps(sum0123, sum4567), biasVec);
+        const VecPs sum     = vec_add_ps(vec_hadd_psx8(&sumVecs[i]), biasVec);
         const VecPs Zero    = vec_set1_ps(0.0f);
         const VecPs One     = vec_set1_ps(1.0f);
         const VecPs clipped = vec_max_ps(vec_min_ps(sum, One), Zero);
