@@ -33,7 +33,7 @@ static_assert(sizeof(TTEntry) == 10);
 static_assert(sizeof(TTBucket) == 32);
 
 struct TTable {
-    std::vector<TTBucket> pTable;
+    alignas(64) std::vector<TTBucket> pTable;
     uint8_t age;
 };
 
