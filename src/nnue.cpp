@@ -134,16 +134,36 @@ void NNUE::update(NNUE::Accumulator *acc) {
 void NNUE::addSub(NNUE::Accumulator *new_acc, NNUE::Accumulator *prev_acc, NNUEIndices add, NNUEIndices sub) {
     auto [whiteAddIdx, blackAddIdx] = add;
     auto [whiteSubIdx, blackSubIdx] = sub;
-    auto whiteAdd = &net.FTWeights[whiteAddIdx * L1_SIZE];
-    auto whiteSub = &net.FTWeights[whiteSubIdx * L1_SIZE];
-    for (int i = 0; i < L1_SIZE; i++) {
-        new_acc->values[0][i] = prev_acc->values[0][i] - whiteSub[i] + whiteAdd[i];
+
+    int16_t *adds[2] = {&net.FTWeights[whiteAddIdx * L1_SIZE], &net.FTWeights[blackAddIdx * L1_SIZE]};
+    int16_t *subs[2] = {&net.FTWeights[whiteSubIdx * L1_SIZE], &net.FTWeights[blackSubIdx * L1_SIZE]};
+
+    #if defined(USE_SIMD)
+    vepi16 accRegs[TILE_REGS];
+    for (int side = WHITE; side < BOTH; ++side) {
+        for (int i = 0; i < L1_SIZE; i += TILE_REGS * CHUNK_SIZE) {
+            const vepi16 *prevAccTile = reinterpret_cast<const vepi16*>(&prev_acc->values[side][i]);
+            const vepi16 *addTile     = reinterpret_cast<const vepi16*>(&adds[side][i]);
+            const vepi16 *subTile     = reinterpret_cast<const vepi16*>(&subs[side][i]);
+
+            for (int j = 0; j < TILE_REGS; ++j)
+                accRegs[j] = vec_load_epi(&prevAccTile[j]);
+
+            for (int j = 0; j < TILE_REGS; ++j)
+                accRegs[j] = vec_add_epi16(accRegs[j], vec_sub_epi16(addTile[j], subTile[j]));
+
+            vepi16 *newAccTile  = reinterpret_cast<vepi16*>(&new_acc->values[side][i]);
+            for (int j = 0; j < TILE_REGS; ++j)
+                vec_store_epi(&newAccTile[j], accRegs[j]);
+        }
     }
-    auto blackAdd = &net.FTWeights[blackAddIdx * L1_SIZE];
-    auto blackSub = &net.FTWeights[blackSubIdx * L1_SIZE];
-    for (int i = 0; i < L1_SIZE; i++) {
-        new_acc->values[1][i] = prev_acc->values[1][i] - blackSub[i] + blackAdd[i];
+    #else
+    for (int side = WHITE; side < BOTH; ++side) {
+        for (int i = 0; i < L1_SIZE; ++i) {
+            new_acc->values[side][i] = prev_acc->values[side][i] + adds[side][i] - subs[side][i];
+        }
     }
+    #endif
 }
 
 void NNUE::addSubSub(NNUE::Accumulator *new_acc, NNUE::Accumulator *prev_acc, NNUEIndices add, NNUEIndices sub1, NNUEIndices sub2) {
@@ -152,18 +172,37 @@ void NNUE::addSubSub(NNUE::Accumulator *new_acc, NNUE::Accumulator *prev_acc, NN
     auto [whiteSubIdx1, blackSubIdx1] = sub1;
     auto [whiteSubIdx2, blackSubIdx2] = sub2;
 
-    auto whiteAdd = &net.FTWeights[whiteAddIdx * L1_SIZE];
-    auto whiteSub1 = &net.FTWeights[whiteSubIdx1 * L1_SIZE];
-    auto whiteSub2 = &net.FTWeights[whiteSubIdx2 * L1_SIZE];
-    for (int i = 0; i < L1_SIZE; i++) {
-        new_acc->values[0][i] = prev_acc->values[0][i] - whiteSub1[i] - whiteSub2[i] + whiteAdd[i];
+    int16_t *adds [2] = {&net.FTWeights[whiteAddIdx  * L1_SIZE], &net.FTWeights[blackAddIdx  * L1_SIZE]};
+    int16_t *subs1[2] = {&net.FTWeights[whiteSubIdx1 * L1_SIZE], &net.FTWeights[blackSubIdx1 * L1_SIZE]};
+    int16_t *subs2[2] = {&net.FTWeights[whiteSubIdx2 * L1_SIZE], &net.FTWeights[blackSubIdx2 * L1_SIZE]};
+
+    #if defined(USE_SIMD)
+    vepi16 accRegs[TILE_REGS];
+    for (int side = WHITE; side < BOTH; ++side) {
+        for (int i = 0; i < L1_SIZE; i += TILE_REGS * CHUNK_SIZE) {
+            const vepi16 *prevAccTile = reinterpret_cast<const vepi16*>(&prev_acc->values[side][i]);
+            const vepi16 *addTile     = reinterpret_cast<const vepi16*>(&adds[side][i]);
+            const vepi16 *subTile1    = reinterpret_cast<const vepi16*>(&subs1[side][i]);
+            const vepi16 *subTile2    = reinterpret_cast<const vepi16*>(&subs2[side][i]);
+
+            for (int j = 0; j < TILE_REGS; ++j)
+                accRegs[j] = vec_load_epi(&prevAccTile[j]);
+
+            for (int j = 0; j < TILE_REGS; ++j)
+                accRegs[j] = vec_add_epi16(accRegs[j], vec_sub_epi16(vec_sub_epi16(addTile[j], subTile1[j]), subTile2[j]));
+
+            vepi16 *newAccTile  = reinterpret_cast<vepi16*>(&new_acc->values[side][i]);
+            for (int j = 0; j < TILE_REGS; ++j)
+                vec_store_epi(&newAccTile[j], accRegs[j]);
+        }
     }
-    auto blackAdd = &net.FTWeights[blackAddIdx * L1_SIZE];
-    auto blackSub1 = &net.FTWeights[blackSubIdx1 * L1_SIZE];
-    auto blackSub2 = &net.FTWeights[blackSubIdx2 * L1_SIZE];
-    for (int i = 0; i < L1_SIZE; i++) {
-        new_acc->values[1][i] = prev_acc->values[1][i] - blackSub1[i] - blackSub2[i] + blackAdd[i];
+    #else
+    for (int side = WHITE; side < BOTH; ++side) {
+        for (int i = 0; i < L1_SIZE; ++i) {
+            new_acc->values[side][i] = prev_acc->values[side][i] + adds[side][i] - subs1[side][i] - subs2[side][i];
+        }
     }
+    #endif
 }
 
 int32_t NNUE::ActivateFTAndAffineL1(const int16_t *us, const int16_t *them, const int16_t *weights, const int16_t bias) {
