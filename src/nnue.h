@@ -22,11 +22,13 @@ constexpr int CHUNK_SIZE = 1;
 
 using NNUEIndices = std::pair<std::size_t, std::size_t>;
 
-struct Network {
+constexpr int PADDING_SIZE = 48;
+struct alignas(64) Network {
     int16_t FTWeights[NUM_INPUTS * L1_SIZE];
     int16_t FTBiases [L1_SIZE];
     int16_t L1Weights[L1_SIZE * 2 * OUTPUT_BUCKETS];
     int16_t L1Biases [OUTPUT_BUCKETS];
+    uint8_t padding  [PADDING_SIZE];
 };
 
 extern Network net;
@@ -35,7 +37,7 @@ struct Position;
 class NNUE {
 public:
     struct Accumulator {
-        std::array<std::array<int16_t, L1_SIZE>, 2> values;
+        alignas(64) std::array<std::array<int16_t, L1_SIZE>, 2> values;
         std::vector<NNUEIndices> NNUEAdd = {};
         std::vector<NNUEIndices> NNUESub = {};
 
