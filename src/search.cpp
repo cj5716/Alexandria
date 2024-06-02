@@ -398,14 +398,16 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
         }
     }
 
+    int     ttScore = SCORE_NONE;
+    int     ttMove  = NOMOVE;
+    int     ttDepth = 0;
+    int     ttEval  = SCORE_NONE;
+    uint8_t ttBound = HFNONE;
+    bool    ttPv    = pvNode;
+
     // Probe the TT for useful previous search informations, we avoid doing so if we are searching a singular extension
-    const bool ttHit = !excludedMove && ProbeTTEntry(pos->GetPoskey(), &tte);
-    const int ttScore = ttHit ? ScoreFromTT(tte.score, ss->ply) : SCORE_NONE;
-    const int ttMove = ttHit ? MoveFromTT(pos, tte.move) : NOMOVE;
-    const int ttDepth = ttHit ? tte.depth : 0;
-    const int ttEval = ttHit ? tte.eval : SCORE_NONE;
-    const bool ttPv = pvNode || (ttHit && FormerPV(tte.ageBoundPV));
-    const uint8_t ttBound = ttHit ? BoundFromTT(tte.ageBoundPV) : uint8_t(HFNONE);
+    const bool ttHit = !excludedMove && ProbeTTEntry(pos, ss->ply, ttScore, ttMove, ttDepth, ttEval, ttBound, ttPv);
+
     // If we found a value in the TT for this position, and the depth is equal or greater we can return it (pv nodes are excluded)
     if (   !pvNode
         &&  ttHit
@@ -794,13 +796,16 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
             return alpha;
     }
 
+    int     ttScore = SCORE_NONE;
+    int     ttMove  = NOMOVE;
+    int     ttDepth = 0;
+    int     ttEval  = SCORE_NONE;
+    uint8_t ttBound = HFNONE;
+    bool    ttPv    = pvNode;
+
     // ttHit is true if and only if we find something in the TT
-    const bool ttHit = ProbeTTEntry(pos->GetPoskey(), &tte);
-    const int ttScore = ttHit ? ScoreFromTT(tte.score, ss->ply) : SCORE_NONE;
-    const int ttMove = ttHit ? MoveFromTT(pos, tte.move) : NOMOVE;
-    const int ttEval = ttHit ? tte.eval : SCORE_NONE;
-    const bool ttPv = pvNode || (ttHit && FormerPV(tte.ageBoundPV));
-    const uint8_t ttBound = ttHit ? BoundFromTT(tte.ageBoundPV) : uint8_t(HFNONE);
+    const bool ttHit = ProbeTTEntry(pos, ss->ply, ttScore, ttMove, ttDepth, ttEval, ttBound, ttPv);
+
     // If we found a value in the TT for this position, we can return it (pv nodes are excluded)
     if (   !pvNode
         &&  ttHit

@@ -21,13 +21,20 @@ void InitTT(uint64_t MB) {
     std::cout << "TT init complete with " << numBuckets << " buckets and " << numBuckets * ENTRIES_PER_BUCKET << " entries\n";
 }
 
-bool ProbeTTEntry(const ZobristKey posKey, TTEntry *tte) {
+bool ProbeTTEntry(Position *pos, const int ply, int &ttScore, int &ttMove, int &ttDepth, int &ttEval, uint8_t &ttBound, bool &ttPv) {
 
+    const ZobristKey posKey = pos->GetPoskey();
     const uint64_t index = Index(posKey);
     TTBucket *bucket = &TT.pTable[index];
     for (int i = 0; i < ENTRIES_PER_BUCKET; i++) {
-        *tte = bucket->entries[i];
-        if (tte->ttKey == static_cast<TTKey>(posKey)) {
+        TTEntry tte = bucket->entries[i];
+        if (tte.ttKey == static_cast<TTKey>(posKey)) {
+            ttScore  = ScoreFromTT(tte.score, ply);
+            ttMove   = MoveFromTT(pos, tte.move);
+            ttDepth  = tte.depth;
+            ttEval   = tte.eval;
+            ttBound  = BoundFromTT(tte.ageBoundPV);
+            ttPv    |= FormerPV(tte.ageBoundPV);
             return true;
         }
     }
