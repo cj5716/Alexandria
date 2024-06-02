@@ -402,17 +402,18 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
     const bool ttHit = !excludedMove && ProbeTTEntry(pos->GetPoskey(), &tte);
     const int ttScore = ttHit ? ScoreFromTT(tte.score, ss->ply) : SCORE_NONE;
     const int ttMove = ttHit ? MoveFromTT(pos, tte.move) : NOMOVE;
+    const int ttDepth = ttHit ? tte.depth : 0;
+    const int ttEval = ttHit ? tte.eval : SCORE_NONE;
+    const bool ttPv = pvNode || (ttHit && FormerPV(tte.ageBoundPV));
     const uint8_t ttBound = ttHit ? BoundFromTT(tte.ageBoundPV) : uint8_t(HFNONE);
     // If we found a value in the TT for this position, and the depth is equal or greater we can return it (pv nodes are excluded)
     if (   !pvNode
-        &&  ttScore != SCORE_NONE
-        &&  tte.depth >= depth
+        &&  ttHit
+        &&  ttDepth >= depth
         && (   (ttBound == HFUPPER && ttScore <= alpha)
             || (ttBound == HFLOWER && ttScore >= beta)
             ||  ttBound == HFEXACT))
         return ttScore;
-
-    const bool ttPv = pvNode || (ttHit && FormerPV(tte.ageBoundPV));
 
     // IIR by Ed Schroder (That i find out about in Berserk source code)
     // http://talkchess.com/forum3/viewtopic.php?f=7&t=74769&sid=64085e3396554f0fba414404445b3120
@@ -434,10 +435,10 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
     // get an evaluation of the position:
     if (ttHit) {
         // If the value in the TT is valid we use that, otherwise we call the static evaluation function
-        eval = ss->staticEval = tte.eval != SCORE_NONE ? tte.eval : EvalPosition(pos);
+        eval = ss->staticEval = ttEval;
 
         // We can also use the tt score as a more accurate form of eval
-        if (    ttScore != SCORE_NONE
+        if (    ttHit
             && (   (ttBound == HFUPPER && ttScore < eval)
                 || (ttBound == HFLOWER && ttScore > eval)
                 ||  ttBound == HFEXACT))
@@ -588,7 +589,7 @@ moves_loop:
                 && !excludedMove
                 && (ttBound & HFLOWER)
                 &&  abs(ttScore) < MATE_FOUND
-                &&  tte.depth >= depth - 3) {
+                &&  ttDepth >= depth - 3) {
                 const int singularBeta = ttScore - depth;
                 const int singularDepth = (depth - 1) / 2;
 
@@ -797,16 +798,16 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
     const bool ttHit = ProbeTTEntry(pos->GetPoskey(), &tte);
     const int ttScore = ttHit ? ScoreFromTT(tte.score, ss->ply) : SCORE_NONE;
     const int ttMove = ttHit ? MoveFromTT(pos, tte.move) : NOMOVE;
+    const int ttEval = ttHit ? tte.eval : SCORE_NONE;
+    const bool ttPv = pvNode || (ttHit && FormerPV(tte.ageBoundPV));
     const uint8_t ttBound = ttHit ? BoundFromTT(tte.ageBoundPV) : uint8_t(HFNONE);
     // If we found a value in the TT for this position, we can return it (pv nodes are excluded)
     if (   !pvNode
-        &&  ttScore != SCORE_NONE
+        &&  ttHit
         && (   (ttBound == HFUPPER && ttScore <= alpha)
             || (ttBound == HFLOWER && ttScore >= beta)
             ||  ttBound == HFEXACT))
         return ttScore;
-
-    const bool ttPv = pvNode || (ttHit && FormerPV(tte.ageBoundPV));
 
     if (inCheck) {
         ss->staticEval = SCORE_NONE;
@@ -816,10 +817,10 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
     else if (ttHit) {
 
         // If the value in the TT is valid we use that, otherwise we call the static evaluation function
-        ss->staticEval = bestScore = tte.eval != SCORE_NONE ? tte.eval : EvalPosition(pos);
+        ss->staticEval = bestScore = ttEval;
 
         // We can also use the TT score as a more accurate form of eval
-        if (    ttScore != SCORE_NONE
+        if (    ttHit
             && (   (ttBound == HFUPPER && ttScore < bestScore)
                 || (ttBound == HFLOWER && ttScore > bestScore)
                 ||  ttBound == HFEXACT))
