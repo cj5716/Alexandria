@@ -420,9 +420,12 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
     if (depth >= 4 && ttBound == HFNONE)
         depth--;
 
-    // clean killers and excluded move for the next ply
+    // clean killer and excluded move for the next ply
     (ss + 1)->excludedMove = NOMOVE;
     (ss + 1)->searchKiller = NOMOVE;
+
+    // record PV distance
+    ss->pvDistance = pvNode ? 0 : (ss - 1)->pvDistance + 1;
 
     // If we are in check or searching a singular extension we avoid pruning before the move loop
     if (inCheck || excludedMove) {
@@ -654,8 +657,14 @@ moves_loop:
                 depthReduction -= 1;
 
             // Reduce less if we have been on the PV
-            if (ttPv)
-                depthReduction -= 1 + cutNode;
+            if (ttPv) {
+                depthReduction -= 1;
+
+                // Reduce even less if we are on expected cut nodes,
+                // and even less if our PV distance is greater than or equal to 2/3 of the search tree (estimated)
+                if (cutNode)
+                    depthReduction -= 1 + (ss->pvDistance * 3 >= (depth + ss->ply) * 2);
+            }
 
             // Decrease the reduction for moves that give check
             if (pos->checkers)

@@ -16,6 +16,7 @@ struct SearchStack {
     int ply;
     int searchKiller;
     int doubleExtensions;
+    int pvDistance;
     int (*contHistEntry)[12 * 64];
 };
 
