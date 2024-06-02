@@ -48,6 +48,8 @@ void InitTT(uint64_t MB);
 
 [[nodiscard]] bool ProbeTTEntry(Position *pos, const int ply, int &ttScore, int &ttMove, int &ttDepth, int &ttEval, uint8_t &ttBound, bool &ttPv);
 
+void InvalidateTTEntry(bool pvNode, bool &ttHit, int &ttScore, int &ttMove, int &ttDepth, int &ttEval, uint8_t &ttBound, bool &ttPv);
+
 void StoreTTEntry(const ZobristKey key, const int16_t move, int score, int eval, const int bound, const int depth, const bool pv, const bool wasPV);
 
 [[nodiscard]] uint64_t Index(const ZobristKey posKey);

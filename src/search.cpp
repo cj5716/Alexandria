@@ -398,6 +398,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
         }
     }
 
+    // Information from TT, set during TT probing
     int     ttScore = SCORE_NONE;
     int     ttMove  = NOMOVE;
     int     ttDepth = 0;
@@ -406,7 +407,10 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
     bool    ttPv    = pvNode;
 
     // Probe the TT for useful previous search informations, we avoid doing so if we are searching a singular extension
-    const bool ttHit = !excludedMove && ProbeTTEntry(pos, ss->ply, ttScore, ttMove, ttDepth, ttEval, ttBound, ttPv);
+    bool ttHit = !excludedMove && ProbeTTEntry(pos, ss->ply, ttScore, ttMove, ttDepth, ttEval, ttBound, ttPv);
+
+    // If the TT information mismatches our current search state, invalidate it
+    if (ttHit && ((ttEval == SCORE_NONE) != inCheck)) InvalidateTTEntry(pvNode, ttHit, ttScore, ttMove, ttDepth, ttEval, ttBound, ttPv);
 
     // If we found a value in the TT for this position, and the depth is equal or greater we can return it (pv nodes are excluded)
     if (   !pvNode
@@ -796,6 +800,7 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
             return alpha;
     }
 
+    // Information from TT, set during TT probing
     int     ttScore = SCORE_NONE;
     int     ttMove  = NOMOVE;
     int     ttDepth = 0;
@@ -804,7 +809,10 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
     bool    ttPv    = pvNode;
 
     // ttHit is true if and only if we find something in the TT
-    const bool ttHit = ProbeTTEntry(pos, ss->ply, ttScore, ttMove, ttDepth, ttEval, ttBound, ttPv);
+    bool ttHit = ProbeTTEntry(pos, ss->ply, ttScore, ttMove, ttDepth, ttEval, ttBound, ttPv);
+
+    // If the TT information mismatches our current search state, invalidate it
+    if (ttHit && ((ttEval == SCORE_NONE) != inCheck)) InvalidateTTEntry(pvNode, ttHit, ttScore, ttMove, ttDepth, ttEval, ttBound, ttPv);
 
     // If we found a value in the TT for this position, we can return it (pv nodes are excluded)
     if (   !pvNode

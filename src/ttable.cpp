@@ -41,6 +41,16 @@ bool ProbeTTEntry(Position *pos, const int ply, int &ttScore, int &ttMove, int &
     return false;
 }
 
+void InvalidateTTEntry(bool pvNode, bool &ttHit, int &ttScore, int &ttMove, int &ttDepth, int &ttEval, uint8_t &ttBound, bool &ttPv) {
+    ttHit   = false;
+    ttScore = SCORE_NONE;
+    ttMove  = NOMOVE;
+    ttDepth = 0;
+    ttEval  = SCORE_NONE;
+    ttBound = HFNONE;
+    ttPv    = pvNode;
+}
+
 void StoreTTEntry(const ZobristKey key, const int16_t move, int score, int eval, const int bound, const int depth, const bool pv, const bool wasPV) {
     // Calculate index based on the position key and get the entry that already fills that index
     const uint64_t index = Index(key);
