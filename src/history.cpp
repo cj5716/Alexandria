@@ -102,7 +102,10 @@ int GetCapthistScore(const Position* pos, const SearchData* sd, const Move move)
 
 int GetHistoryScore(const Position* pos, const SearchData* sd, const Move move, const SearchStack* ss) {
     if (!isTactical(move))
-        return GetHHScore(pos, sd, move) + GetCHScore(ss, move);
+        return    2 * GetHHScore(pos, sd, move)
+               +  2 * GetSingleCHScore(ss, move, 1)
+               +  2 * GetSingleCHScore(ss, move, 2)
+               +  1 * GetSingleCHScore(ss, move, 4);
     else
         return GetCapthistScore(pos, sd, move);
 }
