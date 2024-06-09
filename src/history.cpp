@@ -101,10 +101,10 @@ int GetCapthistScore(const Position* pos, const SearchData* sd, const Move move)
     return sd->captHist[PieceTo(move)][capturedPiece];
 }
 
-void updateCorrHistScore(const Position *pos, SearchData *sd, const int depth, const int diff) {
+void updateCorrHistScore(const Position *pos, SearchData *sd, [[maybe_unused]] const int depth, const int diff) {
     int &entry = sd->corrHist[pos->side][pos->pawnKey % CORRHIST_SIZE];
     const int scaledDiff = diff * CORRHIST_GRAIN;
-    const int newWeight = std::min(1 + depth, 16);
+    const int newWeight = 1;
     assert(newWeight <= CORRHIST_WEIGHT_SCALE);
 
     entry = (entry * (CORRHIST_WEIGHT_SCALE - newWeight) + scaledDiff * newWeight) / CORRHIST_WEIGHT_SCALE;
