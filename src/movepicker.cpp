@@ -97,7 +97,7 @@ Move NextMove(Movepicker* mp, const bool skip) {
             partialInsertionSort(&mp->moveList, mp->idx);
             const Move move = mp->moveList.moves[mp->idx].move;
             const int score = mp->moveList.moves[mp->idx].score;
-            const int SEEThreshold = -score / 32 + 236;
+            const int SEEThreshold = -score / 48 + 126;
             ++mp->idx;
             if (move == mp->ttMove)
                 continue;
