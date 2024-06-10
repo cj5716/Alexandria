@@ -13,7 +13,7 @@ constexpr int CAPTHIST_MAX = 16384;
 constexpr int CORRHIST_WEIGHT_SCALE = 256;
 constexpr int CORRHIST_GRAIN = 256;
 constexpr int CORRHIST_SIZE = 16384;
-constexpr int CORRHIST_MAX = CORRHIST_GRAIN * 32;
+constexpr int CORRHIST_MAX = 16384;
 
 // Functions used to update the history heuristics
 void UpdateHistories(const Position* pos, SearchData* sd, SearchStack* ss, const int depth, const Move bestMove, const MoveList* quietMoves, const MoveList* noisyMoves);

@@ -103,12 +103,11 @@ int GetCapthistScore(const Position* pos, const SearchData* sd, const Move move)
 
 void updateCorrHistScore(const Position *pos, SearchData *sd, const int depth, const int diff) {
     int &entry = sd->corrHist[pos->side][pos->pawnKey % CORRHIST_SIZE];
-    const int scaledDiff = diff * CORRHIST_GRAIN;
+    const int scaledDiff = std::clamp(diff * CORRHIST_GRAIN, -CORRHIST_MAX, CORRHIST_MAX);
     const int newWeight = std::min(1 + depth, 16);
     assert(newWeight <= CORRHIST_WEIGHT_SCALE);
 
     entry = (entry * (CORRHIST_WEIGHT_SCALE - newWeight) + scaledDiff * newWeight) / CORRHIST_WEIGHT_SCALE;
-    entry = std::clamp(entry, -CORRHIST_MAX, CORRHIST_MAX);
 }
 
 int adjustEvalWithCorrHist(const Position *pos, const SearchData *sd, const int rawEval) {
