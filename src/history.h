@@ -13,7 +13,7 @@ constexpr int CAPTHIST_MAX = 16384;
 constexpr int CORRHIST_WEIGHT_SCALE = 256;
 constexpr int CORRHIST_GRAIN = 256;
 constexpr int CORRHIST_BUCKETS = 5;
-constexpr int CORRHIST_SIZE = 16384;
+constexpr int CORRHIST_SIZE = 4096;
 constexpr int CORRHIST_MAX = 8192;
 
 // Functions used to update the history heuristics
