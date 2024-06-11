@@ -530,7 +530,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
 moves_loop:
 
     // old value of alpha
-    const int old_alpha = alpha;
+    const int oldAlpha = alpha;
     int bestScore = -MAXSCORE;
     Move move;
     Move bestMove = NOMOVE;
@@ -759,14 +759,14 @@ moves_loop:
                             : 0;
     }
     // Set the TT bound based on whether we failed high or raised alpha
-    int bound = bestScore >= beta ? HFLOWER : alpha != old_alpha ? HFEXACT : HFUPPER;
+    int bound = bestScore >= beta ? HFLOWER : alpha > oldAlpha ? HFEXACT : HFUPPER;
 
     if (!excludedMove) {
         if (    !inCheck
-            && (!bestMove || !isTactical(bestMove))
-            &&  !(bound == HFLOWER && bestScore <= ss->staticEval)
-            &&  !(bound == HFUPPER && bestScore >= ss->staticEval)) {
-            updateCorrHistScore(pos, sd, depth, bestScore - ss->staticEval);
+            &&  (bestMove == NOMOVE || !isTactical(bestMove))
+            &&  !(bestScore >= beta && rawEval > bestScore) /* exclude cases where raw eval is a better lower bound */
+            &&  !(alpha <= oldAlpha && rawEval < bestScore) /* exclude cases where raw eval is a better upper bound */) {
+            updateCorrHistScore(pos, sd, depth, bestScore - rawEval);
         }
         StoreTTEntry(pos->posKey, MoveToTT(bestMove), ScoreToTT(bestScore, ss->ply), rawEval, bound, depth, pvNode, ttPv);
     }
@@ -777,10 +777,13 @@ moves_loop:
 // Quiescence search to avoid the horizon effect
 template <bool pvNode>
 int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
+    assert(ss->excludedMove == NOMOVE);
+
     Position* pos = &td->pos;
     SearchData* sd = &td->sd;
     SearchInfo* info = &td->info;
     const bool inCheck = pos->checkers;
+    const int oldAlpha = alpha;
     // tte is an TT entry, it will store the values fetched from the TT
     TTEntry tte;
     int bestScore;
@@ -860,7 +863,7 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
     // If we aren't in check we generate just the captures, otherwise we generate all the moves
     InitMP(&mp, pos, sd, ss, ttMove, QSEARCH);
 
-    Move bestmove = NOMOVE;
+    Move bestMove = NOMOVE;
     Move move;
     int totalMoves = 0;
 
@@ -900,12 +903,12 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
 
         // If the score of the current move is the best we've found until now
         if (score > bestScore) {
-            // Update  what the best score is
+            // Update what the best score is
             bestScore = score;
 
             // if the score is better than alpha update our best move
             if (score > alpha) {
-                bestmove = move;
+                bestMove = move;
 
                 // if the score is better than or equal to beta break the loop because we failed high
                 if (score >= beta)
@@ -924,7 +927,14 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
     // Set the TT bound based on whether we failed high, for qsearch we never use the exact bound
     int bound = bestScore >= beta ? HFLOWER : HFUPPER;
 
-    StoreTTEntry(pos->posKey, MoveToTT(bestmove), ScoreToTT(bestScore, ss->ply), rawEval, bound, 0, pvNode, ttPv);
+    if (    !inCheck
+        &&  (bestMove == NOMOVE || !isTactical(bestMove))
+        &&  !(bestScore >= beta && rawEval > bestScore) /* exclude cases where raw eval is a better lower bound */
+        &&  !(alpha <= oldAlpha && rawEval < bestScore) /* exclude cases where raw eval is a better upper bound */) {
+        updateCorrHistScore(pos, sd, 0, bestScore - rawEval);
+    }
+
+    StoreTTEntry(pos->posKey, MoveToTT(bestMove), ScoreToTT(bestScore, ss->ply), rawEval, bound, 0, pvNode, ttPv);
 
     return bestScore;
 }
