@@ -103,7 +103,7 @@ int GetCapthistScore(const Position* pos, const SearchData* sd, const Move move)
 
 int getCorrhistBucket(const Position *pos) {
     const int pawnCount = CountBits(GetPieceBB(pos, PAWN));
-    return std::min((32 - pawnCount) * (16 - pawnCount) / 90, 4);
+    return std::min((27 - pawnCount) * (16 - pawnCount) / 90, 4);
 }
 
 void updateCorrHistScore(const Position *pos, SearchData *sd, const int depth, const int diff) {
