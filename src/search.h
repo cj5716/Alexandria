@@ -25,7 +25,7 @@ struct SearchData {
     int captHist[12 * 64][6] = {};
     int counterMoves[64 * 64] = {};
     int contHist[12 * 64][12 * 64] = {};
-    int corrHist[2][CORRHIST_SIZE] = {};
+    int corrHist[2][CORRHIST_BUCKETS][CORRHIST_SIZE] = {};
 };
 
 struct PvTable {
