@@ -24,7 +24,7 @@ struct SearchData {
     int searchHistory[2][64 * 64] = {};
     int captHist[12 * 64][6] = {};
     int counterMoves[64 * 64] = {};
-    int contHist[12 * 64][12 * 64] = {};
+    int contHist[12 * 64][2][12 * 64] = {};
     int corrHist[2][CORRHIST_SIZE] = {};
 };
 

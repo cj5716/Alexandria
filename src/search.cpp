@@ -284,11 +284,11 @@ int AspirationWindowSearch(int prev_eval, int depth, ThreadData* td) {
         (ss + i)->searchKiller = NOMOVE;
         (ss + i)->staticEval = SCORE_NONE;
         (ss + i)->doubleExtensions = 0;
-        (ss + i)->contHistEntry = &sd->contHist[PieceTo(NOMOVE)];
+        (ss + i)->contHistEntry = &sd->contHist[PieceTo(NOMOVE)][false];
     }
     for (int i = 0; i < MAXDEPTH; i++) {
         (ss + i)->ply = i;
-        (ss + i)->contHistEntry = &sd->contHist[PieceTo(NOMOVE)];
+        (ss + i)->contHistEntry = &sd->contHist[PieceTo(NOMOVE)][false];
     }
     // We set an expected window for the score at the next search depth, this window is not 100% accurate so we might need to try a bigger window and re-search the position
     int delta = 12;
@@ -489,7 +489,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
 
             ss->move = NOMOVE;
             const int R = 3 + depth / 3 + std::min((eval - beta) / 200, 3);
-            ss->contHistEntry = &sd->contHist[PieceTo(NOMOVE)];
+            ss->contHistEntry = &sd->contHist[PieceTo(NOMOVE)][false];
 
             MakeNullMove(pos);
 
@@ -632,10 +632,11 @@ moves_loop:
         // Speculative prefetch of the TT entry
         TTPrefetch(keyAfter(pos, move));
         ss->move = move;
+        ss->contHistEntry = &sd->contHist[PieceTo(move)][isQuiet];
 
         // Play the move
         MakeMove<true>(move, pos);
-        ss->contHistEntry = &sd->contHist[PieceTo(move)];
+
         // Add any played move to the matching list
         AddMove(move, isQuiet ? &quietMoves : &noisyMoves);
 
@@ -885,10 +886,14 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
         // Speculative prefetch of the TT entry
         TTPrefetch(keyAfter(pos, move));
         ss->move = move;
+        ss->contHistEntry = &sd->contHist[PieceTo(move)][!isTactical(move)];
+
         // Play the move
         MakeMove<true>(move, pos);
+
         // increment nodes count
         info->nodes++;
+
         // Call Quiescence search recursively
         const int score = -Quiescence<pvNode>(-beta, -alpha, td, ss + 1);
 
