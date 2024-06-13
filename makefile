@@ -10,6 +10,7 @@ NATIVE       = -march=native
 AVX2FLAGS    = -DUSE_AVX2 -DUSE_SIMD -mavx2 -mbmi
 BMI2FLAGS    = -DUSE_AVX2 -DUSE_SIMD -mavx2 -mbmi -mbmi2
 AVX512FLAGS  = -DUSE_AVX512 -DUSE_SIMD -mavx512f -mavx512bw
+VNNI512FLAGS = -DUSE_VNNI512 -DUSE_AVX512 -DUSE_SIMD -mavx512f -mavx512bw -mavx512vnni
 
 # engine name
 NAME        := Alexandria
@@ -52,19 +53,21 @@ endif
 
 ARCH_DETECTED =
 PROPERTIES = $(shell echo | $(CXX) -march=native -E -dM -)
+
+ifneq ($(findstring __AVX2__, $(PROPERTIES)),)
+	ARCH_DETECTED = AVX2
+endif
+
+ifneq ($(findstring __BMI2__, $(PROPERTIES)),)
+	ARCH_DETECTED = BMI2
+endif
+
 ifneq ($(findstring __AVX512F__, $(PROPERTIES)),)
 	ifneq ($(findstring __AVX512BW__, $(PROPERTIES)),)
 		ARCH_DETECTED = AVX512
-	endif
-endif
-ifeq ($(ARCH_DETECTED),)
-	ifneq ($(findstring __BMI2__, $(PROPERTIES)),)
-		ARCH_DETECTED = BMI2
-	endif
-endif
-ifeq ($(ARCH_DETECTED),)
-	ifneq ($(findstring __AVX2__, $(PROPERTIES)),)
-		ARCH_DETECTED = AVX2
+		ifneq ($(findstring __AVX512VNNI__, $(PROPERTIES)),)
+			ARCH_DETECTED = VNNI512
+		endif
 	endif
 endif
 
@@ -72,6 +75,9 @@ endif
 ifdef build
 	NATIVE =
 else
+	ifeq ($(ARCH_DETECTED), VNNI512)
+		CXXFLAGS += $(VNNI512FLAGS)
+	endif
 	ifeq ($(ARCH_DETECTED), AVX512)
 		CXXFLAGS += $(AVX512FLAGS)
 	endif
@@ -87,6 +93,9 @@ endif
 ifeq ($(build), native)
 	NATIVE     = -march=native
 	ARCH       = -x86-64-native
+	ifeq ($(ARCH_DETECTED), VNNI512)
+		CXXFLAGS += $(VNNI512FLAGS)
+	endif
 	ifeq ($(ARCH_DETECTED), AVX512)
 		CXXFLAGS += $(AVX512FLAGS)
 	endif
@@ -128,10 +137,19 @@ ifeq ($(build), x86-64-avx512)
 	CXXFLAGS += $(AVX512FLAGS)
 endif
 
+ifeq ($(build), x86-64-vnni512)
+	NATIVE    = -march=x86-64-v4 -mtune=znver4
+	ARCH      = -x86-64-vnni512
+	CXXFLAGS += $(VNNI512FLAGS)
+endif
+
 ifeq ($(build), debug)
 	CXXFLAGS = -O3 -g3 -fno-omit-frame-pointer -std=gnu++2a
 	NATIVE   = -msse -msse3 -mpopcnt
 	FLAGS    = -lpthread -lstdc++
+	ifeq ($(ARCH_DETECTED), VNNI512)
+		CXXFLAGS += $(VNNI512FLAGS)
+	endif
 	ifeq ($(ARCH_DETECTED), AVX512)
 		CXXFLAGS += $(AVX512FLAGS)
 	endif
