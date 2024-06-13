@@ -5,9 +5,11 @@
 #include <vector>
 #include "simd.h"
 
-// Net arch: (768 -> L1_SIZE)x2 -> 1xOUTPUT_BUCKETS
+// Net arch: (768 -> L1_SIZE) x 2 -> (L2_SIZE -> L3_SIZE -> 1) x OUTPUT_BUCKETS
 constexpr int NUM_INPUTS = 768;
 constexpr int L1_SIZE = 1536;
+constexpr int L2_SIZE = 8;
+constexpr int L3_SIZE = 32;
 constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int FT_QUANT  = 255;
@@ -15,18 +17,37 @@ constexpr int L1_QUANT  = 64;
 constexpr int NET_SCALE = 400;
 
 #if defined(USE_SIMD)
-constexpr int CHUNK_SIZE = sizeof(vepi16) / sizeof(int16_t);
+constexpr int L1_CHUNK_SIZE = sizeof(vepi16) / sizeof(int16_t);
+constexpr int L2_CHUNK_SIZE = sizeof(vps32 ) / sizeof(float);
+constexpr int L3_CHUNK_SIZE = sizeof(vps32 ) / sizeof(float);
 #else
-constexpr int CHUNK_SIZE = 1;
+constexpr int L1_CHUNK_SIZE = 1;
+constexpr int L2_CHUNK_SIZE = 1;
+constexpr int L3_CHUNK_SIZE = 1;
 #endif
 
 using NNUEIndices = std::pair<std::size_t, std::size_t>;
 
-struct Network {
+struct alignas(64) Network {
     int16_t FTWeights[NUM_INPUTS * L1_SIZE];
     int16_t FTBiases [L1_SIZE];
-    int16_t L1Weights[L1_SIZE * 2 * OUTPUT_BUCKETS];
-    int16_t L1Biases [OUTPUT_BUCKETS];
+    int8_t  L1Weights[OUTPUT_BUCKETS][2 * L1_SIZE * L2_SIZE];
+    float   L1Biases [OUTPUT_BUCKETS][L2_SIZE];
+    float   L2Weights[OUTPUT_BUCKETS][L2_SIZE * L3_SIZE];
+    float   L2Biases [OUTPUT_BUCKETS][L3_SIZE];
+    float   L3Weights[OUTPUT_BUCKETS][L3_SIZE];
+    float   L3Biases [OUTPUT_BUCKETS];
+};
+
+struct UnquantisedNetwork {
+    float FTWeights[NUM_INPUTS * L1_SIZE];
+    float FTBiases [L1_SIZE];
+    float L1Weights[2 * L1_SIZE][OUTPUT_BUCKETS][L2_SIZE];
+    float L1Biases [OUTPUT_BUCKETS][L2_SIZE];
+    float L2Weights[L2_SIZE][OUTPUT_BUCKETS][L3_SIZE];
+    float L2Biases [OUTPUT_BUCKETS][L3_SIZE];
+    float L3Weights[L3_SIZE][OUTPUT_BUCKETS];
+    float L3Biases [OUTPUT_BUCKETS];
 };
 
 extern Network net;

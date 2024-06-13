@@ -6,19 +6,61 @@
 #endif
 
 #if defined(USE_AVX512)
+using vepi8  = __m512i;
 using vepi16 = __m512i;
 using vepi32 = __m512i;
+using vps32  = __m256;
 
-inline vepi16  vec_zero_epi16() { return _mm512_setzero_si512(); }
-inline vepi32  vec_zero_epi32() { return _mm512_setzero_si512(); }
-inline vepi16  vec_set1_epi16 (const int16_t n) { return _mm512_set1_epi16(n); }
-inline vepi16  vec_loadu_epi  (const vepi16 *src) { return _mm512_loadu_si512(src); }
-inline vepi16  vec_max_epi16  (const vepi16 vec0, const vepi16 vec1) { return _mm512_max_epi16(vec0, vec1); }
-inline vepi16  vec_min_epi16  (const vepi16 vec0, const vepi16 vec1) { return _mm512_min_epi16(vec0, vec1); }
-inline vepi16  vec_mullo_epi16(const vepi16 vec0, const vepi16 vec1) { return _mm512_mullo_epi16(vec0, vec1); }
-inline vepi32  vec_madd_epi16 (const vepi16 vec0, const vepi16 vec1) { return _mm512_madd_epi16(vec0, vec1); }
-inline vepi32  vec_add_epi32  (const vepi32 vec0, const vepi32 vec1) { return _mm512_add_epi32(vec0, vec1); }
-inline int32_t vec_reduce_add_epi32(const vepi32 vec) { return _mm512_reduce_add_epi32(vec); }
+inline vepi16 vec_zero_epi16() { return _mm512_setzero_si512(); }
+inline vepi32 vec_zero_epi32() { return _mm512_setzero_si512(); }
+inline vepi16 vec_set1_epi16 (const int16_t n) { return _mm512_set1_epi16(n); }
+inline vepi16 vec_load_epi   (const vepi16 *src) { return _mm512_load_si512(src); }
+inline vepi16 vec_max_epi16  (const vepi16 vec0, const vepi16 vec1) { return _mm512_max_epi16(vec0, vec1); }
+inline vepi16 vec_min_epi16  (const vepi16 vec0, const vepi16 vec1) { return _mm512_min_epi16(vec0, vec1); }
+inline vepi16 vec_mullo_epi16(const vepi16 vec0, const vepi16 vec1) { return _mm512_mullo_epi16(vec0, vec1); }
+inline vepi16 vec_srli_epi16 (const vepi16 vec, const int shift) { return _mm512_srli_epi16(vec, shift); }
+inline vepi8  vec_packus_permute_epi16(const vepi16 vec0, const vepi16 vec1) {
+    const vepi8 packed = _mm512_packus_epi16(vec0, vec1);
+    return return _mm512_permutexvar_epi64(_mm512_setr_epi64(0, 2, 4, 6, 1, 3, 5, 7), packed);
+}
+
+inline vepi32 vec_dpbusd_epi32(const vepi32 sum, const vepi8 vec0, const vepi8 vec1) {
+    #if defined(USE_VNNI512)
+    return _mm512_dpbusd_epi32(sum, vec0, vec1);
+    #else
+    const vepi16 product16 = _mm512_maddubs_epi16(vec0, vec1);
+    const vepi32 product32 = _mm512_madd_epi16(product16, _mm512_set1_epi16(1));
+    return _mm512_add_epi32(sum, product32);
+    #endif
+}
+
+inline vps32 vec_haddx8_cvtepi32_ps(const vepi32 *vecs) {
+    auto m512i_to_m256i = [](const vepi32 vec) {
+        const __m256i upper256 = _mm512_extracti64x4_epi64(vec, 1); // same as _mm512_extracti32x8_epi32, but doesn't require AVX512DQ
+        const __m256i lower256 = _mm512_castsi512_si256(vec);
+        return _mm256_add_epi32(upper256, lower256);
+    };
+    const __m256i sum01 = _mm256_hadd_epi32(m512i_to_m256i(vecs[0]), m512i_to_m256i(vecs[1]));
+    const __m256i sum23 = _mm256_hadd_epi32(m512i_to_m256i(vecs[2]), m512i_to_m256i(vecs[3]));
+    const __m256i sum45 = _mm256_hadd_epi32(m512i_to_m256i(vecs[4]), m512i_to_m256i(vecs[5]));
+    const __m256i sum67 = _mm256_hadd_epi32(m512i_to_m256i(vecs[6]), m512i_to_m256i(vecs[7]));
+
+    const __m256i sum0123 = _mm256_hadd_epi32(sum01, sum23);
+    const __m256i sum4567 = _mm256_hadd_epi32(sum45, sum67);
+
+    const __m128i sumALow = _mm256_castsi256_si128(sum0123);
+    const __m128i sumAHi  = _mm256_extracti128_si256(sum0123, 1);
+    const __m128i sumA    = _mm_add_epi32(sumALow, sumAHi);
+
+    const __m128i sumBLow = _mm256_castsi256_si128(sum4567);
+    const __m128i sumBHi  = _mm256_extracti128_si256(sum4567, 1);
+    const __m128i sumB    = _mm_add_epi32(sumBLow, sumBHi);
+
+    const __m256i sumAB   = _mm256_inserti128_si256(_mm256_castsi128_si256(sumA), sumB, 1);
+    return _mm256_cvtepi32_ps(sumAB);
+}
+
+
 
 #elif defined(USE_AVX2)
 using vepi16 = __m256i;
