@@ -537,6 +537,8 @@ moves_loop:
 
     int totalMoves = 0;
     bool skipQuiets = false;
+    bool ttSingular = false;
+    bool ttTactical = ttMove != NOMOVE && isTactical(ttMove);
 
     Movepicker mp;
     InitMP(&mp, pos, sd, ss, ttMove, SEARCH);
@@ -605,11 +607,13 @@ moves_loop:
 
                 if (singularScore < singularBeta) {
                     extension = 1;
+                    ttSingular = true;
+
                     // Avoid search explosion by limiting the number of double extensions
                     if (   !pvNode
                         &&  singularScore < singularBeta - 17
                         &&  ss->doubleExtensions <= 11) {
-                        extension = 2 + (!isTactical(ttMove) && singularScore < singularBeta - 100);
+                        extension = 2 + (!ttTactical && singularScore < singularBeta - 100);
                         ss->doubleExtensions = (ss - 1)->doubleExtensions + 1;
                         depth += depth < 10;
                     }
@@ -654,6 +658,11 @@ moves_loop:
 
             // Reduce more if we are not improving
             if (!improving)
+                depthReduction += 1;
+
+            // Reduce more if our singular tactical TT move couldn't cause a beta cutoff,
+            // because why should we expect a quiet move to beat _that_?
+            if (ttSingular && ttTactical && isQuiet)
                 depthReduction += 1;
 
             // Reduce less if the move is a refutation
