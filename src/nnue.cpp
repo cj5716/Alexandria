@@ -29,6 +29,8 @@ Network net;
 
 void NNUE::init(const char* file) {
 
+    UnquantisedNetwork *unquantisedNet = static_cast<UnquantisedNetwork*>(malloc(sizeof(UnquantisedNetwork)));
+
     // open the nn file
     FILE* nn = fopen(file, "rb");
 
@@ -36,47 +38,113 @@ void NNUE::init(const char* file) {
     if (nn) {
         // initialize an accumulator for every input of the second layer
         size_t read = 0;
-        const size_t fileSize = sizeof(Network);
-        const size_t objectsExpected = fileSize / sizeof(int16_t);
+        const size_t fileSize = sizeof(UnquantisedNetwork);
+        const size_t objectsExpected = fileSize / sizeof(float);
 
-        read += fread(net.FTWeights, sizeof(int16_t), NUM_INPUTS * L1_SIZE, nn);
-        read += fread(net.FTBiases, sizeof(int16_t), L1_SIZE, nn);
-        read += fread(net.L1Weights, sizeof(int16_t), L1_SIZE * 2 * OUTPUT_BUCKETS, nn);
-        read += fread(net.L1Biases, sizeof(int16_t), OUTPUT_BUCKETS, nn);
+        read += fread(unquantisedNet->FTWeights, sizeof(float), INPUT_SIZE * L1_SIZE, nn);
+        read += fread(unquantisedNet->FTBiases, sizeof(float), L1_SIZE, nn);
+
+        read += fread(unquantisedNet->L1Weights, sizeof(float), OUTPUT_BUCKETS * 2 * L1_SIZE * L2_SIZE, nn);
+        read += fread(unquantisedNet->L1Biases, sizeof(float), OUTPUT_BUCKETS * L2_SIZE, nn);
+
+        read += fread(unquantisedNet->L2Weights, sizeof(float), OUTPUT_BUCKETS * L2_SIZE * L3_SIZE, nn);
+        read += fread(unquantisedNet->L2Biases, sizeof(float), OUTPUT_BUCKETS * L3_SIZE, nn);
+
+        read += fread(unquantisedNet->L3Weights, sizeof(float), OUTPUT_BUCKETS * L3_SIZE, nn);
+        read += fread(unquantisedNet->L3Biases, sizeof(float), OUTPUT_BUCKETS, nn);
 
         if (read != objectsExpected) {
             std::cout << "Error loading the net, aborting ";
-            std::cout << "Expected " << objectsExpected << " shorts, got " << read << "\n";
+            std::cout << "Expected " << objectsExpected << " floats, got " << read << "\n";
             exit(1);
         }
 
         // after reading the config we can close the file
         fclose(nn);
+
     } else {
         // if we don't find the nnue file we use the net embedded in the exe
         uint64_t memoryIndex = 0;
-        std::memcpy(net.FTWeights, &gEVALData[memoryIndex], NUM_INPUTS * L1_SIZE * sizeof(int16_t));
-        memoryIndex += NUM_INPUTS * L1_SIZE * sizeof(int16_t);
-        std::memcpy(net.FTBiases, &gEVALData[memoryIndex], L1_SIZE * sizeof(int16_t));
-        memoryIndex += L1_SIZE * sizeof(int16_t);
+        std::memcpy(unquantisedNet->FTWeights, &gEVALData[memoryIndex], sizeof(float) * INPUT_SIZE * L1_SIZE);
+        memoryIndex += sizeof(float) * INPUT_SIZE * L1_SIZE;
+        std::memcpy(unquantisedNet->FTBiases, &gEVALData[memoryIndex], sizeof(float) * L1_SIZE);
+        memoryIndex += sizeof(float) * L1_SIZE;
 
-        std::memcpy(net.L1Weights, &gEVALData[memoryIndex], L1_SIZE * 2 * OUTPUT_BUCKETS * sizeof(int16_t));
-        memoryIndex += L1_SIZE * 2 * OUTPUT_BUCKETS * sizeof(int16_t);
-        std::memcpy(net.L1Biases, &gEVALData[memoryIndex], OUTPUT_BUCKETS * sizeof(int16_t));
+        std::memcpy(unquantisedNet->L1Weights, &gEVALData[memoryIndex], sizeof(float) * OUTPUT_BUCKETS * 2 * L1_SIZE * L2_SIZE);
+        memoryIndex += sizeof(float) * OUTPUT_BUCKETS * 2 * L1_SIZE * L2_SIZE;
+        std::memcpy(unquantisedNet->L1Biases, &gEVALData[memoryIndex], sizeof(float) * OUTPUT_BUCKETS * L2_SIZE);
+        memoryIndex += sizeof(float) * OUTPUT_BUCKETS * L2_SIZE;
+
+        std::memcpy(unquantisedNet->L2Weights, &gEVALData[memoryIndex], sizeof(float) * OUTPUT_BUCKETS * L2_SIZE * L3_SIZE);
+        memoryIndex += sizeof(float) * OUTPUT_BUCKETS * L2_SIZE * L3_SIZE;
+        std::memcpy(unquantisedNet->L2Biases, &gEVALData[memoryIndex], sizeof(float) * OUTPUT_BUCKETS * L3_SIZE);
+        memoryIndex += sizeof(float) * OUTPUT_BUCKETS * L3_SIZE;
+
+        std::memcpy(unquantisedNet->L3Weights, &gEVALData[memoryIndex], sizeof(float) * OUTPUT_BUCKETS * L3_SIZE);
+        memoryIndex += sizeof(float) * OUTPUT_BUCKETS * L3_SIZE;
+        std::memcpy(unquantisedNet->L3Biases, &gEVALData[memoryIndex], sizeof(float) * OUTPUT_BUCKETS);
+        memoryIndex += sizeof(float) * OUTPUT_BUCKETS;
     }
 
-    int16_t transposedL1Weights[L1_SIZE * 2 * OUTPUT_BUCKETS];
-    for (int weight = 0; weight < 2 * L1_SIZE; ++weight)
-    {
-        for (int bucket = 0; bucket < OUTPUT_BUCKETS; ++bucket)
-        {
-            const int srcIdx = weight * OUTPUT_BUCKETS + bucket;
-            const int dstIdx = bucket * 2 * L1_SIZE + weight;
-            transposedL1Weights[dstIdx] = net.L1Weights[srcIdx];
-        }
-    }
-    std::memcpy(net.L1Weights, transposedL1Weights, L1_SIZE * sizeof(int16_t) * 2 * OUTPUT_BUCKETS);
+    // Quantise FT Weights
+    for (int i = 0; i < INPUT_SIZE * L1_SIZE; ++i)
+        net.FTWeights[i] = static_cast<int16_t>(std::round(unquantisedNet->FTWeights[i] * FT_QUANT));
 
+    // Quantise FT Biases
+    for (int i = 0; i < L1_SIZE; ++i)
+        net.FTBiases[i] = static_cast<int16_t>(std::round(unquantisedNet->FTBiases[i] * FT_QUANT));
+
+    // Transpose L1, L2 and L3 weights and biases
+    for (int bucket = 0; bucket < OUTPUT_BUCKETS; ++bucket) {
+
+        // Quantise L1 Weights
+        #if defined(USE_SIMD)
+        for (int i = 0; i < 2 * L1_SIZE / L1_CHUNK_SIZE; ++i)
+            for (int j = 0; j < L2_SIZE; ++j)
+                for (int k = 0; k < L1_CHUNK_SIZE; ++k)
+                    net.L1Weights[bucket][  i * L1_CHUNK_SIZE * L2_SIZE
+                                          + j * L1_CHUNK_SIZE
+                                          + k] = static_cast<int8_t>(std::round(unquantisedNet->L1Weights[i * L1_CHUNK_SIZE + k][bucket][j] * L1_QUANT));
+        #else
+        for (int i = 0; i < 2; ++i)
+            for (int j = 0; j < L2_SIZE; ++j)
+                for (int k = 0; k < L1_SIZE; ++k)
+                    net.L1Weights[bucket][  i * L1_SIZE * L2_SIZE
+                                          + j * L1_SIZE
+                                          + k] = static_cast<int8_t>(std::round(unquantisedNet->L1Weights[i * L1_SIZE + k][bucket][j] * L1_QUANT));
+        #endif
+
+        // Quantise L1 Biases
+        for (int i = 0; i < L2_SIZE; ++i)
+            net.L1Biases[bucket][i] = unquantisedNet->L1Biases[bucket][i];
+
+        // Quantise L2 Weights
+        #if defined(USE_SIMD)
+        for (int i = 0; i < L2_SIZE / L2_CHUNK_SIZE; ++i)
+            for (int j = 0; j < L3_SIZE; ++j)
+                for (int k = 0; k < L2_CHUNK_SIZE; ++k)
+                    net.L2Weights[bucket][  i * L2_CHUNK_SIZE * L3_SIZE
+                                          + j * L2_CHUNK_SIZE
+                                          + k] = unquantisedNet->L2Weights[i * L2_CHUNK_SIZE + k][bucket][j];
+        #else
+        for (int i = 0; i < L2_SIZE; ++i)
+            for (int j = 0; j < L3_SIZE; ++j)
+                net.L2Weights[bucket][j * L2_SIZE + i] = unquantisedNet->L2Weights[i][bucket][j];
+        #endif
+
+        // Quantise L2 Biases
+        for (int i = 0; i < L3_SIZE; ++i)
+            net.L2Biases[bucket][i] = unquantisedNet->L2Biases[bucket][i];
+
+        // Quantise L3 Weights
+        for (int i = 0; i < L3_SIZE; ++i)
+            net.L3Weights[bucket][i] = unquantisedNet->L3Weights[i][bucket];
+
+        // Quantise L3 Biases
+        net.L3Biases[bucket] = unquantisedNet->L3Biases[bucket];
+    }
+
+    free(unquantisedNet);
 }
 
 void NNUE::accumulate(NNUE::Accumulator& board_accumulator, Position* pos) {
@@ -174,8 +242,8 @@ int32_t NNUE::ActivateFTAndAffineL1(const int16_t *us, const int16_t *them, cons
     int weightOffset = 0;
     for (const int16_t *acc : {us, them}) {
         for (int i = 0; i < L1_SIZE; i += CHUNK_SIZE) {
-            vepi16 input   = vec_loadu_epi(reinterpret_cast<const vepi16*>(&acc[i]));
-            vepi16 weight  = vec_loadu_epi(reinterpret_cast<const vepi16*>(&weights[i + weightOffset]));
+            vepi16 input   = vec_load_epi(reinterpret_cast<const vepi16*>(&acc[i]));
+            vepi16 weight  = vec_load_epi(reinterpret_cast<const vepi16*>(&weights[i + weightOffset]));
             vepi16 clipped = vec_min_epi16(vec_max_epi16(input, Zero), One);
 
             // In squared clipped relu, we want to do (clipped * clipped) * weight.
