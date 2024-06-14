@@ -1,6 +1,5 @@
 #pragma once
 #include <cstdint>
-#include <iostream>
 
 #if defined(USE_SIMD)
 #include <immintrin.h>
@@ -23,13 +22,11 @@ inline vepi32 vec_madd_epi16 (const vepi16 vec0, const vepi16 vec1) { return _mm
 inline vepi32 vec_add_epi32  (const vepi32 vec0, const vepi32 vec1) { return _mm512_add_epi32(vec0, vec1); }
 
 inline vps32 vec_haddx8_cvtepi32_ps(const vepi32 *vecs) {
-    std::cout << "it might be this" << std::endl;
     auto m512i_to_m256i = [](const vepi32 vec) {
         const __m256i upper256 = _mm512_extracti64x4_epi64(vec, 1); // same as _mm512_extracti32x8_epi32, but doesn't require AVX512DQ
         const __m256i lower256 = _mm512_castsi512_si256(vec);
         return _mm256_add_epi32(upper256, lower256);
     };
-    std::cout << "if this prints its not this" << std::endl;
     const __m256i sum01 = _mm256_hadd_epi32(m512i_to_m256i(vecs[0]), m512i_to_m256i(vecs[1]));
     const __m256i sum23 = _mm256_hadd_epi32(m512i_to_m256i(vecs[2]), m512i_to_m256i(vecs[3]));
     const __m256i sum45 = _mm256_hadd_epi32(m512i_to_m256i(vecs[4]), m512i_to_m256i(vecs[5]));
