@@ -351,6 +351,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
     int eval;
     int rawEval;
     bool improving;
+    bool oppWorsened;
     int score = -MAXSCORE;
     TTEntry tte;
 
@@ -405,6 +406,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
     const Move ttMove = ttHit ? MoveFromTT(pos, tte.move) : NOMOVE;
     const uint8_t ttBound = ttHit ? BoundFromTT(tte.ageBoundPV) : uint8_t(HFNONE);
     const uint8_t ttDepth = tte.depth;
+    const bool ttPv = pvNode || (ttHit && FormerPV(tte.ageBoundPV));
     // If we found a value in the TT for this position, and the depth is equal or greater we can return it (pv nodes are excluded)
     if (   !pvNode
         &&  ttScore != SCORE_NONE
@@ -413,8 +415,6 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
             || (ttBound == HFLOWER && ttScore >= beta)
             ||  ttBound == HFEXACT))
         return ttScore;
-
-    const bool ttPv = pvNode || (ttHit && FormerPV(tte.ageBoundPV));
 
     // IIR by Ed Schroder (That i find out about in Berserk source code)
     // http://talkchess.com/forum3/viewtopic.php?f=7&t=74769&sid=64085e3396554f0fba414404445b3120
@@ -430,6 +430,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
     if (inCheck) {
         eval = rawEval = ss->staticEval = SCORE_NONE;
         improving = false;
+        oppWorsened = false;
         goto moves_loop;
     }
     else if(excludedMove) {
@@ -468,6 +469,15 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
     }
     else
         improving = true;
+
+    // oppWorsened is a less important modifier to one heuristic. It checks if the sign has flipped in static eval because of our
+    // opponent's last move (with advantage given to us), and by a significant magnitude. If the opponent was in check in the previous move,
+    // this is false by default.
+    if ((ss - 1)->staticEval != SCORE_NONE) {
+        oppWorsened = ss->staticEval > 128 && (ss - 1)->staticEval > 128;
+    }
+    else
+        oppWorsened = false;
 
     if (!pvNode
         && !excludedMove) {
@@ -652,9 +662,10 @@ moves_loop:
             if (cutNode)
                 depthReduction += 2;
 
-            // Reduce more if we are not improving
+            // Reduce more if we are not improving,
+            // and further more if we are not improving despite our opponent's terrible move
             if (!improving)
-                depthReduction += 1;
+                depthReduction += 1 + oppWorsened;
 
             // Reduce less if the move is a refutation
             if (move == mp.killer || move == mp.counter)
@@ -813,6 +824,8 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
     const int ttScore = ttHit ? ScoreFromTT(tte.score, ss->ply) : SCORE_NONE;
     const Move ttMove = ttHit ? MoveFromTT(pos, tte.move) : NOMOVE;
     const uint8_t ttBound = ttHit ? BoundFromTT(tte.ageBoundPV) : uint8_t(HFNONE);
+    const bool ttPv = pvNode || (ttHit && FormerPV(tte.ageBoundPV));
+
     // If we found a value in the TT for this position, we can return it (pv nodes are excluded)
     if (   !pvNode
         &&  ttScore != SCORE_NONE
@@ -820,8 +833,6 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
             || (ttBound == HFLOWER && ttScore >= beta)
             ||  ttBound == HFEXACT))
         return ttScore;
-
-    const bool ttPv = pvNode || (ttHit && FormerPV(tte.ageBoundPV));
 
     if (inCheck) {
         rawEval = ss->staticEval = SCORE_NONE;
