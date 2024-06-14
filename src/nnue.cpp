@@ -234,63 +234,97 @@ void NNUE::addSubSub(NNUE::Accumulator *new_acc, NNUE::Accumulator *prev_acc, NN
     }
 }
 
-int32_t NNUE::ActivateFTAndAffineL1(const int16_t *us, const int16_t *them, const int16_t *weights, const int16_t bias) {
+int32_t NNUE::ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, const int16_t *weights, const float *biases, float *output) {
     #if defined(USE_SIMD)
-    vepi32 sum  = vec_zero_epi32();
+    vepi32 sums[L2_SIZE] = {};
     const vepi16 Zero = vec_zero_epi16();
     const vepi16 One  = vec_set1_epi16(FT_QUANT);
     int weightOffset = 0;
     for (const int16_t *acc : {us, them}) {
-        for (int i = 0; i < L1_SIZE; i += CHUNK_SIZE) {
-            vepi16 input   = vec_load_epi(reinterpret_cast<const vepi16*>(&acc[i]));
-            vepi16 weight  = vec_load_epi(reinterpret_cast<const vepi16*>(&weights[i + weightOffset]));
-            vepi16 clipped = vec_min_epi16(vec_max_epi16(input, Zero), One);
+        for (int i = 0; i < L1_SIZE; i += L1_CHUNK_SIZE) {
+            // Activate feature transformers
+            const vepi16 input0   = vec_load_epi(reinterpret_cast<const vepi16*>(&acc[i]));
+            const vepi16 input1   = vec_load_epi(reinterpret_cast<const vepi16*>(&acc[i + FT_CHUNK_SIZE]));
+            const vepi16 clipped0 = vec_min_epi16(vec_max_epi16(input0, Zero), One);
+            const vepi16 clipped1 = vec_min_epi16(vec_max_epi16(input1, Zero), One);
 
-            // In squared clipped relu, we want to do (clipped * clipped) * weight.
-            // However, as clipped * clipped does not fit in an int16 while clipped * weight does,
-            // we instead do mullo(clipped, weight) and then madd by clipped.
-            vepi32 product = vec_madd_epi16(vec_mullo_epi16(clipped, weight), clipped);
-            sum = vec_add_epi32(sum, product);
+            const vepi16 squared0 = vec_srli_epi16(vec_mullo_epi16(clipped0, clipped0), FT_SHIFT);
+            const vepi16 squared1 = vec_srli_epi16(vec_mullo_epi16(clipped1, clipped1), FT_SHIFT);
+            const vepi8  packed   = vec_packus_permute_epi16(squared0, squared1);
+
+            // Affine transform for L1
+            const vepi8 *weight   = reinterpret_cast<const vepi16*>(&weights[i * L2_SIZE + weightOffset]);
+            for (int out = 0; out < L2_SIZE; ++out)
+                sums[out] = vec_dpbusd_epi32(sums[out], packed, weight[out]);
         }
 
-        weightOffset += L1_SIZE;
+        weightOffset += L1_SIZE * L2_SIZE;
     }
 
-    return (vec_reduce_add_epi32(sum) / FT_QUANT + bias) * NET_SCALE / (FT_QUANT * L1_QUANT);
+    for (int i = 0; i < L2_SIZE; i += L2_CHUNK_SIZE) {
+        // Convert into floats, and activate L1
+        const vps32 biasVec = vec_load_ps(&biases[i]);
+        const vps32 sumDiv  = vec_set1_ps(float(FT_QUANT * FT_QUANT * L1_QUANT >> FT_SHIFT));
+        const vps32 sumPs   = vec_add_ps(vec_div_ps(vec_haddx8_cvtepi32_ps(&sums[i]), sumDiv), bias);
+        const vps32 zeroPs  = vec_zero_ps();
+        const vps32 onePs   = vec_set1_ps(1.0f);
+        const vps32 clipped = vec_min_ps(vec_max_ps(sumPs, zeroPs), onePs);
+        const vps32 squared = vec_mul_ps(clipped, clipped);
+        vec_store_ps(&output[i], squared);
+    }
 
     #else
-    int sum = 0;
+    int sums[L2_SIZE] = {};
     int weightOffset = 0;
     for (const int16_t *acc : {us, them}) {
-        for (int i = 0; i < L1_SIZE; ++i) {
-            int16_t input   = acc[i];
-            int16_t weight  = weights[i + weightOffset];
-            int16_t clipped = std::clamp(input, int16_t(0), int16_t(FT_QUANT));
-            sum += static_cast<int16_t>(clipped * weight) * clipped;
+        for (int i = 0; i < L1_SIZE; i += 2) {
+            const int16_t clipped0 = std::clamp(acc[i], int16_t(0), FT_QUANT);
+            const int16_t clipped1 = std::clamp(acc[i + 1], int16_t(0), FT_QUANT);
+            const int16_t squared0 = (clipped0 * clipped0) >> FT_SHIFT;
+            const int16_t squared1 = (clipped1 * clipped1) >> FT_SHIFT;
+            for (int out = 0; out < L2_SIZE; ++out) {
+                sums[out] += squared0 * weights[weightOffset + out * L1_SIZE + i];
+                sums[out] += squared1 * weights[weightOffset + out * L1_SIZE + i];
+            }
         }
-
-        weightOffset += L1_SIZE;
+        weightOffset += L1_SIZE * L2_SIZE;
     }
 
-    return (sum / FT_QUANT + bias) * NET_SCALE / (FT_QUANT * L1_QUANT);
+    for (int i = 0; i < L2_SIZE; ++i) {
+        const float sumDiv  = float(FT_QUANT * FT_QUANT * L1_QUANT >> FT_SHIFT);
+        const float clipped = std::clamp(float(sums[i]) / sumDiv + biases[i], 0.0f, 1.0f);
+        output[i] = clipped * clipped;
+    }
     #endif
 }
 
-int32_t NNUE::output(const NNUE::Accumulator& board_accumulator, const bool whiteToMove, const int outputBucket) {
-    // this function takes the net output for the current accumulators and returns the eval of the position
-    // according to the net
-    const int16_t* us;
-    const int16_t* them;
-    if (whiteToMove) {
-        us = board_accumulator.values[0].data();
-        them = board_accumulator.values[1].data();
-    } else {
-        us = board_accumulator.values[1].data();
-        them = board_accumulator.values[0].data();
-    }
+// this function takes the net output for the current accumulators and returns the eval of the position
+// according to the net
+int32_t NNUE::output(const NNUE::Accumulator& board_accumulator, const bool sideToMove, const int outputBucket) {
 
-    const int32_t bucketOffset = 2 * L1_SIZE * outputBucket;
-    return ActivateFTAndAffineL1(us, them, &net.L1Weights[bucketOffset], net.L1Biases[outputBucket]);
+    alignas (64) float L1Outputs[L2_SIZE];
+    alignas (64) float L2Outputs[L3_SIZE];
+    float L3Output;
+
+    const int16_t* us = board_accumulator.values[sideToMove].data();
+    const int16_t* them = board_accumulator.values[sideToMove ^ 1].data();
+    ActivateFTAndPropagateL1(us,
+                             them,
+                             net.L1Weights[outputBucket],
+                             net.L1Biases[outputBucket],
+                             L1Outputs);
+
+    PropagateL2(L1Outputs,
+                net.L2Weights[outputBucket],
+                net.L2Biases[outputBucket],
+                L2Outputs);
+
+    PropagateL3(L2Outputs,
+               net.L3Weights[outputBucket],
+               net.L3Biases[outputBucket],
+               L3Output);
+
+    return L3Output * NET_SCALE;
 }
 
 NNUEIndices NNUE::GetIndex(const int piece, const int square) {

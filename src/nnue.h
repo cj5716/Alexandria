@@ -13,14 +13,17 @@ constexpr int L3_SIZE = 32;
 constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int FT_QUANT  = 255;
+constexpr int FT_SHIFT  = 9;
 constexpr int L1_QUANT  = 64;
 constexpr int NET_SCALE = 400;
 
 #if defined(USE_SIMD)
-constexpr int L1_CHUNK_SIZE = sizeof(vepi16) / sizeof(int16_t);
+constexpr int FT_CHUNK_SIZE = sizeof(vepi16) / sizeof(int16_t);
+constexpr int L1_CHUNK_SIZE = sizeof(vepi8 ) / sizeof(int8_t);
 constexpr int L2_CHUNK_SIZE = sizeof(vps32 ) / sizeof(float);
 constexpr int L3_CHUNK_SIZE = sizeof(vps32 ) / sizeof(float);
 #else
+constexpr int FT_CHUNK_SIZE = 1;
 constexpr int L1_CHUNK_SIZE = 1;
 constexpr int L2_CHUNK_SIZE = 1;
 constexpr int L3_CHUNK_SIZE = 1;
@@ -74,7 +77,9 @@ public:
     void update(NNUE::Accumulator *acc);
     void addSub(NNUE::Accumulator *new_acc, NNUE::Accumulator *prev_acc, NNUEIndices add, NNUEIndices sub);
     void addSubSub(NNUE::Accumulator *new_acc, NNUE::Accumulator *prev_acc, NNUEIndices add, NNUEIndices sub1, NNUEIndices sub2);
-    [[nodiscard]] int32_t ActivateFTAndAffineL1(const int16_t *us, const int16_t *them, const int16_t *weights, const int16_t bias);
-    [[nodiscard]] int32_t output(const NNUE::Accumulator &board_accumulator, const bool whiteToMove, const int outputBucket);
+    void ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, const int16_t *weights, const float *biases, float *output);
+    void PropagateL2(const float *inputs, const float *weights, const float *biases, float *output);
+    void PropagateL3(const float *inputs, const float *weights, const float bias, float &output);
+    [[nodiscard]] int32_t output(const NNUE::Accumulator &board_accumulator, const bool sideToMove, const int outputBucket);
     [[nodiscard]] NNUEIndices GetIndex(const int piece, const int square);
 };
