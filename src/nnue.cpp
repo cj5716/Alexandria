@@ -298,6 +298,62 @@ int32_t NNUE::ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, c
     #endif
 }
 
+void NNUE::PropagateL2(const float *inputs, const float *weights, const float *biases, float *output) {
+    #if defined(USE_SIMD)
+    vps32 sumVecs[L3_SIZE] = {};
+    for (int i = 0; i < L2_SIZE; i += L2_CHUNK_SIZE) {
+        const vps32 *weightVecs = reinterpret_cast<const vps32*>(&weights[i * L3_SIZE]);
+        const vps32 inputsVec   = vec_load_ps(&inputs[i]);
+        for (int out = 0; out < L3_SIZE; ++out)
+            sumVecs[out] = vec_mul_add_ps(inputsVec, weightVecs[out], sumVecs[out]);
+    }
+
+    for (int i = 0; i < L3_SIZE; i += L3_CHUNK_SIZE) {
+        const vps32 biasVec = vec_load_ps(&biases[i]);
+        const vps32 sum     = vec_add_ps(vec_hadd_psx8(&sumVecs[i]), biasVec);
+        const vps32 Zero    = vec_set1_ps(0.0f);
+        const vps32 One     = vec_set1_ps(1.0f);
+        const vps32 clipped = vec_max_ps(vec_min_ps(sum, One), Zero);
+        const vps32 squared = vec_mul_ps(clipped, clipped);
+        vec_store_ps(&output[i], squared);
+    }
+    #else
+    float sums[L3_SIZE];
+
+    for (int i = 0; i < L3_SIZE; ++i)
+        sums[i] = biases[i];
+
+    for (int i = 0; i < L2_SIZE; ++i) {
+        for (int out = 0; out < L3_SIZE; ++out) {
+            sums[out] += inputs[i] * weights[out * L2_SIZE + i];
+        }
+    }
+
+    for (int i = 0; i < L3_SIZE; ++i) {
+        const float clipped = std::clamp(sums[i], 0.0f, 1.0f);
+        output[i] = clipped * clipped;
+    }
+    #endif
+}
+
+void NNUE::PropagateL3(const float *inputs, const float *weights, const float bias, float &output) {
+    #if defined(USE_SIMD)
+    VecPs sumVec = vec_set1_ps(0.0f);
+    for (int i = 0; i < L3_SIZE; i += L3_CHUNK_SIZE) {
+        const VecPs weightVec = vec_loadu_ps(&weights[i]);
+        const VecPs inputsVec = vec_loadu_ps(&inputs[i]);
+        sumVec = vec_mul_add_ps(inputsVec, weightVec, sumVec);
+    }
+    output = bias + vec_reduce_add_ps(sumVec);
+    #else
+    float sum = bias;
+    for (int i = 0; i < L3_SIZE; ++i) {
+        sum += inputs[i] * weights[i];
+    }
+    output = sum;
+    #endif
+}
+
 // this function takes the net output for the current accumulators and returns the eval of the position
 // according to the net
 int32_t NNUE::output(const NNUE::Accumulator& board_accumulator, const bool sideToMove, const int outputBucket) {
