@@ -1,7 +1,8 @@
 #include "nnue.h"
 #include "simd.h"
-#include <algorithm>
 #include "position.h"
+#include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <iostream>
@@ -41,7 +42,7 @@ void NNUE::init(const char* file) {
         const size_t fileSize = sizeof(UnquantisedNetwork);
         const size_t objectsExpected = fileSize / sizeof(float);
 
-        read += fread(unquantisedNet->FTWeights, sizeof(float), INPUT_SIZE * L1_SIZE, nn);
+        read += fread(unquantisedNet->FTWeights, sizeof(float), NUM_INPUTS * L1_SIZE, nn);
         read += fread(unquantisedNet->FTBiases, sizeof(float), L1_SIZE, nn);
 
         read += fread(unquantisedNet->L1Weights, sizeof(float), OUTPUT_BUCKETS * 2 * L1_SIZE * L2_SIZE, nn);
@@ -65,8 +66,8 @@ void NNUE::init(const char* file) {
     } else {
         // if we don't find the nnue file we use the net embedded in the exe
         uint64_t memoryIndex = 0;
-        std::memcpy(unquantisedNet->FTWeights, &gEVALData[memoryIndex], sizeof(float) * INPUT_SIZE * L1_SIZE);
-        memoryIndex += sizeof(float) * INPUT_SIZE * L1_SIZE;
+        std::memcpy(unquantisedNet->FTWeights, &gEVALData[memoryIndex], sizeof(float) * NUM_INPUTS * L1_SIZE);
+        memoryIndex += sizeof(float) * NUM_INPUTS * L1_SIZE;
         std::memcpy(unquantisedNet->FTBiases, &gEVALData[memoryIndex], sizeof(float) * L1_SIZE);
         memoryIndex += sizeof(float) * L1_SIZE;
 
@@ -87,7 +88,7 @@ void NNUE::init(const char* file) {
     }
 
     // Quantise FT Weights
-    for (int i = 0; i < INPUT_SIZE * L1_SIZE; ++i)
+    for (int i = 0; i < NUM_INPUTS * L1_SIZE; ++i)
         net.FTWeights[i] = static_cast<int16_t>(std::round(unquantisedNet->FTWeights[i] * FT_QUANT));
 
     // Quantise FT Biases
@@ -234,7 +235,7 @@ void NNUE::addSubSub(NNUE::Accumulator *new_acc, NNUE::Accumulator *prev_acc, NN
     }
 }
 
-int32_t NNUE::ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, const int16_t *weights, const float *biases, float *output) {
+void NNUE::ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, const int8_t *weights, const float *biases, float *output) {
     #if defined(USE_SIMD)
     vepi32 sums[L2_SIZE] = {};
     const vepi16 Zero = vec_zero_epi16();
@@ -265,7 +266,7 @@ int32_t NNUE::ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, c
         // Convert into floats, and activate L1
         const vps32 biasVec = vec_load_ps(&biases[i]);
         const vps32 sumDiv  = vec_set1_ps(float(FT_QUANT * FT_QUANT * L1_QUANT >> FT_SHIFT));
-        const vps32 sumPs   = vec_add_ps(vec_div_ps(vec_haddx8_cvtepi32_ps(&sums[i]), sumDiv), bias);
+        const vps32 sumPs   = vec_add_ps(vec_div_ps(vec_haddx8_cvtepi32_ps(&sums[i]), sumDiv), biasVec);
         const vps32 zeroPs  = vec_zero_ps();
         const vps32 onePs   = vec_set1_ps(1.0f);
         const vps32 clipped = vec_min_ps(vec_max_ps(sumPs, zeroPs), onePs);
@@ -278,10 +279,13 @@ int32_t NNUE::ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, c
     int weightOffset = 0;
     for (const int16_t *acc : {us, them}) {
         for (int i = 0; i < L1_SIZE; i += 2) {
+            // Activate FT
             const int16_t clipped0 = std::clamp(acc[i], int16_t(0), FT_QUANT);
             const int16_t clipped1 = std::clamp(acc[i + 1], int16_t(0), FT_QUANT);
             const int16_t squared0 = (clipped0 * clipped0) >> FT_SHIFT;
             const int16_t squared1 = (clipped1 * clipped1) >> FT_SHIFT;
+
+            // Affine transform for L1
             for (int out = 0; out < L2_SIZE; ++out) {
                 sums[out] += squared0 * weights[weightOffset + out * L1_SIZE + i];
                 sums[out] += squared1 * weights[weightOffset + out * L1_SIZE + i];
@@ -291,6 +295,7 @@ int32_t NNUE::ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, c
     }
 
     for (int i = 0; i < L2_SIZE; ++i) {
+        // Convert into floats and activate L1
         const float sumDiv  = float(FT_QUANT * FT_QUANT * L1_QUANT >> FT_SHIFT);
         const float clipped = std::clamp(float(sums[i]) / sumDiv + biases[i], 0.0f, 1.0f);
         output[i] = clipped * clipped;
@@ -301,6 +306,8 @@ int32_t NNUE::ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, c
 void NNUE::PropagateL2(const float *inputs, const float *weights, const float *biases, float *output) {
     #if defined(USE_SIMD)
     vps32 sumVecs[L3_SIZE] = {};
+
+    // Affine transform for L2
     for (int i = 0; i < L2_SIZE; i += L2_CHUNK_SIZE) {
         const vps32 *weightVecs = reinterpret_cast<const vps32*>(&weights[i * L3_SIZE]);
         const vps32 inputsVec   = vec_load_ps(&inputs[i]);
@@ -308,6 +315,7 @@ void NNUE::PropagateL2(const float *inputs, const float *weights, const float *b
             sumVecs[out] = vec_mul_add_ps(inputsVec, weightVecs[out], sumVecs[out]);
     }
 
+    // Activate L2
     for (int i = 0; i < L3_SIZE; i += L3_CHUNK_SIZE) {
         const vps32 biasVec = vec_load_ps(&biases[i]);
         const vps32 sum     = vec_add_ps(vec_hadd_psx8(&sumVecs[i]), biasVec);
@@ -323,12 +331,14 @@ void NNUE::PropagateL2(const float *inputs, const float *weights, const float *b
     for (int i = 0; i < L3_SIZE; ++i)
         sums[i] = biases[i];
 
+    // Affine transform for L2
     for (int i = 0; i < L2_SIZE; ++i) {
         for (int out = 0; out < L3_SIZE; ++out) {
             sums[out] += inputs[i] * weights[out * L2_SIZE + i];
         }
     }
 
+    // Activate L2
     for (int i = 0; i < L3_SIZE; ++i) {
         const float clipped = std::clamp(sums[i], 0.0f, 1.0f);
         output[i] = clipped * clipped;
@@ -339,14 +349,18 @@ void NNUE::PropagateL2(const float *inputs, const float *weights, const float *b
 void NNUE::PropagateL3(const float *inputs, const float *weights, const float bias, float &output) {
     #if defined(USE_SIMD)
     vps32 sumVec = vec_set1_ps(0.0f);
+
+    // Affine transform for L3
     for (int i = 0; i < L3_SIZE; i += L3_CHUNK_SIZE) {
-        const vps32 weightVec = vec_loadu_ps(&weights[i]);
-        const vps32 inputsVec = vec_loadu_ps(&inputs[i]);
+        const vps32 weightVec = vec_load_ps(&weights[i]);
+        const vps32 inputsVec = vec_load_ps(&inputs[i]);
         sumVec = vec_mul_add_ps(inputsVec, weightVec, sumVec);
     }
     output = bias + vec_reduce_add_ps(sumVec);
     #else
     float sum = bias;
+
+    // Affine transform for L3
     for (int i = 0; i < L3_SIZE; ++i) {
         sum += inputs[i] * weights[i];
     }
