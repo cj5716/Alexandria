@@ -338,10 +338,10 @@ void NNUE::PropagateL2(const float *inputs, const float *weights, const float *b
 
 void NNUE::PropagateL3(const float *inputs, const float *weights, const float bias, float &output) {
     #if defined(USE_SIMD)
-    VecPs sumVec = vec_set1_ps(0.0f);
+    vps32 sumVec = vec_set1_ps(0.0f);
     for (int i = 0; i < L3_SIZE; i += L3_CHUNK_SIZE) {
-        const VecPs weightVec = vec_loadu_ps(&weights[i]);
-        const VecPs inputsVec = vec_loadu_ps(&inputs[i]);
+        const vps32 weightVec = vec_loadu_ps(&weights[i]);
+        const vps32 inputsVec = vec_loadu_ps(&inputs[i]);
         sumVec = vec_mul_add_ps(inputsVec, weightVec, sumVec);
     }
     output = bias + vec_reduce_add_ps(sumVec);
