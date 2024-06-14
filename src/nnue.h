@@ -59,7 +59,7 @@ struct Position;
 class NNUE {
 public:
     struct Accumulator {
-        std::array<std::array<int16_t, L1_SIZE>, 2> values;
+        alignas(64) std::array<std::array<int16_t, L1_SIZE>, 2> values;
         std::vector<NNUEIndices> NNUEAdd = {};
         std::vector<NNUEIndices> NNUESub = {};
 
