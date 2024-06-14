@@ -251,7 +251,7 @@ void NNUE::ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, cons
             // Affine transform for L1
             const vepi16 *weight = reinterpret_cast<const vepi16*>(&weights[i * L2_SIZE + weightOffset]);
             for (int out = 0; out < L2_SIZE; ++out)
-                sums[out] = vec_add_epi32(vec_madd_epi16(squared, weight[out]), sums[out]);
+                sums[out] = vec_dpwssd_epi32(sums[out], squared, weight[out]);
         }
 
         weightOffset += L1_SIZE * L2_SIZE;
