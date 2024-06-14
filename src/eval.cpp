@@ -37,10 +37,9 @@ int EvalPositionRaw(Position* pos) {
     // Update accumulators to ensure we are up to date on the current board state
     nnue.update(&pos->AccumulatorTop());
 
-    const bool stm = pos->side == WHITE;
     const int pieceCount = pos->PieceCount();
     const int outputBucket = std::min((63 - pieceCount) * (32 - pieceCount) / 225, 7);
-    return nnue.output(pos->accumStack[pos->accumStackHead - 1], stm, outputBucket);
+    return nnue.output(pos->AccumulatorTop(), pos->side, outputBucket);
 }
 
 // position evaluation
