@@ -105,14 +105,14 @@ void NNUE::init(const char* file) {
                 for (int k = 0; k < L1_CHUNK_SIZE; ++k)
                     net.L1Weights[bucket][  i * L1_CHUNK_SIZE * L2_SIZE
                                           + j * L1_CHUNK_SIZE
-                                          + k] = static_cast<int8_t>(std::round(unquantisedNet->L1Weights[i * L1_CHUNK_SIZE + k][bucket][j] * L1_QUANT));
+                                          + k] = static_cast<int16_t>(std::round(unquantisedNet->L1Weights[i * L1_CHUNK_SIZE + k][bucket][j] * L1_QUANT));
         #else
         for (int i = 0; i < 2; ++i)
             for (int j = 0; j < L2_SIZE; ++j)
                 for (int k = 0; k < L1_SIZE; ++k)
                     net.L1Weights[bucket][  i * L1_SIZE * L2_SIZE
                                           + j * L1_SIZE
-                                          + k] = static_cast<int8_t>(std::round(unquantisedNet->L1Weights[i * L1_SIZE + k][bucket][j] * L1_QUANT));
+                                          + k] = static_cast<int16_t>(std::round(unquantisedNet->L1Weights[i * L1_SIZE + k][bucket][j] * L1_QUANT));
         #endif
 
         // Quantise L1 Biases
@@ -235,7 +235,7 @@ void NNUE::addSubSub(NNUE::Accumulator *new_acc, NNUE::Accumulator *prev_acc, NN
     }
 }
 
-void NNUE::ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, const int8_t *weights, const float *biases, float *output) {
+void NNUE::ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, const int16_t *weights, const float *biases, float *output) {
     #if defined(USE_SIMD)
     vepi32 sums[L2_SIZE] = {};
     const vepi16 Zero = vec_zero_epi16();
@@ -244,19 +244,14 @@ void NNUE::ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, cons
     for (const int16_t *acc : {us, them}) {
         for (int i = 0; i < L1_SIZE; i += L1_CHUNK_SIZE) {
             // Activate feature transformers
-            const vepi16 input0   = vec_load_epi(reinterpret_cast<const vepi16*>(&acc[i]));
-            const vepi16 input1   = vec_load_epi(reinterpret_cast<const vepi16*>(&acc[i + FT_CHUNK_SIZE]));
-            const vepi16 clipped0 = vec_min_epi16(vec_max_epi16(input0, Zero), One);
-            const vepi16 clipped1 = vec_min_epi16(vec_max_epi16(input1, Zero), One);
-
-            const vepi16 squared0 = vec_srli_epi16(vec_mullo_epi16(clipped0, clipped0), FT_SHIFT);
-            const vepi16 squared1 = vec_srli_epi16(vec_mullo_epi16(clipped1, clipped1), FT_SHIFT);
-            const vepi8  packed   = vec_packus_permute_epi16(squared0, squared1);
+            const vepi16 input   = vec_load_epi(reinterpret_cast<const vepi16*>(&acc[i]));
+            const vepi16 clipped = vec_min_epi16(vec_max_epi16(input, Zero), One);
+            const vepi16 squared = vec_srli_epi16(vec_mullo_epi16(clipped, clipped), FT_SHIFT);
 
             // Affine transform for L1
-            const vepi8 *weight   = reinterpret_cast<const vepi16*>(&weights[i * L2_SIZE + weightOffset]);
+            const vepi16 *weight = reinterpret_cast<const vepi16*>(&weights[i * L2_SIZE + weightOffset]);
             for (int out = 0; out < L2_SIZE; ++out)
-                sums[out] = vec_dpbusd_epi32(sums[out], packed, weight[out]);
+                sums[out] = vec_add_epi32(vec_madd_epi16(squared, weight[out]), sums[out]);
         }
 
         weightOffset += L1_SIZE * L2_SIZE;
@@ -278,17 +273,14 @@ void NNUE::ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, cons
     int sums[L2_SIZE] = {};
     int weightOffset = 0;
     for (const int16_t *acc : {us, them}) {
-        for (int i = 0; i < L1_SIZE; i += 2) {
+        for (int i = 0; i < L1_SIZE; ++i) {
             // Activate FT
-            const int16_t clipped0 = std::clamp(acc[i], int16_t(0), FT_QUANT);
-            const int16_t clipped1 = std::clamp(acc[i + 1], int16_t(0), FT_QUANT);
-            const int16_t squared0 = (clipped0 * clipped0) >> FT_SHIFT;
-            const int16_t squared1 = (clipped1 * clipped1) >> FT_SHIFT;
+            const int16_t clipped = std::clamp(acc[i], int16_t(0), FT_QUANT);
+            const int16_t squared = (clipped * clipped) >> FT_SHIFT;
 
             // Affine transform for L1
             for (int out = 0; out < L2_SIZE; ++out) {
-                sums[out] += squared0 * weights[weightOffset + out * L1_SIZE + i];
-                sums[out] += squared1 * weights[weightOffset + out * L1_SIZE + i];
+                sums[out] += squared * weights[weightOffset + out * L1_SIZE + i];
             }
         }
         weightOffset += L1_SIZE * L2_SIZE;
