@@ -77,7 +77,7 @@ public:
     void update(NNUE::Accumulator *acc);
     void addSub(NNUE::Accumulator *new_acc, NNUE::Accumulator *prev_acc, NNUEIndices add, NNUEIndices sub);
     void addSubSub(NNUE::Accumulator *new_acc, NNUE::Accumulator *prev_acc, NNUEIndices add, NNUEIndices sub1, NNUEIndices sub2);
-    void ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, const int16_t *weights, const float *biases, float *output);
+    void ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, const int8_t *weights, const float *biases, float *output);
     void PropagateL2(const float *inputs, const float *weights, const float *biases, float *output);
     void PropagateL3(const float *inputs, const float *weights, const float bias, float &output);
     [[nodiscard]] int32_t output(const NNUE::Accumulator &board_accumulator, const bool sideToMove, const int outputBucket);
