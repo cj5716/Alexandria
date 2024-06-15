@@ -12,7 +12,7 @@ GetScore: this is simply a getter for a specific entry of the history table
 */
 
 int history_bonus(const int depth) {
-    return std::min(16 * (depth + 1) * (depth + 1), 1200);
+    return std::min(16 * depth * depth + 32 * depth + 16, 1200);
 }
 
 void updateHHScore(const Position* pos, SearchData* sd, const Move move, int bonus) {
@@ -48,7 +48,7 @@ void updateCapthistScore(const Position* pos, SearchData* sd, const Move move, i
 }
 
 // Update all histories
-void UpdateHistories(const Position* pos, SearchData* sd, SearchStack* ss, const int depth, const Move bestMove, const MoveList* quietMoves, const MoveList* noisyMoves) {
+void UpdateHistories(const Position* pos, SearchData* sd, SearchStack* ss, const int depth, const Move bestMove, const MoveList quietMoves, const MoveList noisyMoves) {
     const int bonus = history_bonus(depth);
     if (!isTactical(bestMove))
     {
@@ -56,9 +56,9 @@ void UpdateHistories(const Position* pos, SearchData* sd, SearchStack* ss, const
         updateHHScore(pos, sd, bestMove, bonus);
         updateCHScore(ss, bestMove, bonus);
         // Loop through all the quiet moves
-        for (int i = 0; i < quietMoves->count; i++) {
+        for (int i = 0; i < quietMoves.count; i++) {
             // For all the quiets moves that didn't cause a cut-off decrease the HH score
-            const Move move = quietMoves->moves[i].move;
+            const Move move = quietMoves.moves[i].move;
             if (move == bestMove) continue;
             updateHHScore(pos, sd, move, -bonus);
             updateCHScore(ss, move, -bonus);
@@ -69,8 +69,8 @@ void UpdateHistories(const Position* pos, SearchData* sd, SearchStack* ss, const
         updateCapthistScore(pos, sd, bestMove, bonus);
     }
     // For all the noisy moves that didn't cause a cut-off, even is the bestMove wasn't a noisy move, decrease the capthist score
-    for (int i = 0; i < noisyMoves->count; i++) {
-        const Move move = noisyMoves->moves[i].move;
+    for (int i = 0; i < noisyMoves.count; i++) {
+        const Move move = noisyMoves.moves[i].move;
         if (move == bestMove) continue;
         updateCapthistScore(pos, sd, move, -bonus);
     }

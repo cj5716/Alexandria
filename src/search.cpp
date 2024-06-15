@@ -540,8 +540,8 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
     Movepicker mp;
     InitMP(&mp, pos, sd, ss, ttMove, SEARCH);
 
-    // Keep track of the played quiet and noisy moves
-    MoveList quietMoves, noisyMoves;
+    // Keep track of the played quiet and tactical moves
+    MoveList quietMoves, tacticalMoves;
 
     // loop over moves within a movelist
     while ((move = NextMove(&mp, skipQuiets)) != NOMOVE) {
@@ -636,7 +636,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
         MakeMove<true>(move, pos);
         ss->contHistEntry = &sd->contHist[PieceTo(move)];
         // Add any played move to the matching list
-        AddMove(move, isQuiet ? &quietMoves : &noisyMoves);
+        AddMove(move, isQuiet ? &quietMoves : &tacticalMoves);
 
         // increment nodes count
         info->nodes++;
@@ -738,7 +738,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
                             sd->counterMoves[FromTo((ss - 1)->move)] = move;
                     }
                     // Update the history heuristics based on the new best move
-                    UpdateHistories(pos, sd, ss, depth + (eval <= alpha), bestMove, &quietMoves, &noisyMoves);
+                    UpdateHistories(pos, sd, ss, depth + (ss->staticEval <= alpha), bestMove, quietMoves, tacticalMoves);
 
                     // node (move) fails high
                     break;
@@ -856,11 +856,13 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
     alpha = std::max(alpha, bestScore);
 
     Movepicker mp;
+
     // If we aren't in check we generate just the captures, otherwise we generate all the moves
     InitMP(&mp, pos, sd, ss, ttMove, QSEARCH);
 
-    Move bestmove = NOMOVE;
+    Move bestMove = NOMOVE;
     Move move;
+    MoveList tacticalMoves;
     int totalMoves = 0;
 
     // loop over moves within the movelist
@@ -884,10 +886,16 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
         // Speculative prefetch of the TT entry
         TTPrefetch(keyAfter(pos, move));
         ss->move = move;
+        // Add the move into tacticalMoves if it is tactical
+        if (isTactical(move))
+            AddMove(move, &tacticalMoves);
+
         // Play the move
         MakeMove<true>(move, pos);
+
         // increment nodes count
         info->nodes++;
+
         // Call Quiescence search recursively
         const int score = -Quiescence<pvNode>(-beta, -alpha, td, ss + 1);
 
@@ -904,11 +912,13 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
 
             // if the score is better than alpha update our best move
             if (score > alpha) {
-                bestmove = move;
+                bestMove = move;
 
                 // if the score is better than or equal to beta break the loop because we failed high
-                if (score >= beta)
+                if (score >= beta) {
+                    UpdateHistories(pos, sd, ss, ss->staticEval <= alpha, bestMove, MoveList{}, tacticalMoves);
                     break;
+                }
 
                 // Update alpha iff alpha < beta
                 alpha = score;
@@ -923,7 +933,7 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
     // Set the TT bound based on whether we failed high, for qsearch we never use the exact bound
     int bound = bestScore >= beta ? HFLOWER : HFUPPER;
 
-    StoreTTEntry(pos->posKey, MoveToTT(bestmove), ScoreToTT(bestScore, ss->ply), rawEval, bound, 0, pvNode, ttPv);
+    StoreTTEntry(pos->posKey, MoveToTT(bestMove), ScoreToTT(bestScore, ss->ply), rawEval, bound, 0, pvNode, ttPv);
 
     return bestScore;
 }
