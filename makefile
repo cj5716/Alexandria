@@ -1,15 +1,16 @@
-NETWORK_NAME = nn.net
-_THIS       := $(realpath $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-_ROOT       := $(_THIS)
-EVALFILE     = $(NETWORK_NAME)
-CXX         := g++
-TARGET      := Alexandria
-WARNINGS     = -Wall -Wcast-qual -Wextra -Wshadow -Wdouble-promotion -Wformat=2 -Wnull-dereference -Wlogical-op -Wold-style-cast -Wundef -pedantic
-CXXFLAGS    := -funroll-loops -O3 -flto -fno-exceptions -std=gnu++2a -DNDEBUG $(WARNINGS)
-NATIVE       = -march=native
-AVX2FLAGS    = -DUSE_AVX2 -DUSE_SIMD -mavx2 -mbmi
-BMI2FLAGS    = -DUSE_AVX2 -DUSE_SIMD -mavx2 -mbmi -mbmi2
-AVX512FLAGS  = -DUSE_AVX512 -DUSE_SIMD -mavx512f -mavx512bw
+NETWORK_NAME  = nn.net
+FEATURES_NAME = features.net
+_THIS        := $(realpath $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+_ROOT        := $(_THIS)
+EVALFILE      = $(NETWORK_NAME)
+CXX          := g++
+TARGET       := Alexandria
+WARNINGS      = -Wall -Wcast-qual -Wextra -Wshadow -Wdouble-promotion -Wformat=2 -Wnull-dereference -Wlogical-op -Wold-style-cast -Wundef -pedantic
+CXXFLAGS     := -funroll-loops -O3 -flto -fno-exceptions -std=gnu++2a -DNDEBUG $(WARNINGS)
+NATIVE        = -march=native
+AVX2FLAGS     = -DUSE_AVX2 -DUSE_SIMD -mavx2 -mbmi
+BMI2FLAGS     = -DUSE_AVX2 -DUSE_SIMD -mavx2 -mbmi -mbmi2
+AVX512FLAGS   = -DUSE_AVX512 -DUSE_SIMD -mavx512f -mavx512bw
 
 # engine name
 NAME        := Alexandria
@@ -50,21 +51,21 @@ ifeq ($(uname_S), Darwin)
 	FLAGS = 
 endif
 
-ARCH_DETECTED =
+FLAGS_DETECTED = 
+
 PROPERTIES = $(shell echo | $(CXX) -march=native -E -dM -)
+
+ifneq ($(findstring __AVX2__, $(PROPERTIES)),)
+	FLAGS_DETECTED = $(AVX2FLAGS)
+endif
+
+ifneq ($(findstring __BMI2__, $(PROPERTIES)),)
+	FLAGS_DETECTED = $(BMI2FLAGS)
+endif
+
 ifneq ($(findstring __AVX512F__, $(PROPERTIES)),)
 	ifneq ($(findstring __AVX512BW__, $(PROPERTIES)),)
-		ARCH_DETECTED = AVX512
-	endif
-endif
-ifeq ($(ARCH_DETECTED),)
-	ifneq ($(findstring __BMI2__, $(PROPERTIES)),)
-		ARCH_DETECTED = BMI2
-	endif
-endif
-ifeq ($(ARCH_DETECTED),)
-	ifneq ($(findstring __AVX2__, $(PROPERTIES)),)
-		ARCH_DETECTED = AVX2
+		FLAGS_DETECTED = $(AVX512FLAGS)
 	endif
 endif
 
@@ -72,30 +73,14 @@ endif
 ifdef build
 	NATIVE =
 else
-	ifeq ($(ARCH_DETECTED), AVX512)
-		CXXFLAGS += $(AVX512FLAGS)
-	endif
-	ifeq ($(ARCH_DETECTED), BMI2)
-		CXXFLAGS += $(BMI2FLAGS)
-	endif
-	ifeq ($(ARCH_DETECTED), AVX2)
-		CXXFLAGS += $(AVX2FLAGS)
-	endif
+	CXXFLAGS += $(FLAGS_DETECTED)
 endif
 
 # SPECIFIC BUILDS
 ifeq ($(build), native)
 	NATIVE     = -march=native
 	ARCH       = -x86-64-native
-	ifeq ($(ARCH_DETECTED), AVX512)
-		CXXFLAGS += $(AVX512FLAGS)
-	endif
-	ifeq ($(ARCH_DETECTED), BMI2)
-		CXXFLAGS += $(BMI2FLAGS)
-	endif
-	ifeq ($(ARCH_DETECTED), AVX2)
-		CXXFLAGS += $(AVX2FLAGS)
-	endif
+	CXXFLAGS += $(FLAGS_DETECTED)
 endif
 
 ifeq ($(build), x86-64)
@@ -132,15 +117,7 @@ ifeq ($(build), debug)
 	CXXFLAGS = -O3 -g3 -fno-omit-frame-pointer -std=gnu++2a
 	NATIVE   = -msse -msse3 -mpopcnt
 	FLAGS    = -lpthread -lstdc++
-	ifeq ($(ARCH_DETECTED), AVX512)
-		CXXFLAGS += $(AVX512FLAGS)
-	endif
-	ifeq ($(ARCH_DETECTED), BMI2)
-		CXXFLAGS += $(BMI2FLAGS)
-	endif
-	ifeq ($(ARCH_DETECTED), AVX2)
-		CXXFLAGS += $(AVX2FLAGS)
-	endif
+	CXXFLAGS += $(FLAGS_DETECTED)
 endif
 
 # Get what pgo flags we should be using
@@ -156,8 +133,8 @@ ifneq ($(findstring clang, $(CCX)),)
 	PGOUSE   = -fprofile-instr-use=alexandria.profdata
 endif
 
-# Add network name and Evalfile
-CXXFLAGS += -DNETWORK_NAME=\"$(NETWORK_NAME)\" -DEVALFILE=\"$(EVALFILE)\"
+# Add network name, evalfile and featurefile
+CXXFLAGS += -DNETWORK_NAME=\"$(NETWORK_NAME)\" -DEVALFILE=\"$(EVALFILE)\" -DFEATURES_FILE=\"$(FEATURES_NAME)\"
 
 SOURCES := $(wildcard src/*.cpp)
 OBJECTS := $(patsubst %.cpp,$(TMPDIR)/%.o,$(SOURCES))
