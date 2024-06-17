@@ -7,20 +7,6 @@
 constexpr int NUM_INPUTS = 768;
 constexpr int NUM_FEATURES = 32;
 
-// Net arch: (768 -> L1_SIZE)x2 -> 1xOUTPUT_BUCKETS
-constexpr int NUM_INPUTS = 768;
-constexpr int L1_SIZE = 1536;
-constexpr int OUTPUT_BUCKETS = 8;
-
-constexpr int FT_QUANT  = 255;
-constexpr int L1_QUANT  = 64;
-constexpr int NET_SCALE = 400;
-
-#if defined(USE_SIMD)
-constexpr int CHUNK_SIZE = sizeof(vepi16) / sizeof(int16_t);
-#else
-constexpr int CHUNK_SIZE = 1;
-#endif
 
 using NNUEIndices = std::pair<std::size_t, std::size_t>;
 
