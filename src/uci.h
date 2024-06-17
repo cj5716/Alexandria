@@ -9,7 +9,7 @@ struct SearchInfo;
 struct UciOptions {
     uint64_t Hash = 16;
     static constexpr int MultiPV = 1;
-    int Threads = 1;
+    int Threads = 4;
 };
 
 // Internal flag to decide if to pretty or ugly print search results

@@ -405,6 +405,9 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
     const Move ttMove = ttHit ? MoveFromTT(pos, tte.move) : NOMOVE;
     const uint8_t ttBound = ttHit ? BoundFromTT(tte.ageBoundPV) : uint8_t(HFNONE);
     const uint8_t ttDepth = tte.depth;
+
+    dbg_mean_of(ttMove != NOMOVE && (!IsPseudoLegal(pos, ttMove) || !IsLegal(pos, ttMove)));
+
     // If we found a value in the TT for this position, and the depth is equal or greater we can return it (pv nodes are excluded)
     if (   !pvNode
         &&  ttScore != SCORE_NONE
@@ -812,6 +815,8 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
     const int ttScore = ttHit ? ScoreFromTT(tte.score, ss->ply) : SCORE_NONE;
     const Move ttMove = ttHit ? MoveFromTT(pos, tte.move) : NOMOVE;
     const uint8_t ttBound = ttHit ? BoundFromTT(tte.ageBoundPV) : uint8_t(HFNONE);
+    dbg_mean_of(ttMove != NOMOVE && (!IsPseudoLegal(pos, ttMove) || !IsLegal(pos, ttMove)));
+
     // If we found a value in the TT for this position, we can return it (pv nodes are excluded)
     if (   !pvNode
         &&  ttScore != SCORE_NONE

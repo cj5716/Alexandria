@@ -81,6 +81,7 @@ void StartBench(int depth) {
     auto totalTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
     std::cout << "\n";
     std::cout << totalNodes << " nodes " << signed(totalNodes / (totalTime + 1) * 1000) << " nps" << std::endl;
+    dbg_print();
     delete td;
 }
 
