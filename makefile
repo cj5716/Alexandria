@@ -134,7 +134,7 @@ ifneq ($(findstring clang, $(CCX)),)
 endif
 
 # Add network name, evalfile and featurefile
-CXXFLAGS += -DNETWORK_NAME=\"$(NETWORK_NAME)\" -DEVALFILE=\"$(EVALFILE)\" -DFEATURES_FILE=\"$(FEATURES_NAME)\"
+CXXFLAGS += -DNETWORK_NAME=\"$(NETWORK_NAME)\" -DEVALFILE=\"$(EVALFILE)\" -DFEATUREFILE=\"$(FEATURES_NAME)\"
 
 SOURCES := $(wildcard src/*.cpp)
 OBJECTS := $(patsubst %.cpp,$(TMPDIR)/%.o,$(SOURCES))
