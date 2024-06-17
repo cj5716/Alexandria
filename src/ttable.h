@@ -4,7 +4,7 @@
 #include "types.h"
 #include <vector>
 
-constexpr int ENTRIES_PER_BUCKET = 3;
+constexpr int ENTRIES_PER_BUCKET = 2;
 
 // 10 bytes:
 // 2 for move
@@ -26,10 +26,9 @@ PACK(struct TTEntry {
 // 3 entries per bucket with 2 bytes of padding
 struct alignas(32) TTBucket {
     TTEntry entries[ENTRIES_PER_BUCKET] = {};
-    uint16_t padding;
 };
 
-static_assert(sizeof(TTEntry) == 10);
+static_assert(sizeof(TTEntry) == 16);
 static_assert(sizeof(TTBucket) == 32);
 
 struct TTable {
