@@ -8,11 +8,11 @@ uint64_t GetTimeMs() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 
-long long int _count, _accumulator;
+long long int _accumulator;
 
-void dbg_mean_of(int val) { _count++; _accumulator += val; }
+void dbg_count(int val) { _accumulator += val; }
 
-void dbg_print() { std::cout << double(_accumulator) / _count << std::endl; }
+void dbg_print() { std::cout << _accumulator << std::endl; }
 
 // splits a string into a vector of tokens and returns it
 std::vector<std::string> split_command(const std::string& command) {
