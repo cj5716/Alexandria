@@ -48,7 +48,6 @@ public:
     int castleperm = 0;
     // unique  hashkey  that encodes a board position
     ZobristKey posKey = 0ULL;
-    ZobristKey pawnKey = 0ULL;
     // stores the state of the board  rollback purposes
     int historyStackHead = 0;
     BoardState    history[MAXPLY];
@@ -175,7 +174,6 @@ constexpr char ascii_pieces[13] = "PNBRQKpnbrqk";
 extern NNUE nnue;
 
 [[nodiscard]] ZobristKey GeneratePosKey(const Position* pos);
-[[nodiscard]] ZobristKey GeneratePawnKey(const Position* pos);
 // parse FEN string
 void ParseFen(const std::string& command, Position* pos);
 // Get fen string from board

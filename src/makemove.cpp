@@ -23,8 +23,6 @@ void ClearPiece(const int piece, const int from, Position* pos) {
     pop_bit(pos->occupancies[color], from);
     pos->pieces[from] = EMPTY;
     HashKey(pos->posKey, PieceKeys[piece][from]);
-    if (GetPieceType(piece) == PAWN)
-        HashKey(pos->pawnKey, PieceKeys[piece][from]);
 }
 
 template void AddPiece<false>(const int piece, const int to, Position* pos);
@@ -42,8 +40,6 @@ void AddPiece(const int piece, const int to, Position* pos) {
     set_bit(pos->occupancies[color], to);
     pos->pieces[to] = piece;
     HashKey(pos->posKey, PieceKeys[piece][to]);
-    if(GetPieceType(piece) == PAWN)
-        HashKey(pos->pawnKey, PieceKeys[piece][to]);
 }
 
 // Move a piece from the [to] square to the [from] square, the UPDATE params determines whether we want to update the NNUE weights or not
@@ -332,7 +328,6 @@ void MakeMove(const Move move, Position* pos) {
         pos->checkMask = fullCheckmask;
     // Make sure a freshly generated zobrist key matches the one we are incrementally updating
     assert(pos->posKey == GeneratePosKey(pos));
-    assert(pos->pawnKey == GeneratePawnKey(pos));
 }
 
 void UnmakeMove(const Move move, Position* pos) {
