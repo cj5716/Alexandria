@@ -12,6 +12,7 @@ using FeatureIndices = std::pair<std::size_t, std::size_t>;
 struct FeatureNet {
     int16_t FeatureWeights[NUM_INPUTS * NUM_FEATURES];
     int16_t FeatureBiases [NUM_FEATURES];
+    void init(const char *file);
 };
 
 extern FeatureNet featureNet;
