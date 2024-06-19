@@ -34,5 +34,5 @@ void updateCapthistScore(const Position* pos, SearchData* sd, const Move move, i
 void updateSingleCHScore(SearchStack* ss, const Move move, const int bonus, const int offset);
 
 // Corrhist stuff
-void updateCorrHistScore(const Position *pos, SearchData *sd, const int depth, const int diff);
-int  adjustEvalWithCorrHist(const Position *pos, const SearchData *sd, const int rawEval);
+void updateCorrHistScore(Position *pos, SearchData *sd, const int depth, const int diff, uint64_t &featureHash);
+int  adjustEvalWithCorrHist(const Position *pos, const SearchData *sd, const int rawEval, const uint64_t featureHash);

@@ -1,6 +1,8 @@
 #include "history.h"
 #include <algorithm>
 #include <cstring>
+#include <cstdint>
+#include "features.h"
 #include "position.h"
 #include "move.h"
 #include "search.h"
@@ -101,8 +103,9 @@ int GetCapthistScore(const Position* pos, const SearchData* sd, const Move move)
     return sd->captHist[PieceTo(move)][capturedPiece];
 }
 
-void updateCorrHistScore(const Position *pos, SearchData *sd, const int depth, const int diff) {
-    int &entry = sd->corrHist[pos->side][pos->pawnKey % CORRHIST_SIZE];
+void updateCorrHistScore(Position *pos, SearchData *sd, const int depth, const int diff, uint64_t &featureHash) {
+    featureHash = GetFeatureHash(pos);
+    int &entry = sd->corrHist[pos->side][featureHash % CORRHIST_SIZE];
     const int scaledDiff = diff * CORRHIST_GRAIN;
     const int newWeight = std::min(depth * depth + 2 * depth + 1, 128);
     assert(newWeight <= CORRHIST_WEIGHT_SCALE);
@@ -111,8 +114,8 @@ void updateCorrHistScore(const Position *pos, SearchData *sd, const int depth, c
     entry = std::clamp(entry, -CORRHIST_MAX, CORRHIST_MAX);
 }
 
-int adjustEvalWithCorrHist(const Position *pos, const SearchData *sd, const int rawEval) {
-    const int &entry = sd->corrHist[pos->side][pos->pawnKey % CORRHIST_SIZE];
+int adjustEvalWithCorrHist(const Position *pos, const SearchData *sd, const int rawEval, const uint64_t featureHash) {
+    const int &entry = sd->corrHist[pos->side][featureHash % CORRHIST_SIZE];
     return std::clamp(rawEval + entry / CORRHIST_GRAIN, -MATE_FOUND + 1, MATE_FOUND - 1);
 }
 
