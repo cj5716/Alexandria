@@ -269,8 +269,9 @@ template void MakeMove<false>(const Move move, Position* pos);
 // make move on chess board
 template <bool UPDATE>
 void MakeMove(const Move move, Position* pos) {
-    if constexpr (UPDATE){
+    if constexpr (UPDATE) {
         saveBoardState(pos);
+        pos->featureStackHead++;
         pos->accumStackHead++;
     }
     // Store position key in the array of searched position
@@ -287,22 +288,22 @@ void MakeMove(const Move move, Position* pos) {
     pos->plyFromNull++;
     pos->hisPly++;
 
-    if(castling){
+    if (castling) {
         MakeCastle<UPDATE>(move,pos);
     }
-    else if(doublePush){
+    else if (doublePush) {
         MakeDP<UPDATE>(move,pos);
     }
-    else if(enpass){
+    else if (enpass) {
         MakeEp<UPDATE>(move,pos);
     }
-    else if(promotion && capture){
+    else if (promotion && capture) {
         MakePromocapture<UPDATE>(move,pos);
     }
-    else if(promotion){
+    else if (promotion) {
         MakePromo<UPDATE>(move,pos);
     }
-    else if(!capture){
+    else if (!capture) {
         MakeQuiet<UPDATE>(move,pos);
     }
     else {
@@ -352,6 +353,7 @@ void UnmakeMove(const Move move, Position* pos) {
     const bool castling = isCastle(move);
     const bool promotion = isPromo(move);
 
+    pos->featureStackHead--;
     pos->accumStackHead--;
 
     const int piece = promotion ? GetPiece(getPromotedPiecetype(move), pos->side ^ 1) : Piece(move);
