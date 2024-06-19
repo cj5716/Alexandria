@@ -5,10 +5,6 @@
 
 #define NAME "Alexandria-7.0.7"
 
-inline int reductions[2][64][64];
-inline int lmp_margin[64][2];
-inline int see_margin[64][2];
-
 #define start_position "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
 // define bitboard data type
@@ -28,6 +24,10 @@ constexpr int MATE_FOUND = MATE_SCORE - MAXPLY;
 constexpr int SCORE_NONE = 32001;
 constexpr int MAXSCORE = 32670;
 constexpr Bitboard fullCheckmask = 0xFFFFFFFFFFFFFFFF;
+
+inline int reductions[2][64][64];
+inline int lmp_margin[64][2];
+inline int see_margin[64][2];
 
 // board squares
 enum {
