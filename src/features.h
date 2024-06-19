@@ -42,6 +42,8 @@ struct FeatureAccumulator {
     }
 
     void Accumulate(Position *pos);
+
+    uint64_t GetFeatureHash(const int side);
 };
 
 void UpdateFeatureAccumulator(FeatureAccumulator *acc);

@@ -65,13 +65,32 @@ void FeatureAccumulator::Accumulate(Position *pos) {
         auto whiteAdd = &featureNet.FeatureWeights[whiteIdx * NUM_FEATURES];
         auto blackAdd = &featureNet.FeatureWeights[blackIdx * NUM_FEATURES];
 
-        for (int j = 0; j < NUM_FEATURES; j++) {
+        for (int j = 0; j < NUM_FEATURES; ++j) {
             values[0][j] += whiteAdd[j];
         }
-        for (int j = 0; j < NUM_FEATURES; j++) {
+        for (int j = 0; j < NUM_FEATURES; ++j) {
             values[1][j] += blackAdd[j];
         }
     }
+}
+
+uint64_t FeatureAccumulator::GetFeatureHash(const int side) {
+    uint64_t hash = 0;
+    for (int i = 0; i < NUM_FEATURES; ++i) {
+        hash |= uint64_t(values[side][i]) << i;
+    }
+
+    for (int i = 0; i < NUM_FEATURES; ++i) {
+        hash |= uint64_t(values[side ^ 1][i]) << (i + NUM_FEATURES);
+    }
+
+    hash ^= hash >> 33;
+    hash *= 0xff51afd7ed558ccdull;
+    hash ^= hash >> 33;
+    hash *= 0xc4ceb9fe1a85ec53ull;
+    hash ^= hash >> 33;
+
+    return hash;
 }
 
 void UpdateFeatureAccumulator(FeatureAccumulator *acc) {
