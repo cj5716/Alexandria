@@ -536,6 +536,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
 
     int totalMoves = 0;
     bool skipQuiets = false;
+    bool doubleExtBadFailLow = false;
 
     Movepicker mp;
     InitMP(&mp, pos, sd, ss, ttMove, SEARCH);
@@ -655,6 +656,11 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
             if (!improving)
                 depthReduction += 1;
 
+            // Reduce more if our very singular TT move failed low by a large margin
+            // (indicating that our other moves such as this one might not be any good either)
+            if (doubleExtBadFailLow)
+                depthReduction += 1;
+
             // Reduce less if the move is a refutation
             if (move == mp.killer || move == mp.counter)
                 depthReduction -= 1;
@@ -709,6 +715,9 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
 
         if (info->stopped)
             return 0;
+
+        if (move == ttMove && extension >= 2 && score <= alpha - 150)
+            doubleExtBadFailLow = true;
 
         // If the score of the current move is the best we've found until now
         if (score > bestScore) {
