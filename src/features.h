@@ -49,3 +49,4 @@ struct FeatureAccumulator {
 void UpdateFeatureAccumulator(FeatureAccumulator *acc);
 void FeatureAddSub(FeatureAccumulator *new_acc, FeatureAccumulator *prev_acc, FeatureIndices add, FeatureIndices sub);
 void FeatureAddSubSub(FeatureAccumulator *new_acc, FeatureAccumulator *prev_acc, FeatureIndices add, FeatureIndices sub1, FeatureIndices sub2);
+uint64_t GetFeatureHash(Position *pos);

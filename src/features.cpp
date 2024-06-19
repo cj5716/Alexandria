@@ -159,3 +159,8 @@ void FeatureAddSubSub(FeatureAccumulator *new_acc, FeatureAccumulator *prev_acc,
         new_acc->values[1][i] = prev_acc->values[1][i] - blackSub1[i] - blackSub2[i] + blackAdd[i];
     }
 }
+
+uint64_t GetFeatureHash(Position *pos) {
+    UpdateFeatureAccumulator(&pos->featureTop());
+    return pos->featureTop().GetFeatureHash(pos->side);
+}
