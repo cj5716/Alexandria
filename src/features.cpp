@@ -16,6 +16,8 @@ const unsigned char* const gFEATUREEnd = &gFEATUREData[1];
 const unsigned int gFEATURESize = 1;
 #endif
 
+FeatureNet featureNet;
+
 void FeatureNet::init(const char* file) {
 
     // open the nn file
@@ -46,5 +48,95 @@ void FeatureNet::init(const char* file) {
         std::memcpy(FeatureWeights, &gFEATUREData[memoryIndex], NUM_INPUTS * NUM_FEATURES * sizeof(int16_t));
         memoryIndex += NUM_INPUTS * NUM_FEATURES * sizeof(int16_t);
         std::memcpy(FeatureBiases, &gFEATUREData[memoryIndex], NUM_FEATURES * sizeof(int16_t));
+    }
+}
+
+void FeatureAccumulator::Accumulate(Position *pos) {
+    for (int i = 0; i < NUM_FEATURES; ++i) {
+        values[0][i] = featureNet.FeatureWeights[i];
+        values[1][i] = featureNet.FeatureWeights[i];
+    }
+
+    for (int i = 0; i < 64; i++) {
+        bool input = pos->pieces[i] != EMPTY;
+        if (!input) continue;
+
+        auto [whiteIdx, blackIdx] = GetIndex(pos->pieces[i], i);
+        auto whiteAdd = &featureNet.FeatureWeights[whiteIdx * NUM_FEATURES];
+        auto blackAdd = &featureNet.FeatureWeights[blackIdx * NUM_FEATURES];
+
+        for (int j = 0; j < NUM_FEATURES; j++) {
+            values[0][j] += whiteAdd[j];
+        }
+        for (int j = 0; j < NUM_FEATURES; j++) {
+            values[1][j] += blackAdd[j];
+        }
+    }
+}
+
+void UpdateFeatureAccumulator(FeatureAccumulator *acc) {
+    int adds = acc->FeatureAdd.size();
+    int subs = acc->FeatureSub.size();
+
+    if (adds == 0 && subs == 0)
+        return;
+
+    if (!(acc - 1)->FeatureAdd.empty() && !(acc - 1)->FeatureSub.empty())
+        update(acc - 1);
+
+    // Quiets
+    if (adds == 1 && subs == 1) {
+        FeatureAddSub(acc, acc - 1, acc->FeatureAdd[0], acc->FeatureSub[0]);
+    }
+    // Captures
+    else if (adds == 1 && subs == 2) {
+        FeatureAddSubSub(acc, acc - 1, acc->FeatureAdd[0], acc->FeatureSub[0], acc->FeatureSub[1]);
+    }
+    // Castling
+    else {
+        FeatureAddSub(acc, acc - 1, acc->FeatureAdd[0], acc->FeatureSub[0]);
+        FeatureAddSub(acc, acc, acc->FeatureAdd[1], acc->FeatureSub[1]);
+        // Note that for second addSub, we put acc instead of acc - 1 because we are updating on top of
+        // the half-updated accumulator
+    }
+    // Reset the add and sub vectors
+    acc->FeatureAdd.clear();
+    acc->FeatureSub.clear();
+}
+
+void FeatureAddSub(FeatureAccumulator *new_acc, FeatureAccumulator *prev_acc, FeatureIndices add, FeatureIndices sub) {
+    auto [whiteAddIdx, blackAddIdx] = add;
+    auto [whiteSubIdx, blackSubIdx] = sub;
+
+    auto whiteAdd = &featureNet.FeatureWeights[whiteAddIdx * NUM_FEATURES];
+    auto whiteSub = &featureNet.FeatureWeights[whiteSubIdx * NUM_FEATURES];
+    for (int i = 0; i < NUM_FEATURES; ++i) {
+        new_acc->values[0][i] = prev_acc->values[0][i] - whiteSub[i] + whiteAdd[i];
+    }
+
+    auto blackAdd = &featureNet.FeatureWeights[blackAddIdx * NUM_FEATURES];
+    auto blackSub = &featureNet.FeatureWeights[blackSubIdx * NUM_FEATURES];
+    for (int i = 0; i < NUM_FEATURES; ++i) {
+        new_acc->values[1][i] = prev_acc->values[1][i] - blackSub[i] + blackAdd[i];
+    }
+}
+
+void FeatureAddSubSub(FeatureAccumulator *new_acc, FeatureAccumulator *prev_acc, FeatureIndices add, FeatureIndices sub1, FeatureIndices sub2) {
+    auto [whiteAddIdx , blackAddIdx ] = add;
+    auto [whiteSubIdx1, blackSubIdx1] = sub1;
+    auto [whiteSubIdx2, blackSubIdx2] = sub2;
+
+    auto whiteAdd  = &featureNet.FeatureWeights[whiteAddIdx  * NUM_FEATURES];
+    auto whiteSub1 = &featureNet.FeatureWeights[whiteSubIdx1 * NUM_FEATURES];
+    auto whiteSub2 = &featureNet.FeatureWeights[whiteSubIdx2 * NUM_FEATURES];
+    for (int i = 0; i < NUM_FEATURES; ++i) {
+        new_acc->values[0][i] = prev_acc->values[0][i] - whiteSub1[i] - whiteSub2[i] + whiteAdd[i];
+    }
+
+    auto blackAdd  = &featureNet.FeatureWeights[blackAddIdx  * NUM_FEATURES];
+    auto blackSub1 = &featureNet.FeatureWeights[blackSubIdx1 * NUM_FEATURES];
+    auto blackSub2 = &featureNet.FeatureWeights[blackSubIdx2 * NUM_FEATURES];
+    for (int i = 0; i < NUM_FEATURES; ++i) {
+        new_acc->values[1][i] = prev_acc->values[1][i] - blackSub1[i] - blackSub2[i] + blackAdd[i];
     }
 }
