@@ -224,6 +224,9 @@ void ParseFen(const std::string& command, Position* pos) {
     // Update nnue accumulator to reflect board state
     nnue.accumulate(pos->accumStack[0], pos);
     pos->accumStackHead = 1;
+
+    pos->featureStack[0].Accumulate(pos);
+    pos->featureStackHead = 1;
 }
 
 std::string GetFen(const Position* pos) {

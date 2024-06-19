@@ -1,4 +1,10 @@
+#include <algorithm>
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <iostream>
+#include "features.h"
+#include "position.h"
 #include "incbin/incbin.h"
 
 // Macro to embed the position feature file
@@ -30,7 +36,7 @@ void FeatureNet::init(const char* file) {
         const size_t fileSize = sizeof(FeatureNet);
         const size_t objectsExpected = fileSize / sizeof(int16_t);
 
-        read += fread(FeatureWeights, sizeof(int16_t), NUM_INPUTS * NUM_FEATURES, fnn);
+        read += fread(FeatureWeights, sizeof(int16_t), NUM_FEATURE_INPUTS * NUM_FEATURES, fnn);
         read += fread(FeatureBiases , sizeof(int16_t), NUM_FEATURES, fnn);
 
         if (read != objectsExpected) {
@@ -45,8 +51,8 @@ void FeatureNet::init(const char* file) {
     } else {
         // if we don't find the nnue file we use the net embedded in the exe
         uint64_t memoryIndex = 0;
-        std::memcpy(FeatureWeights, &gFEATUREData[memoryIndex], NUM_INPUTS * NUM_FEATURES * sizeof(int16_t));
-        memoryIndex += NUM_INPUTS * NUM_FEATURES * sizeof(int16_t);
+        std::memcpy(FeatureWeights, &gFEATUREData[memoryIndex], NUM_FEATURE_INPUTS * NUM_FEATURES * sizeof(int16_t));
+        memoryIndex += NUM_FEATURE_INPUTS * NUM_FEATURES * sizeof(int16_t);
         std::memcpy(FeatureBiases, &gFEATUREData[memoryIndex], NUM_FEATURES * sizeof(int16_t));
     }
 }
@@ -77,11 +83,11 @@ void FeatureAccumulator::Accumulate(Position *pos) {
 uint64_t FeatureAccumulator::GetFeatureHash(const int side) {
     uint64_t hash = 0;
     for (int i = 0; i < NUM_FEATURES; ++i) {
-        hash |= uint64_t(values[side][i]) << i;
+        hash |= uint64_t(values[side][i] > 0) << i;
     }
 
     for (int i = 0; i < NUM_FEATURES; ++i) {
-        hash |= uint64_t(values[side ^ 1][i]) << (i + NUM_FEATURES);
+        hash |= uint64_t(values[side ^ 1][i] > 0) << (i + NUM_FEATURES);
     }
 
     hash ^= hash >> 33;
@@ -101,7 +107,7 @@ void UpdateFeatureAccumulator(FeatureAccumulator *acc) {
         return;
 
     if (!(acc - 1)->FeatureAdd.empty() && !(acc - 1)->FeatureSub.empty())
-        update(acc - 1);
+        UpdateFeatureAccumulator(acc - 1);
 
     // Quiets
     if (adds == 1 && subs == 1) {
@@ -161,6 +167,6 @@ void FeatureAddSubSub(FeatureAccumulator *new_acc, FeatureAccumulator *prev_acc,
 }
 
 uint64_t GetFeatureHash(Position *pos) {
-    UpdateFeatureAccumulator(&pos->featureTop());
-    return pos->featureTop().GetFeatureHash(pos->side);
+    UpdateFeatureAccumulator(&pos->FeatureTop());
+    return pos->FeatureTop().GetFeatureHash(pos->side);
 }

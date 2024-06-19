@@ -5,8 +5,8 @@
 #include <vector>
 #include "simd.h"
 
-// Net arch: (768 -> L1_SIZE)x2 -> 1xOUTPUT_BUCKETS
-constexpr int NUM_INPUTS = 768;
+// Net arch: (768 -> L1_SIZE) x 2 -> 1 x OUTPUT_BUCKETS
+constexpr int NUM_NNUE_INPUTS = 768;
 constexpr int L1_SIZE = 1536;
 constexpr int OUTPUT_BUCKETS = 8;
 
@@ -23,7 +23,7 @@ constexpr int CHUNK_SIZE = 1;
 using NNUEIndices = std::pair<std::size_t, std::size_t>;
 
 struct Network {
-    int16_t FTWeights[NUM_INPUTS * L1_SIZE];
+    int16_t FTWeights[NUM_NNUE_INPUTS * L1_SIZE];
     int16_t FTBiases [L1_SIZE];
     int16_t L1Weights[L1_SIZE * 2 * OUTPUT_BUCKETS];
     int16_t L1Biases [OUTPUT_BUCKETS];

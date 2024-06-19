@@ -14,14 +14,16 @@ template void ClearPiece<true>(const int piece, const int to, Position* pos);
 // Remove a piece from a square, the UPDATE params determines whether we want to update the NNUE weights or not
 template <bool UPDATE = true>
 void ClearPiece(const int piece, const int from, Position* pos) {
-    if constexpr(UPDATE)
+    if constexpr (UPDATE) {
         pos->AccumulatorTop().AppendSubIndex(nnue.GetIndex(piece, from));
+        pos->FeatureTop().AppendSubIndex(piece, from);
+    }
     const int color = Color[piece];
     pop_bit(pos->bitboards[piece], from);
     pop_bit(pos->occupancies[color], from);
     pos->pieces[from] = EMPTY;
     HashKey(pos->posKey, PieceKeys[piece][from]);
-    if(GetPieceType(piece) == PAWN)
+    if (GetPieceType(piece) == PAWN)
         HashKey(pos->pawnKey, PieceKeys[piece][from]);
 }
 
@@ -31,8 +33,10 @@ template void AddPiece<true>(const int piece, const int to, Position* pos);
 // Add a piece to a square, the UPDATE params determines whether we want to update the NNUE weights or not
 template <bool UPDATE = true>
 void AddPiece(const int piece, const int to, Position* pos) {
-    if constexpr(UPDATE)
+    if constexpr (UPDATE) {
         pos->AccumulatorTop().AppendAddIndex(nnue.GetIndex(piece, to));
+        pos->FeatureTop().AppendAddIndex(piece, to);
+    }
     const int color = Color[piece];
     set_bit(pos->bitboards[piece], to);
     set_bit(pos->occupancies[color], to);
@@ -341,6 +345,8 @@ void UnmakeMove(const Move move, Position* pos) {
 
     pos->AccumulatorTop().NNUEAdd.clear();
     pos->AccumulatorTop().NNUESub.clear();
+    pos->FeatureTop().FeatureAdd.clear();
+    pos->FeatureTop().FeatureSub.clear();
 
     // parse move
     const int sourceSquare = From(move);

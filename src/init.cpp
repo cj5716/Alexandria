@@ -9,6 +9,7 @@
 #include "ttable.h"
 #include "threads.h"
 #include "history.h"
+#include "features.h"
 #include <cstdint>
 #include <cmath>
 #ifdef _WIN32
@@ -215,6 +216,7 @@ void InitAll() {
     // Init TT
     InitTT(16);
     nnue.init("nn.net");
+    featureNet.init("features.net");
     initCuckoo();
 }
 

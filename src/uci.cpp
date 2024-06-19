@@ -102,6 +102,9 @@ void ParsePosition(const std::string& command, Position* pos) {
     // Update accumulator state to reflect the new position
     nnue.accumulate(pos->accumStack[0], pos);
     pos->accumStackHead = 1;
+
+    pos->featureStack[0].Accumulate(pos);
+    pos->featureStackHead = 1;
 }
 
 // parse UCI "go" command, returns true if we have to search afterwards and false otherwise

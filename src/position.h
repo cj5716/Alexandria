@@ -7,6 +7,7 @@
 #include <vector>
 #include "bitboard.h"
 #include "nnue.h"
+#include "features.h"
 #include <cstdint>
 #include "move.h"
 #include "types.h"
@@ -64,9 +65,17 @@ public:
     NNUE::Accumulator accumStack[MAXPLY];
     int accumStackHead;
 
+    FeatureAccumulator featureStack[MAXPLY];
+    int featureStackHead;
+
     inline NNUE::Accumulator& AccumulatorTop() {
         assert(accumStackHead <= MAXPLY);
         return accumStack[accumStackHead - 1];
+    }
+
+    inline FeatureAccumulator& FeatureTop() {
+        assert(featureStackHead <= MAXPLY);
+        return featureStack[featureStackHead - 1];
     }
 
     inline Bitboard Occupancy(const int occupancySide) const {
