@@ -552,6 +552,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
         totalMoves++;
 
         const bool isQuiet = !isTactical(move);
+        const bool isRefutation = move == mp.killer || move == mp.counter;
 
         const int moveHistory = GetHistoryScore(pos, sd, move, ss);
         if (   !rootNode
@@ -575,6 +576,14 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
                     && lmrDepth < 11
                     && ss->staticEval + 250 + 150 * lmrDepth <= alpha) {
                     skipQuiets = true;
+                }
+
+                if (!inCheck
+                    && !isRefutation
+                    && depth <= 3
+                    && moveHistory < -10203 * depth + 5716) {
+                    skipQuiets = true;
+                    continue;
                 }
             }
 
@@ -656,7 +665,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
                 depthReduction += 1;
 
             // Reduce less if the move is a refutation
-            if (move == mp.killer || move == mp.counter)
+            if (isRefutation)
                 depthReduction -= 1;
 
             // Reduce less if we have been on the PV
