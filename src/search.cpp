@@ -581,7 +581,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
                 if (!inCheck
                     && !isRefutation
                     && depth <= 5
-                    && moveHistory < -8203 * depth + 5716) {
+                    && moveHistory < -8203 * depth + 3716) {
                     skipQuiets = true;
                     continue;
                 }
