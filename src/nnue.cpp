@@ -177,11 +177,8 @@ int32_t NNUE::ActivateFTAndAffineL1(const int16_t *us, const int16_t *them, cons
             vepi16 input   = vec_loadu_epi(reinterpret_cast<const vepi16*>(&acc[i]));
             vepi16 weight  = vec_loadu_epi(reinterpret_cast<const vepi16*>(&weights[i + weightOffset]));
             vepi16 clipped = vec_min_epi16(vec_max_epi16(input, Zero), One);
-
-            // In squared clipped relu, we want to do (clipped * clipped) * weight.
-            // However, as clipped * clipped does not fit in an int16 while clipped * weight does,
-            // we instead do mullo(clipped, weight) and then madd by clipped.
-            vepi32 product = vec_madd_epi16(vec_mullo_epi16(clipped, weight), clipped);
+            vepi16 squared = vec_srli_epi16(vec_mullo_epi16(clipped, clipped), 1);
+            vepi32 product = vec_slli_epi32(vec_madd_epi16(squared, weight), 1);
             sum = vec_add_epi32(sum, product);
         }
 
