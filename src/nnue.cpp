@@ -195,7 +195,7 @@ int32_t NNUE::ActivateFTAndAffineL1(const int16_t *us, const int16_t *them, cons
             int16_t input   = acc[i];
             int16_t weight  = weights[i + weightOffset];
             int16_t clipped = std::clamp(input, int16_t(0), int16_t(FT_QUANT));
-            sum += static_cast<int16_t>(clipped * weight) * clipped;
+            sum += static_cast<int16_t>(clipped * clipped >> 1) * weight << 1;
         }
 
         weightOffset += L1_SIZE;
