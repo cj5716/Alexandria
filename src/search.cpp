@@ -606,7 +606,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
                     extension = 1;
                     // Avoid search explosion by limiting the number of double extensions
                     if (   !pvNode
-                        &&  singularScore < singularBeta - 17
+                        && (singularScore < singularBeta - 17 || singularScore <= alpha)
                         &&  ss->doubleExtensions <= 11) {
                         extension = 2 + (!isTactical(ttMove) && singularScore < singularBeta - 100);
                         ss->doubleExtensions = (ss - 1)->doubleExtensions + 1;
