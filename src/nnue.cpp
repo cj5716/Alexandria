@@ -177,8 +177,8 @@ int32_t NNUE::ActivateFTAndAffineL1(const int16_t *us, const int16_t *them, cons
             vepi16 input   = vec_loadu_epi(reinterpret_cast<const vepi16*>(&acc[i]));
             vepi16 weight  = vec_loadu_epi(reinterpret_cast<const vepi16*>(&weights[i + weightOffset]));
             vepi16 clipped = vec_min_epi16(vec_max_epi16(input, Zero), One);
-            vepi16 squared = vec_srli_epi16(vec_mullo_epi16(clipped, clipped), 1);
-            vepi32 product = vec_slli_epi32(vec_madd_epi16(squared, weight), 1);
+            vepi16 squared = vec_srli_epi16(vec_mullo_epi16(clipped, clipped), 2);
+            vepi32 product = vec_slli_epi32(vec_madd_epi16(squared, weight), 2);
             sum = vec_add_epi32(sum, product);
         }
 
@@ -195,7 +195,7 @@ int32_t NNUE::ActivateFTAndAffineL1(const int16_t *us, const int16_t *them, cons
             int16_t input   = acc[i];
             int16_t weight  = weights[i + weightOffset];
             int16_t clipped = std::clamp(input, int16_t(0), int16_t(FT_QUANT));
-            sum += static_cast<int16_t>(clipped * clipped >> 1) * weight << 1;
+            sum += static_cast<int16_t>(clipped * clipped >> 2) * weight << 2;
         }
 
         weightOffset += L1_SIZE;
