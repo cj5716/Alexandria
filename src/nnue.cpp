@@ -293,7 +293,7 @@ void NNUE::ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, cons
             // Affine transform for L1
             for (int out = 0; out < L2_SIZE; ++out) {
                 sums[out] += squared0 * weights[weightOffset + out * L1_SIZE + i];
-                sums[out] += squared1 * weights[weightOffset + out * L1_SIZE + i];
+                sums[out] += squared1 * weights[weightOffset + out * L1_SIZE + i + 1];
             }
         }
         weightOffset += L1_SIZE * L2_SIZE;
