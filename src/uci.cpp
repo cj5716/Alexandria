@@ -197,7 +197,7 @@ void UciLoop(int argc, char** argv) {
                 return;
             }
         }
-        tryhardmode = false;
+        tryhardmode = true;
         StartBench(benchDepth);
         return;
     }
