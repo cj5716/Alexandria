@@ -22,11 +22,7 @@ constexpr int FT_CHUNK_SIZE = sizeof(vepi16) / sizeof(int16_t);
 constexpr int L1_CHUNK_SIZE = sizeof(vepi8 ) / sizeof(int8_t);
 constexpr int L2_CHUNK_SIZE = sizeof(vps32 ) / sizeof(float);
 constexpr int L3_CHUNK_SIZE = sizeof(vps32 ) / sizeof(float);
-#else
-constexpr int FT_CHUNK_SIZE = 1;
-constexpr int L1_CHUNK_SIZE = 1;
-constexpr int L2_CHUNK_SIZE = 1;
-constexpr int L3_CHUNK_SIZE = 1;
+constexpr int L1_CHUNK_PER_32 = sizeof(int32_t) / sizeof(int8_t);
 #endif
 
 using NNUEIndices = std::pair<std::size_t, std::size_t>;
@@ -59,7 +55,7 @@ struct Position;
 class NNUE {
 public:
     struct Accumulator {
-        std::array<std::array<int16_t, L1_SIZE>, 2> values;
+        alignas(64) std::array<std::array<int16_t, L1_SIZE>, 2> values;
         std::vector<NNUEIndices> NNUEAdd = {};
         std::vector<NNUEIndices> NNUESub = {};
 
