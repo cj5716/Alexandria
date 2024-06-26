@@ -121,12 +121,9 @@ void NNUE::init(const char* file) {
 
         // Quantise L2 Weights
         #if defined(USE_SIMD)
-        for (int i = 0; i < L2_SIZE / L2_CHUNK_SIZE; ++i)
+        for (int i = 0; i < L2_SIZE; ++i)
             for (int j = 0; j < L3_SIZE; ++j)
-                for (int k = 0; k < L2_CHUNK_SIZE; ++k)
-                    net.L2Weights[bucket][  i * L2_CHUNK_SIZE * L3_SIZE
-                                          + j * L2_CHUNK_SIZE
-                                          + k] = unquantisedNet->L2Weights[i * L2_CHUNK_SIZE + k][bucket][j];
+                net.L2Weights[bucket][i * L3_SIZE + j] = unquantisedNet->L2Weights[i][bucket][j];
         #else
         for (int i = 0; i < L2_SIZE; ++i)
             for (int j = 0; j < L3_SIZE; ++j)
@@ -258,7 +255,7 @@ void NNUE::ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, cons
             const int32_t *packed32 = reinterpret_cast<const int32_t*>(&packed[0]);
             for (int j = 0; j < L1_CHUNK_SIZE / L1_CHUNK_PER_32; ++j) {
                 const vepi32 input32 = vec_set1_epi32(packed32[j]);
-                const vepi8 *weight  = reinterpret_cast<const vepi8*>(&weights[weightOffset + j * L1_CHUNK_PER_32 * L2_SIZE]);
+                const vepi8 *weight  = reinterpret_cast<const vepi8*>(&weights[weightOffset + (i + j * L1_CHUNK_PER_32) * L2_SIZE]);
                 for (int k = 0; k < L2_SIZE / L2_CHUNK_SIZE; ++k)
                     sums[k] = vec_dpbusd_epi32(sums[k], input32, weight[k]);
             }
