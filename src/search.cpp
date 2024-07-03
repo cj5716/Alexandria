@@ -537,15 +537,14 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
         }
 
         int pcBeta = beta + 300;
-        if (   depth > 4
+        if (   depth >= 6
                && abs(beta) < MATE_FOUND
                && (ttMove == NOMOVE || isTactical(ttMove))
-               && (ttScore == SCORE_NONE || (ttBound & HFLOWER))
                && (ttScore == SCORE_NONE || tte.depth < depth - 3 || ttScore >= pcBeta))
         {
             Movepicker mp;
             int move;
-            InitMP(&mp, pos, sd, ss, NOMOVE, 1, PROBCUT);
+            InitMP(&mp, pos, sd, ss, ttMove, pcBeta - ss->staticEval, PROBCUT);
             while ((move = NextMove(&mp, true)) != NOMOVE) {
 
                 if (!IsLegal(pos, move))
@@ -569,6 +568,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
                 UnmakeMove(move, pos);
 
                 if (pcScore >= pcBeta) {
+                    StoreTTEntry(pos->posKey, MoveToTT(move), ScoreToTT(pcScore, ss->ply), rawEval, HFLOWER, depth - 3, false, ttPv);
                     return pcScore;
                 }
 
