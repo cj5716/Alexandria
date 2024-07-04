@@ -535,48 +535,6 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
             if (razorScore <= alpha)
                 return razorScore;
         }
-
-        int pcBeta = beta + 300;
-        if (   depth >= 6
-            && abs(beta) < MATE_FOUND
-            && (ttMove == NOMOVE || isTactical(ttMove))
-            && (ttScore == SCORE_NONE || tte.depth < depth - 3 || ttScore >= pcBeta))
-        {
-            Movepicker mp;
-            MoveList pcMoves;
-            MoveList empty;
-            int move;
-            InitMP(&mp, pos, sd, ss, ttMove, 1, PROBCUT);
-            while ((move = NextMove(&mp, true)) != NOMOVE) {
-
-                if (!IsLegal(pos, move))
-                    continue;
-
-                // Speculative prefetch of the TT entry
-                TTPrefetch(keyAfter(pos, move));
-                ss->move = move;
-
-                // increment nodes count
-                info->nodes++;
-
-                // Play the move
-                MakeMove<true>(move, pos);
-                AddMove(move, &pcMoves);
-
-                int pcScore = -Quiescence<false>(-pcBeta, -pcBeta + 1, td, ss + 1);
-                if (pcScore >= pcBeta)
-                    pcScore = -Negamax<false>(-pcBeta, -pcBeta + 1, depth - 3 - 1, !cutNode, td, ss + 1);
-
-                // Take move back
-                UnmakeMove(move, pos);
-
-                if (pcScore >= pcBeta) {
-                    UpdateHistories(pos, sd, ss, depth - 3, move, empty, pcMoves);
-                    StoreTTEntry(pos->posKey, MoveToTT(move), ScoreToTT(pcScore, ss->ply), rawEval, HFLOWER, depth - 3, false, ttPv);
-                    return pcScore;
-                }
-            }
-        }
     }
 
     // old value of alpha
@@ -589,7 +547,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
     bool skipQuiets = false;
 
     Movepicker mp;
-    InitMP(&mp, pos, sd, ss, ttMove, SCORE_NONE, SEARCH);
+    InitMP(&mp, pos, sd, ss, ttMove, SEARCH);
 
     // Keep track of the played quiet and noisy moves
     MoveList quietMoves, noisyMoves;
@@ -693,7 +651,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
         info->nodes++;
         const uint64_t nodesBeforeSearch = info->nodes;
         // Conditions to consider LMR. Calculate how much we should reduce the search depth.
-        if (totalMoves > 1 + pvNode && depth >= 3 && (isQuiet || !ttPv)) {
+        if (totalMoves > 1 + pvNode && depth >= 3) {
 
             // Get base reduction value
             int depthReduction = reductions[isQuiet][std::min(depth, 63)][std::min(totalMoves, 63)];
@@ -726,6 +684,14 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
                 // Fuck
                 if (cutNode)
                     depthReduction += 2;
+
+                // Decrease the reduction for moves that give check
+                if (pos->checkers)
+                    depthReduction -= 1;
+
+                // Reduce less if we have been on the PV
+                if (ttPv)
+                    depthReduction -= 1 + cutNode;
 
                 // Decrease the reduction for moves that have a good history score and increase it for moves with a bad score
                 depthReduction -= moveHistory / 6144;
@@ -913,7 +879,7 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
 
     Movepicker mp;
     // If we aren't in check we generate just the captures, otherwise we generate all the moves
-    InitMP(&mp, pos, sd, ss, ttMove,SCORE_NONE, QSEARCH);
+    InitMP(&mp, pos, sd, ss, ttMove, QSEARCH);
 
     Move bestmove = NOMOVE;
     Move move;

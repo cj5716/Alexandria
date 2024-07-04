@@ -40,7 +40,7 @@ void partialInsertionSort(MoveList* moveList, const int moveNum) {
     std::swap(moveList->moves[moveNum], moveList->moves[bestNum]);
 }
 
-void InitMP(Movepicker* mp, Position* pos, SearchData* sd, SearchStack* ss, const Move ttMove,  const int SEEThreshold, const MovepickerType movepickerType) {
+void InitMP(Movepicker* mp, Position* pos, SearchData* sd, SearchStack* ss, const Move ttMove, const MovepickerType movepickerType) {
 
     const Move killer = ss->searchKiller;
     const Move counter = sd->counterMoves[FromTo((ss - 1)->move)];
@@ -54,7 +54,6 @@ void InitMP(Movepicker* mp, Position* pos, SearchData* sd, SearchStack* ss, cons
     mp->stage = mp->ttMove ? PICK_TT : GEN_NOISY;
     mp->killer = killer != ttMove ? killer : NOMOVE;
     mp->counter = counter != ttMove && counter != killer ? counter : NOMOVE;
-    mp->SEEThreshold = SEEThreshold;
 }
 
 Move NextMove(Movepicker* mp, const bool skip) {
@@ -72,27 +71,16 @@ Move NextMove(Movepicker* mp, const bool skip) {
             && mp->stage > PICK_GOOD_NOISY) {
             return NOMOVE;
         }
-
-        // In probcut, we only search captures that pass the threshold
-        if (   mp->movepickerType == PROBCUT
-            && mp->stage > PICK_GOOD_NOISY) {
-            return NOMOVE;
-        }
     }
     switch (mp->stage) {
     case PICK_TT:
         ++mp->stage;
-        // If we are in qsearch and not in check, or we are in probcut, skip quiet TT moves
-        if ((mp->movepickerType == PROBCUT || (mp->movepickerType == QSEARCH && skip))
-            && !isTactical(mp->ttMove))
+        // If we are in qsearch and not in check, skip quiet TT moves
+        if (mp->movepickerType == QSEARCH && skip && !isTactical(mp->ttMove))
             goto top;
 
         // If the TT move if not pseudo legal we skip it too
         if (!IsPseudoLegal(mp->pos, mp->ttMove))
-            goto top;
-
-        // If we are in probcut and the TT move does not pass SEE, we skip it
-        if (mp->movepickerType == PROBCUT && !SEE(mp->pos, mp->ttMove, mp->SEEThreshold))
             goto top;
 
         return mp->ttMove;
@@ -108,8 +96,7 @@ Move NextMove(Movepicker* mp, const bool skip) {
             partialInsertionSort(&mp->moveList, mp->idx);
             const Move move = mp->moveList.moves[mp->idx].move;
             const int score = mp->moveList.moves[mp->idx].score;
-            const int SEEThreshold =  mp->movepickerType == PROBCUT ? mp->SEEThreshold
-                                                                    : -score / 32 + 236;
+            const int SEEThreshold = -score / 32 + 236;
             ++mp->idx;
             if (move == mp->ttMove)
                 continue;
