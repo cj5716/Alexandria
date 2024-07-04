@@ -529,7 +529,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
             }
         }
         // Razoring
-        if (depth <= 5 && eval + 256 * depth < alpha)
+        if (depth <= 5 && eval + 256 * depth <= alpha)
         {
             const int razorScore = Quiescence<false>(alpha, beta, td, ss);
             if (razorScore <= alpha)
@@ -538,13 +538,15 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
 
         int pcBeta = beta + 300;
         if (   depth >= 6
-               && abs(beta) < MATE_FOUND
-               && (ttMove == NOMOVE || isTactical(ttMove))
-               && (ttScore == SCORE_NONE || tte.depth < depth - 3 || ttScore >= pcBeta))
+            && abs(beta) < MATE_FOUND
+            && (ttMove == NOMOVE || isTactical(ttMove))
+            && (ttScore == SCORE_NONE || tte.depth < depth - 3 || ttScore >= pcBeta))
         {
             Movepicker mp;
+            MoveList pcMoves;
+            MoveList empty;
             int move;
-            InitMP(&mp, pos, sd, ss, ttMove, pcBeta - ss->staticEval, PROBCUT);
+            InitMP(&mp, pos, sd, ss, ttMove, 1, PROBCUT);
             while ((move = NextMove(&mp, true)) != NOMOVE) {
 
                 if (!IsLegal(pos, move))
@@ -559,6 +561,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
 
                 // Play the move
                 MakeMove<true>(move, pos);
+                AddMove(move, &pcMoves);
 
                 int pcScore = -Quiescence<false>(-pcBeta, -pcBeta + 1, td, ss + 1);
                 if (pcScore >= pcBeta)
@@ -568,14 +571,12 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
                 UnmakeMove(move, pos);
 
                 if (pcScore >= pcBeta) {
+                    UpdateHistories(pos, sd, ss, depth - 3, move, empty, pcMoves);
                     StoreTTEntry(pos->posKey, MoveToTT(move), ScoreToTT(pcScore, ss->ply), rawEval, HFLOWER, depth - 3, false, ttPv);
                     return pcScore;
                 }
-
             }
         }
-
-
     }
 
     // old value of alpha
@@ -588,7 +589,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
     bool skipQuiets = false;
 
     Movepicker mp;
-    InitMP(&mp, pos, sd, ss, ttMove,SCORE_NONE, SEARCH);
+    InitMP(&mp, pos, sd, ss, ttMove, SCORE_NONE, SEARCH);
 
     // Keep track of the played quiet and noisy moves
     MoveList quietMoves, noisyMoves;
@@ -798,7 +799,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
                             sd->counterMoves[FromTo((ss - 1)->move)] = move;
                     }
                     // Update the history heuristics based on the new best move
-                    UpdateHistories(pos, sd, ss, depth + (eval <= alpha), bestMove, &quietMoves, &noisyMoves);
+                    UpdateHistories(pos, sd, ss, depth + (eval <= alpha), bestMove, quietMoves, noisyMoves);
 
                     // node (move) fails high
                     break;
@@ -821,12 +822,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
     int bound = bestScore >= beta ? HFLOWER : alpha != old_alpha ? HFEXACT : HFUPPER;
 
     if (!excludedMove) {
-        if (    !inCheck
-            && (!bestMove || !isTactical(bestMove))
-            &&  !(bound == HFLOWER && bestScore <= ss->staticEval)
-            &&  !(bound == HFUPPER && bestScore >= ss->staticEval)) {
-            updateCorrHistScore(pos, sd, depth, bestScore - ss->staticEval);
-        }
+        updateCorrHistScore(pos, sd, depth, inCheck, bestMove, bound, bestScore, rawEval);
         StoreTTEntry(pos->posKey, MoveToTT(bestMove), ScoreToTT(bestScore, ss->ply), rawEval, bound, depth, pvNode, ttPv);
     }
 

@@ -48,17 +48,18 @@ void updateCapthistScore(const Position* pos, SearchData* sd, const Move move, i
 }
 
 // Update all histories
-void UpdateHistories(const Position* pos, SearchData* sd, SearchStack* ss, const int depth, const Move bestMove, const MoveList* quietMoves, const MoveList* noisyMoves) {
+void UpdateHistories(const Position* pos, SearchData* sd, SearchStack* ss, const int depth, const Move bestMove, const MoveList &quietMoves, const MoveList &noisyMoves) {
     const int bonus = history_bonus(depth);
     if (!isTactical(bestMove))
     {
         // increase bestMove HH and CH score
         updateHHScore(pos, sd, bestMove, bonus);
         updateCHScore(ss, bestMove, bonus);
+
         // Loop through all the quiet moves
-        for (int i = 0; i < quietMoves->count; i++) {
+        for (int i = 0; i < quietMoves.count; i++) {
             // For all the quiets moves that didn't cause a cut-off decrease the HH score
-            const Move move = quietMoves->moves[i].move;
+            const Move move = quietMoves.moves[i].move;
             if (move == bestMove) continue;
             updateHHScore(pos, sd, move, -bonus);
             updateCHScore(ss, move, -bonus);
@@ -69,8 +70,8 @@ void UpdateHistories(const Position* pos, SearchData* sd, SearchStack* ss, const
         updateCapthistScore(pos, sd, bestMove, bonus);
     }
     // For all the noisy moves that didn't cause a cut-off, even is the bestMove wasn't a noisy move, decrease the capthist score
-    for (int i = 0; i < noisyMoves->count; i++) {
-        const Move move = noisyMoves->moves[i].move;
+    for (int i = 0; i < noisyMoves.count; i++) {
+        const Move move = noisyMoves.moves[i].move;
         if (move == bestMove) continue;
         updateCapthistScore(pos, sd, move, -bonus);
     }
@@ -101,8 +102,15 @@ int GetCapthistScore(const Position* pos, const SearchData* sd, const Move move)
     return sd->captHist[PieceTo(move)][capturedPiece];
 }
 
-void updateCorrHistScore(const Position *pos, SearchData *sd, const int depth, const int diff) {
+void updateCorrHistScore(const Position *pos, SearchData *sd, const int depth, const bool inCheck, const Move bestMove, const uint8_t bound, const int bestScore, const int rawEval) {
+
+    if (inCheck) return; // No corrhist updates if in check
+    if (bestMove != NOMOVE && isTactical(bestMove)) return; // No corrhist updates for noisy best moves
+    if (bound == HFUPPER && rawEval < bestScore) return; // No corrhist updates if the raw eval is a better upper bound
+    if (bound == HFLOWER && rawEval > bestScore) return; // No corrhist updates if the raw eval is a better lower bouns
+
     int &entry = sd->corrHist[pos->side][pos->pawnKey % CORRHIST_SIZE];
+    const int diff = bestScore - rawEval;
     const int scaledDiff = diff * CORRHIST_GRAIN;
     const int newWeight = std::min(depth * depth + 2 * depth + 1, 128);
     assert(newWeight <= CORRHIST_WEIGHT_SCALE);
