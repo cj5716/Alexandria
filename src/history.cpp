@@ -107,7 +107,7 @@ void updateCorrHistScore(const Position *pos, SearchData *sd, const int depth, c
     if (inCheck) return; // No corrhist updates if in check
     if (bestMove != NOMOVE && isTactical(bestMove)) return; // No corrhist updates for noisy best moves
     if (bound == HFUPPER && rawEval < bestScore) return; // No corrhist updates if the raw eval is a better upper bound
-    if (bound == HFLOWER && rawEval > bestScore) return; // No corrhist updates if the raw eval is a better lower bouns
+    if (bound == HFLOWER && rawEval > bestScore) return; // No corrhist updates if the raw eval is a better lower bound
 
     int &entry = sd->corrHist[pos->side][pos->pawnKey % CORRHIST_SIZE];
     const int diff = bestScore - rawEval;
