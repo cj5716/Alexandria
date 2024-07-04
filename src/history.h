@@ -16,7 +16,7 @@ constexpr int CORRHIST_SIZE = 16384;
 constexpr int CORRHIST_MAX = 16384;
 
 // Functions used to update the history heuristics
-void UpdateHistories(const Position* pos, SearchData* sd, SearchStack* ss, const int depth, const Move bestMove, const MoveList* quietMoves, const MoveList* noisyMoves);
+void UpdateHistories(const Position* pos, SearchData* sd, SearchStack* ss, const int depth, const Move bestMove, const MoveList &quietMoves, const MoveList &noisyMoves);
 // Fuction that returns the history bonus
 int history_bonus(const int depth);
 // Getters for the history heuristics
@@ -34,5 +34,5 @@ void updateCapthistScore(const Position* pos, SearchData* sd, const Move move, i
 void updateSingleCHScore(SearchStack* ss, const Move move, const int bonus, const int offset);
 
 // Corrhist stuff
-void updateCorrHistScore(const Position *pos, SearchData *sd, const int depth, const int diff);
+void updateCorrHistScore(const Position *pos, SearchData *sd, const int depth, const bool inCheck, const Move bestMove, const uint8_t bound, const int bestScore, const int rawEval);
 int  adjustEvalWithCorrHist(const Position *pos, const SearchData *sd, const int rawEval);
