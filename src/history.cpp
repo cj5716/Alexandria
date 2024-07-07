@@ -112,7 +112,8 @@ void updateCorrHistScore(const Position *pos, SearchData *sd, const int depth, c
     int &entry = sd->corrHist[pos->side][pos->pawnKey % CORRHIST_SIZE];
     const int diff = bestScore - rawEval;
     const int scaledDiff = diff * CORRHIST_GRAIN;
-    const int newWeight = std::min(depth * depth + 2 * depth + 1, 128);
+    int newWeight = std::min(depth * depth + 2 * depth + 1, 128);
+    if (bound == HFEXACT) newWeight = newWeight * 3 / 2;
     assert(newWeight <= CORRHIST_WEIGHT_SCALE);
 
     entry = (entry * (CORRHIST_WEIGHT_SCALE - newWeight) + scaledDiff * newWeight) / CORRHIST_WEIGHT_SCALE;
