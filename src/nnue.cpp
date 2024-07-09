@@ -79,7 +79,7 @@ void NNUE::init(const char* file) {
 
 }
 
-void NNUE::accumulate(NNUE::Accumulator& board_accumulator, Position* pos) {
+void NNUE::accumulate(NNUE::Accumulator &board_accumulator, Position* pos) {
     for (int i = 0; i < L1_SIZE; i++) {
         board_accumulator.values[0][i] = net.FTBiases[i];
         board_accumulator.values[1][i] = net.FTBiases[i];
@@ -102,33 +102,45 @@ void NNUE::accumulate(NNUE::Accumulator& board_accumulator, Position* pos) {
 
 void NNUE::update(NNUE::Accumulator *acc) {
 
-    int adds = acc->NNUEAdd.size();
-    int subs = acc->NNUESub.size();
+    // The last updated accumulator is indicated by acc - i
+    int i = 0;
+    NNUE::Accumulator *last_upd = acc;
 
-    if (adds == 0 && subs == 0)
-        return;
+    // Find the last updated accumulator. It is updated if it does not have anything to add or sub
+    while (true) {
+        if (last_upd->NNUEAdd.empty() && last_upd->NNUESub.empty()) break;
+        last_upd--;
+        i++;
+    }
 
-    if (!(acc - 1)->NNUEAdd.empty() && !(acc - 1)->NNUESub.empty())
-        update(acc - 1);
+    // Iterate backwards to the top
+    for (int j = i - 1; j >= 0; --j) {
+        NNUE::Accumulator *to_upd = acc - j;
+        int adds = to_upd->NNUEAdd.size();
+        int subs = to_upd->NNUESub.size();
 
-    // Quiets
-    if (adds == 1 && subs == 1) {
-        addSub(acc, acc - 1, acc->NNUEAdd[0], acc->NNUESub[0]);
+        // Quiets
+        if (adds == 1 && subs == 1) {
+            addSub(to_upd, last_upd, to_upd->NNUEAdd[0], to_upd->NNUESub[0]);
+        }
+        // Captures
+        else if (adds == 1 && subs == 2) {
+            addSubSub(to_upd, last_upd, to_upd->NNUEAdd[0], to_upd->NNUESub[0], to_upd->NNUESub[1]);
+        }
+        // Castling
+        else {
+            // Note that for second addSub we use to_upd because we are updating on top of it rather than resetting our reference
+            addSub(to_upd, last_upd, to_upd->NNUEAdd[0], to_upd->NNUESub[0]);
+            addSub(to_upd,   to_upd, to_upd->NNUEAdd[1], to_upd->NNUESub[1]);
+        }
+
+        // Reset the add and sub vectors since we have already carried them out
+        to_upd->NNUEAdd.clear();
+        to_upd->NNUESub.clear();
+
+        // Update last updated accumulator
+        last_upd = to_upd;
     }
-    // Captures
-    else if (adds == 1 && subs == 2) {
-        addSubSub(acc, acc - 1, acc->NNUEAdd[0], acc->NNUESub[0], acc->NNUESub[1]);
-    }
-    // Castling
-    else {
-        addSub(acc, acc - 1, acc->NNUEAdd[0], acc->NNUESub[0]);
-        addSub(acc, acc, acc->NNUEAdd[1], acc->NNUESub[1]);
-        // Note that for second addSub, we put acc instead of acc - 1 because we are updating on top of
-        // the half-updated accumulator
-    }
-    // Reset the add and sub vectors
-    acc->NNUEAdd.clear();
-    acc->NNUESub.clear();
 }
 
 void NNUE::addSub(NNUE::Accumulator *new_acc, NNUE::Accumulator *prev_acc, NNUEIndices add, NNUEIndices sub) {
