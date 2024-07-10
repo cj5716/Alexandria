@@ -104,61 +104,78 @@ void NNUE::update(NNUE::Accumulator *acc) {
 
     // The last updated accumulator is indicated by acc - i
     int i = 0;
-    NNUE::Accumulator *last_upd = acc;
+    NNUE::Accumulator tmp_acc;
 
     // Find the last updated accumulator. It is updated if it does not have anything to add or sub
     while (true) {
-        if (last_upd->NNUEAdd.empty() && last_upd->NNUESub.empty()) break;
-        last_upd--;
+        if (acc[-i].NNUEAdd.empty() && acc[-i].NNUESub.empty()) break;
         i++;
     }
 
-    // Iterate backwards to the top
-    for (int j = i - 1; j >= 0; --j) {
-        NNUE::Accumulator *to_upd = acc - j;
-        int adds = to_upd->NNUEAdd.size();
-        int subs = to_upd->NNUESub.size();
+    auto update_single_acc = [&](NNUE::Accumulator &new_acc, NNUE::Accumulator &old_acc, std::vector<NNUEIndices> &adds, std::vector<NNUEIndices> &subs) {
+        int num_add = adds.size();
+        int num_sub = subs.size();
 
         // Quiets
-        if (adds == 1 && subs == 1) {
-            addSub(to_upd, last_upd, to_upd->NNUEAdd[0], to_upd->NNUESub[0]);
+        if (num_add == 1 && num_sub == 1) {
+            addSub(tmp_acc, old_acc, adds[0], subs[0]);
         }
         // Captures
-        else if (adds == 1 && subs == 2) {
-            addSubSub(to_upd, last_upd, to_upd->NNUEAdd[0], to_upd->NNUESub[0], to_upd->NNUESub[1]);
+        else if (num_add == 1 && num_sub == 2) {
+            addSubSub(tmp_acc, old_acc, adds[0], subs[0], subs[1]);
         }
         // Castling
         else {
-            // Note that for second addSub we use to_upd because we are updating on top of it rather than resetting our reference
-            addSub(to_upd, last_upd, to_upd->NNUEAdd[0], to_upd->NNUESub[0]);
-            addSub(to_upd,   to_upd, to_upd->NNUEAdd[1], to_upd->NNUESub[1]);
+            // Note that for second addSub we use tmp_acc because we are updating on top of it rather than resetting our reference
+            addSub(tmp_acc, old_acc, adds[0], subs[0]);
+            addSub(tmp_acc, tmp_acc, adds[1], subs[1]);
         }
+        for (int k = 0; k < L1_SIZE; ++k)
+            new_acc.values[0][k] = tmp_acc.values[0][k];
 
-        // Reset the add and sub vectors since we have already carried them out
-        to_upd->NNUEAdd.clear();
-        to_upd->NNUESub.clear();
+        for (int k = 0; k < L1_SIZE; ++k)
+            new_acc.values[1][k] = tmp_acc.values[1][k];
 
-        // Update last updated accumulator
-        last_upd = to_upd;
+        adds.clear();
+        subs.clear();
+    };
+
+    // For the bottom-most accumulator we update it outside the loop
+    if (i - 1 >= 0) {
+        NNUE::Accumulator &new_acc = acc[-(i - 1)];
+        NNUE::Accumulator &old_acc = acc[-i];
+        std::vector<NNUEIndices> &adds = new_acc.NNUEAdd;
+        std::vector<NNUEIndices> &subs = new_acc.NNUESub;
+
+        update_single_acc(new_acc, old_acc, adds, subs);
+    }
+
+    // Iterate backwards to the top from the second accumulator we need to update onwards
+    for (int j = i - 2; j >= 0; --j) {
+        NNUE::Accumulator &new_acc = acc[-j];
+        std::vector<NNUEIndices> &adds = new_acc.NNUEAdd;
+        std::vector<NNUEIndices> &subs = new_acc.NNUESub;
+
+        update_single_acc(new_acc, tmp_acc, adds, subs);
     }
 }
 
-void NNUE::addSub(NNUE::Accumulator *new_acc, NNUE::Accumulator *prev_acc, NNUEIndices add, NNUEIndices sub) {
+void NNUE::addSub(NNUE::Accumulator &new_acc, NNUE::Accumulator &prev_acc, NNUEIndices add, NNUEIndices sub) {
     auto [whiteAddIdx, blackAddIdx] = add;
     auto [whiteSubIdx, blackSubIdx] = sub;
     auto whiteAdd = &net.FTWeights[whiteAddIdx * L1_SIZE];
     auto whiteSub = &net.FTWeights[whiteSubIdx * L1_SIZE];
     for (int i = 0; i < L1_SIZE; i++) {
-        new_acc->values[0][i] = prev_acc->values[0][i] - whiteSub[i] + whiteAdd[i];
+        new_acc.values[0][i] = prev_acc.values[0][i] - whiteSub[i] + whiteAdd[i];
     }
     auto blackAdd = &net.FTWeights[blackAddIdx * L1_SIZE];
     auto blackSub = &net.FTWeights[blackSubIdx * L1_SIZE];
     for (int i = 0; i < L1_SIZE; i++) {
-        new_acc->values[1][i] = prev_acc->values[1][i] - blackSub[i] + blackAdd[i];
+        new_acc.values[1][i] = prev_acc.values[1][i] - blackSub[i] + blackAdd[i];
     }
 }
 
-void NNUE::addSubSub(NNUE::Accumulator *new_acc, NNUE::Accumulator *prev_acc, NNUEIndices add, NNUEIndices sub1, NNUEIndices sub2) {
+void NNUE::addSubSub(NNUE::Accumulator &new_acc, NNUE::Accumulator &prev_acc, NNUEIndices add, NNUEIndices sub1, NNUEIndices sub2) {
 
     auto [whiteAddIdx, blackAddIdx] = add;
     auto [whiteSubIdx1, blackSubIdx1] = sub1;
@@ -168,13 +185,13 @@ void NNUE::addSubSub(NNUE::Accumulator *new_acc, NNUE::Accumulator *prev_acc, NN
     auto whiteSub1 = &net.FTWeights[whiteSubIdx1 * L1_SIZE];
     auto whiteSub2 = &net.FTWeights[whiteSubIdx2 * L1_SIZE];
     for (int i = 0; i < L1_SIZE; i++) {
-        new_acc->values[0][i] = prev_acc->values[0][i] - whiteSub1[i] - whiteSub2[i] + whiteAdd[i];
+        new_acc.values[0][i] = prev_acc.values[0][i] - whiteSub1[i] - whiteSub2[i] + whiteAdd[i];
     }
     auto blackAdd = &net.FTWeights[blackAddIdx * L1_SIZE];
     auto blackSub1 = &net.FTWeights[blackSubIdx1 * L1_SIZE];
     auto blackSub2 = &net.FTWeights[blackSubIdx2 * L1_SIZE];
     for (int i = 0; i < L1_SIZE; i++) {
-        new_acc->values[1][i] = prev_acc->values[1][i] - blackSub1[i] - blackSub2[i] + blackAdd[i];
+        new_acc.values[1][i] = prev_acc.values[1][i] - blackSub1[i] - blackSub2[i] + blackAdd[i];
     }
 }
 
