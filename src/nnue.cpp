@@ -104,7 +104,6 @@ void NNUE::update(NNUE::Accumulator *acc) {
 
     // The last updated accumulator is indicated by acc - i
     int i = 0;
-    NNUE::Accumulator tmp_acc;
 
     // Find the last updated accumulator. It is updated if it does not have anything to add or sub
     while (true) {
@@ -112,7 +111,7 @@ void NNUE::update(NNUE::Accumulator *acc) {
         i++;
     }
 
-    auto update_single_acc = [&](NNUE::Accumulator &new_acc, NNUE::Accumulator &old_acc, std::vector<NNUEIndices> &adds, std::vector<NNUEIndices> &subs) {
+    auto update_single_acc = [&](NNUE::Accumulator &new_acc, NNUE::Accumulator &old_acc, NNUE::Accumulator &tmp_acc, std::vector<NNUEIndices> &adds, std::vector<NNUEIndices> &subs) {
         int num_add = adds.size();
         int num_sub = subs.size();
 
@@ -140,6 +139,18 @@ void NNUE::update(NNUE::Accumulator *acc) {
         subs.clear();
     };
 
+    // If we only update 1 accumulator, we don't use temp acc
+    if (i == 1) {
+        NNUE::Accumulator &new_acc = acc[-(i - 1)];
+        NNUE::Accumulator &old_acc = acc[-i];
+        std::vector<NNUEIndices> &adds = new_acc.NNUEAdd;
+        std::vector<NNUEIndices> &subs = new_acc.NNUESub;
+        update_single_acc(new_acc, old_acc, new_acc, adds, subs);
+        return;
+    }
+
+    NNUE::Accumulator tmp_acc;
+
     // For the bottom-most accumulator we update it outside the loop
     if (i - 1 >= 0) {
         NNUE::Accumulator &new_acc = acc[-(i - 1)];
@@ -147,7 +158,7 @@ void NNUE::update(NNUE::Accumulator *acc) {
         std::vector<NNUEIndices> &adds = new_acc.NNUEAdd;
         std::vector<NNUEIndices> &subs = new_acc.NNUESub;
 
-        update_single_acc(new_acc, old_acc, adds, subs);
+        update_single_acc(new_acc, old_acc, tmp_acc, adds, subs);
     }
 
     // Iterate backwards to the top from the second accumulator we need to update onwards
@@ -156,7 +167,7 @@ void NNUE::update(NNUE::Accumulator *acc) {
         std::vector<NNUEIndices> &adds = new_acc.NNUEAdd;
         std::vector<NNUEIndices> &subs = new_acc.NNUESub;
 
-        update_single_acc(new_acc, tmp_acc, adds, subs);
+        update_single_acc(new_acc, tmp_acc, tmp_acc, adds, subs);
     }
 }
 
