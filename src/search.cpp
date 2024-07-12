@@ -651,7 +651,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
         info->nodes++;
         const uint64_t nodesBeforeSearch = info->nodes;
         // Conditions to consider LMR. Calculate how much we should reduce the search depth.
-        if (totalMoves > 1 + pvNode + 4 * !isQuiet && depth >= 3) {
+        if (totalMoves > 1 + pvNode + 2 * !isQuiet && depth >= 3) {
 
             // Get base reduction value
             int depthReduction = reductions[isQuiet][std::min(depth, 63)][std::min(totalMoves, 63)];
