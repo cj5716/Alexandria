@@ -14,6 +14,17 @@ constexpr int CORRHIST_WEIGHT_SCALE = 4096;
 constexpr int CORRHIST_GRAIN = 256;
 constexpr int CORRHIST_SIZE = 16384;
 constexpr int CORRHIST_MAX = 16384;
+constexpr int CORRHIST_NUM_BUCKETS = 4;
+constexpr int CORRHIST_BUCKETS[64] = {
+    3, 3, 3, 3, 3, 3, 3, 3,
+    3, 3, 3, 3, 3, 3, 3, 3,
+    3, 3, 3, 3, 3, 3, 3, 3,
+    3, 3, 3, 3, 3, 3, 3, 3,
+    3, 3, 3, 3, 3, 3, 3, 3,
+    2, 2, 2, 2, 2, 2, 2, 2,
+    2, 2, 2, 2, 2, 2, 2, 2,
+    0, 0, 1, 1, 1, 1, 0, 0
+};
 
 // Functions used to update the history heuristics
 void UpdateHistories(const Position* pos, SearchData* sd, SearchStack* ss, const int depth, const Move bestMove, const MoveList &quietMoves, const MoveList &noisyMoves);
@@ -34,5 +45,6 @@ void updateCapthistScore(const Position* pos, SearchData* sd, const Move move, i
 void updateSingleCHScore(SearchStack* ss, const Move move, const int bonus, const int offset);
 
 // Corrhist stuff
+int  getCorrhistBucket(const Position *pos);
 void updateCorrHistScore(const Position *pos, SearchData *sd, const int depth, const bool inCheck, const Move bestMove, const uint8_t bound, const int bestScore, const int rawEval);
 int  adjustEvalWithCorrHist(const Position *pos, const SearchData *sd, const int rawEval);

@@ -102,6 +102,10 @@ int GetCapthistScore(const Position* pos, const SearchData* sd, const Move move)
     return sd->captHist[PieceTo(move)][capturedPiece];
 }
 
+int getCorrhistBucket(const Position *pos) {
+    return CORRHIST_BUCKETS[KingSQ(pos, pos->side) ^ (pos->side * 0b111'000)];
+}
+
 void updateCorrHistScore(const Position *pos, SearchData *sd, const int depth, const bool inCheck, const Move bestMove, const uint8_t bound, const int bestScore, const int rawEval) {
 
     if (inCheck) return; // No corrhist updates if in check
@@ -109,11 +113,10 @@ void updateCorrHistScore(const Position *pos, SearchData *sd, const int depth, c
     if (bound == HFUPPER && rawEval < bestScore) return; // No corrhist updates if the raw eval is a better upper bound
     if (bound == HFLOWER && rawEval > bestScore) return; // No corrhist updates if the raw eval is a better lower bound
 
-    int &entry = sd->corrHist[pos->side][pos->pawnKey % CORRHIST_SIZE];
+    int &entry = sd->corrHist[pos->side][getCorrhistBucket(pos)][pos->pawnKey % CORRHIST_SIZE];
     const int diff = bestScore - rawEval;
     const int scaledDiff = diff * CORRHIST_GRAIN;
-    const int newWeight = bound == HFEXACT ? std::min(4 * depth * depth + 8 * depth + 4, 512)
-                                           : std::min(3 * depth * depth + 6 * depth + 3, 384);
+    const int newWeight = std::min(4 * depth * depth + 8 * depth + 4, 512);
     assert(newWeight <= CORRHIST_WEIGHT_SCALE);
 
     entry = (entry * (CORRHIST_WEIGHT_SCALE - newWeight) + scaledDiff * newWeight) / CORRHIST_WEIGHT_SCALE;
@@ -121,7 +124,7 @@ void updateCorrHistScore(const Position *pos, SearchData *sd, const int depth, c
 }
 
 int adjustEvalWithCorrHist(const Position *pos, const SearchData *sd, const int rawEval) {
-    const int &entry = sd->corrHist[pos->side][pos->pawnKey % CORRHIST_SIZE];
+    const int &entry = sd->corrHist[pos->side][getCorrhistBucket(pos)][pos->pawnKey % CORRHIST_SIZE];
     return std::clamp(rawEval + entry / CORRHIST_GRAIN, -MATE_FOUND + 1, MATE_FOUND - 1);
 }
 
