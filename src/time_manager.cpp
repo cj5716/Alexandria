@@ -59,7 +59,7 @@ void ScaleTm(ThreadData* td, const int bestMoveStabilityFactor, const int evalSt
     if (td->info.nodes) {
         const int bestMove = GetBestMove(&td->pvTable);
         const double bestMoveNodesFraction = static_cast<double>(td->nodeSpentTable[FromTo(bestMove)]) / static_cast<double>(td->info.nodes);
-        const double nodeScalingFactor = (1.47 - std::pow(bestMoveNodesFraction, 1.25)) * 1.74;
+        const double nodeScalingFactor = (1.52 - std::pow(bestMoveNodesFraction, 1.00)) * 1.74;
         newStoptimeBaseOpt *= nodeScalingFactor;
     }
 
