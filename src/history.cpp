@@ -109,11 +109,10 @@ void updateCorrHistScore(const Position *pos, SearchData *sd, const int depth, c
     if (bound == HFUPPER && rawEval < bestScore) return; // No corrhist updates if the raw eval is a better upper bound
     if (bound == HFLOWER && rawEval > bestScore) return; // No corrhist updates if the raw eval is a better lower bound
 
-    int &entry = sd->corrHist[pos->side][pos->pawnKey % CORRHIST_SIZE];
-    const int diff = bestScore - rawEval;
+    int &entry = sd->corrHist[pos->pawnKey % CORRHIST_SIZE];
+    const int diff = (bestScore - rawEval) * (pos->side == WHITE ? 1 : -1);
     const int scaledDiff = diff * CORRHIST_GRAIN;
-    const int newWeight = bound == HFEXACT ? std::min(4 * depth * depth + 8 * depth + 4, 512)
-                                           : std::min(3 * depth * depth + 6 * depth + 3, 384);
+    const int newWeight = std::min(4 * depth * depth + 8 * depth + 4, 512);
     assert(newWeight <= CORRHIST_WEIGHT_SCALE);
 
     entry = (entry * (CORRHIST_WEIGHT_SCALE - newWeight) + scaledDiff * newWeight) / CORRHIST_WEIGHT_SCALE;
@@ -121,8 +120,8 @@ void updateCorrHistScore(const Position *pos, SearchData *sd, const int depth, c
 }
 
 int adjustEvalWithCorrHist(const Position *pos, const SearchData *sd, const int rawEval) {
-    const int &entry = sd->corrHist[pos->side][pos->pawnKey % CORRHIST_SIZE];
-    return std::clamp(rawEval + entry / CORRHIST_GRAIN, -MATE_FOUND + 1, MATE_FOUND - 1);
+    const int &entry = sd->corrHist[pos->pawnKey % CORRHIST_SIZE];
+    return std::clamp(rawEval + entry * (pos->side == WHITE ? 1 : -1) / CORRHIST_GRAIN, -MATE_FOUND + 1, MATE_FOUND - 1);
 }
 
 int GetHistoryScore(const Position* pos, const SearchData* sd, const Move move, const SearchStack* ss) {
