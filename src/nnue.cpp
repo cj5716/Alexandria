@@ -170,25 +170,27 @@ int32_t NNUE::ActivateFTAndAffineL1(const int16_t *us, const int16_t *them, cons
     #if defined(USE_SIMD)
     vepi32 sum  = vec_zero_epi32();
     const vepi16 Zero = vec_zero_epi16();
-    const vepi16 One  = vec_set1_epi16(FT_QUANT);
+    const vepi16 Max  = vec_set1_epi16(FT_MAX * FT_QUANT);
     int weightOffset = 0;
     for (const int16_t *acc : {us, them}) {
         for (int i = 0; i < L1_SIZE; i += CHUNK_SIZE) {
-            vepi16 input   = vec_loadu_epi(reinterpret_cast<const vepi16*>(&acc[i]));
-            vepi16 weight  = vec_loadu_epi(reinterpret_cast<const vepi16*>(&weights[i + weightOffset]));
-            vepi16 clipped = vec_min_epi16(vec_max_epi16(input, Zero), One);
+            vepi16 input    = vec_loadu_epi(reinterpret_cast<const vepi16*>(&acc[i]));
+            vepi16 weight   = vec_loadu_epi(reinterpret_cast<const vepi16*>(&weights[i + weightOffset]));
 
-            // In squared clipped relu, we want to do (clipped * clipped) * weight.
-            // However, as clipped * clipped does not fit in an int16 while clipped * weight does,
-            // we instead do mullo(clipped, weight) and then madd by clipped.
-            vepi32 product = vec_madd_epi16(vec_mullo_epi16(clipped, weight), clipped);
+            vepi16 clipped0 = vec_min_epi16(vec_max_epi16(input, Zero), Max);
+            vepi16 clipped1 = vec_slli_epi16(clipped0, 16 - FT_SHIFT);
+
+            // We left shift by 16 - FT_SHIFT before using mulhi, which effectively shifts right by 16.
+            // So, we have a net shift of left by -FT_SHIFT, or a right shift of FT_SHIFT.
+            vepi16 squared  = vec_mulhi_epi16(clipped0, clipped1);
+            vepi32 product  = vec_madd_epi16(squared, weight);
             sum = vec_add_epi32(sum, product);
         }
 
         weightOffset += L1_SIZE;
     }
 
-    return (vec_reduce_add_epi32(sum) / FT_QUANT + bias) * NET_SCALE / (FT_QUANT * L1_QUANT);
+    return ((vec_reduce_add_epi32(sum) << FT_SHIFT) / FT_QUANT + bias) * NET_SCALE / (FT_QUANT * L1_QUANT);
 
     #else
     int sum = 0;
@@ -197,14 +199,14 @@ int32_t NNUE::ActivateFTAndAffineL1(const int16_t *us, const int16_t *them, cons
         for (int i = 0; i < L1_SIZE; ++i) {
             int16_t input   = acc[i];
             int16_t weight  = weights[i + weightOffset];
-            int16_t clipped = std::clamp(input, int16_t(0), int16_t(FT_QUANT));
-            sum += static_cast<int16_t>(clipped * weight) * clipped;
+            int16_t clipped = std::clamp<int16_t>(input, 0, FT_MAX * FT_QUANT);
+            sum += static_cast<int16_t>(clipped * clipped >> FT_SHIFT) * weight;
         }
 
         weightOffset += L1_SIZE;
     }
 
-    return (sum / FT_QUANT + bias) * NET_SCALE / (FT_QUANT * L1_QUANT);
+    return ((sum << FT_SHIFT) / FT_QUANT + bias) * NET_SCALE / (FT_QUANT * L1_QUANT);
     #endif
 }
 
