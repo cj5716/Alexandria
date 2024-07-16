@@ -177,13 +177,14 @@ int32_t NNUE::ActivateFTAndAffineL1(const int16_t *us, const int16_t *them, cons
             vepi16 input    = vec_loadu_epi(reinterpret_cast<const vepi16*>(&acc[i]));
             vepi16 weight   = vec_loadu_epi(reinterpret_cast<const vepi16*>(&weights[i + weightOffset]));
 
-            vepi16 clipped0 = vec_min_epi16(vec_max_epi16(input, Zero), Max);
-            vepi16 clipped1 = vec_slli_epi16(clipped0, 16 - FT_SHIFT);
+            static_assert(FT_SHIFT % 2 == 0);
+            vepi16 clipped = vec_slli_epi16(vec_min_epi16(vec_max_epi16(input, Zero), Max), (16 - FT_SHIFT) / 2);
 
-            // We left shift by 16 - FT_SHIFT before using mulhi, which effectively shifts right by 16.
+            // We left shift each element by (16 - FT_SHIFT) / 2 before squaring, which makes the net shift 16 - FT_SHIFT.
+            // We use mulhi to square which effectively shifts right by 16.
             // So, we have a net shift of left by -FT_SHIFT, or a right shift of FT_SHIFT.
-            vepi16 squared  = vec_mulhi_epi16(clipped0, clipped1);
-            vepi32 product  = vec_madd_epi16(squared, weight);
+            vepi16 squared = vec_mulhi_epu16(clipped, clipped);
+            vepi32 product = vec_madd_epi16(squared, weight);
             sum = vec_add_epi32(sum, product);
         }
 
