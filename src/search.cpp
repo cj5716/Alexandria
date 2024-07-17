@@ -545,6 +545,8 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
 
     int totalMoves = 0;
     bool skipQuiets = false;
+    bool expectFailLow = false;
+    bool ttFailLow = false;
 
     Movepicker mp;
     InitMP(&mp, pos, sd, ss, ttMove, SEARCH);
@@ -613,6 +615,8 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
 
                 if (singularScore < singularBeta) {
                     extension = 1;
+                    expectFailLow = singularScore <= alpha;
+
                     // Avoid search explosion by limiting the number of double extensions
                     if (   !pvNode
                         &&  singularScore < singularBeta - 17
@@ -663,6 +667,10 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
 
                 // Reduce more if we are not improving
                 if (!improving)
+                    depthReduction += 1;
+
+                // Reduce more if both the singular search and the TT move failed low below alpha
+                if (expectFailLow && ttFailLow)
                     depthReduction += 1;
 
                 // Reduce less if the move is a refutation
@@ -722,6 +730,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
 
         // take move back
         UnmakeMove(move, pos);
+        if (!ttFailLow) ttFailLow = move == ttMove && score <= alpha;
         if (   td->id == 0
             && rootNode)
             td->nodeSpentTable[FromTo(move)] += info->nodes - nodesBeforeSearch;
