@@ -11,13 +11,16 @@ int16_t HistoryBonus(const int depth) {
 
 // Quiet history is a history table indexed by the side-to-move as well as a quiet move's [from-to].
 void UpdateQuietHistory(const Position *pos, SearchData *sd, const Move move, const int16_t bonus) {
+
+    int16_t &entry = sd->quietHistory[pos->side][IsAttackedByOpp(pos, From(move))][FromTo(move)];
+
     // Scale the bonus so that the history, when updated, will be within [-quietHistMax(), quietHistMax()]
-    const int scaledBonus = bonus - sd->quietHistory[pos->side][FromTo(move)] * std::abs(bonus) / quietHistMax();
-    sd->quietHistory[pos->side][FromTo(move)] += bonus;
+    const int scaledBonus = bonus - entry * std::abs(bonus) / quietHistMax();
+    entry += bonus;
 }
 
 int16_t GetQuietHistoryScore(const Position *pos, const SearchData *sd, const Move move) {
-    return sd->quietHistory[pos->side][FromTo(move)];
+    return sd->quietHistory[pos->side][IsAttackedByOpp(pos, From(move))][FromTo(move)];
 }
 
 // Use this function to update all quiet histories
