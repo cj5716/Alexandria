@@ -30,6 +30,7 @@ struct BoardState {
     int plyFromNull = 0;
     Bitboard checkers = 0ULL;
     Bitboard checkMask = fullCheckmask;
+    Bitboard oppThreats;
     Bitboard pinned;
 }; // stores a move and the state of the game before that move is made
 // for rollback purposes
@@ -60,6 +61,7 @@ public:
     Bitboard occupancies[2] = {};
     Bitboard checkers;
     Bitboard checkMask = fullCheckmask;
+    Bitboard oppThreats;
   
     NNUE::Accumulator accumStack[MAXPLY];
     int accumStackHead;
@@ -181,6 +183,9 @@ void ResetInfo(SearchInfo* info);
 
 // Returns the threats bitboard of the pieces of <side> color
 [[nodiscard]] Bitboard getThreats(const Position* pos, const int side);
+
+// Returns if the square is attacked by the opponent
+[[nodiscard]] bool IsAttackedByOpp(const Position *pos, const int square);
 
 // Returns whether the opponent of <side> has a guaranteed SEE > 0
 [[nodiscard]] bool oppCanWinMaterial(const Position* pos, const int side);
