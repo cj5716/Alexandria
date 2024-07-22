@@ -9,7 +9,7 @@ int16_t HistoryBonus(const int depth) {
     return std::min(histBonusQuadratic() * depth * depth + histBonusLinear() * depth + histBonusConst(), histBonusMax());
 }
 
-// Quiet history is a history table indexed by the side-to-move as well as a quiet move's [from-to].
+// Quiet history is a history table indexed by [side-to-move][from-sq-is-attacked][from-to-of-move].
 void UpdateQuietHistory(const Position *pos, SearchData *sd, const Move move, const int16_t bonus) {
 
     int16_t &entry = sd->quietHistory[pos->side][IsAttackedByOpp(pos, From(move))][FromTo(move)];
