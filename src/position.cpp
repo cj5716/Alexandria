@@ -221,6 +221,9 @@ void ParseFen(const std::string& command, Position* pos) {
     else
         pos->checkMask = fullCheckmask;
 
+    // Update opponent threats
+    pos->oppThreats = getThreats(pos, pos->side ^ 1);
+
     // Update nnue accumulator to reflect board state
     nnue.accumulate(pos->accumStack[0], pos);
     pos->accumStackHead = 1;
@@ -396,6 +399,11 @@ Bitboard getThreats(const Position* pos, const int side) {
     return threats;
 }
 
+bool IsAttackedByOpp(const Position *pos, const int square) {
+    assert(square >= 0 && square <= 63);
+    return pos->oppThreats & (1ULL << square);
+}
+
 // Return a piece based on the piecetype and the color
 int GetPiece(const int piecetype, const int color) {
     return piecetype + 6 * color;
@@ -472,6 +480,7 @@ void saveBoardState(Position* pos) {
     pos->history[pos->historyStackHead].checkers = pos->checkers;
     pos->history[pos->historyStackHead].checkMask = pos->checkMask;
     pos->history[pos->historyStackHead].pinned = pos->pinned;
+    pos->history[pos->historyStackHead].oppThreats = pos->oppThreats;
 }
 
 void restorePreviousBoardState(Position* pos)
@@ -483,6 +492,7 @@ void restorePreviousBoardState(Position* pos)
     pos->checkers = pos->history[pos->historyStackHead].checkers;
     pos->checkMask = pos->history[pos->historyStackHead].checkMask;
     pos->pinned = pos->history[pos->historyStackHead].pinned;
+    pos->oppThreats = pos->history[pos->historyStackHead].oppThreats;
 }
 
 bool hasGameCycle(Position* pos, int ply) {
