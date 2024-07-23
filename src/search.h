@@ -13,6 +13,7 @@ struct SearchStack {
 
 struct SearchData {
     int16_t quietHistory[2][2][64 * 64];
+    int16_t tacticalHistory[12 * 64][6];
 };
 
 struct PvTable {
