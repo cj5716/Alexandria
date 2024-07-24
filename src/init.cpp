@@ -138,7 +138,12 @@ void initializeLookupTables() {
 }
 
 // PreCalculate the logarithms used in the reduction calculation
-void InitReductions() {}
+void InitReductions() {
+    for (int depth = 0; depth < 64; ++depth) {
+        seeMargins[0][depth] = -30.0 * std::pow(depth, 2.0); // Noisy SEE margin
+        seeMargins[1][depth] = -80.0 * std::pow(depth, 1.0); // Quiet SEE margin
+    }
+}
 
 void initCuckoo(){
     // keep a total tally of the table entries to sanity check the init
