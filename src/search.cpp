@@ -429,7 +429,7 @@ int Negamax(int alpha, int beta, int depth, ThreadData* td, SearchStack* ss) {
             && (ss - 1)->move != NOMOVE
             && BoardHasNonPawns(pos, pos->side)) {
 
-            const int R = (nmpRedConst() + nmpRedDepthCoeff()) / 1024
+            const int R = (nmpRedConst() + nmpRedDepthCoeff() * depth) / 1024
                         +  std::min(eval - beta, nmpRedEvalDiffMax()) / nmpRedEvalDiffDiv();
 
             ss->move = NOMOVE;
