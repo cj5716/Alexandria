@@ -137,11 +137,11 @@ void initializeLookupTables() {
     }
 }
 
-// PreCalculate the logarithms used in the reduction calculation
+// Precalculate the logarithms used in the reduction calculation
 void InitReductions() {
     for (int depth = 0; depth < 64; ++depth) {
-        seeMargins[0][depth] = -30.0 * std::pow(depth, 2.0); // Noisy SEE margin
-        seeMargins[1][depth] = -80.0 * std::pow(depth, 1.0); // Quiet SEE margin
+        seeMargins[0][depth] = -double(tacticalSeeCoeff()) * std::pow(depth, double(tacticalSeePower()) / 100.0) / 100.0; // Tactical SEE margin
+        seeMargins[1][depth] = -double(   quietSeeCoeff()) * std::pow(depth, double(   quietSeePower()) / 100.0) / 100.0; // Quiet SEE margin
     }
 }
 
