@@ -30,8 +30,8 @@ struct QuietHistoryTable {
     };
     QuietHistoryEntry table[2][64 * 64];
 
-    void Update(const Position *pos, const Move move, const int16_t bonus);
-    int16_t GetScore(const Position *pos, const Move move) const;
+    void update(const Position *pos, const Move move, const int16_t bonus);
+    int16_t getScore(const Position *pos, const Move move) const;
     inline void clear() {
         std::memset(table, 0, sizeof(table));
     };

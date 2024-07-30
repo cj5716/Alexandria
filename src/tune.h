@@ -109,6 +109,6 @@ TUNE_PARAM(histBonusLinear, 32, 0, 64, 2, 0.002)
 TUNE_PARAM(histBonusConst, 16, 0, 32, 1, 0.002)
 TUNE_PARAM(histBonusMax, 1200, 400, 4800, 100, 0.002)
 
-TUNE_PARAM(quietHistFactoriserScale, 32, 0, 64, 2, 0.002)
-TUNE_PARAM(quietHistFactoriserMax, 6144, 2048, 20000, 300, 0.002)
+TUNE_PARAM(quietHistFactoriserScale, 16, 0, 64, 2, 0.002)
+TUNE_PARAM(quietHistFactoriserMax, 2048, 2048, 20000, 300, 0.002)
 TUNE_PARAM(quietHistBucketMax, 6144, 2048, 20000, 300, 0.002)
