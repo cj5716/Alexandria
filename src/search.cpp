@@ -510,6 +510,9 @@ int Negamax(int alpha, int beta, int depth, ThreadData* td, SearchStack* ss, Mov
             const int singularScore = Negamax<false>(singularAlpha, singularBeta, singularDepth, td, ss, ttMove);
             if (singularScore <= singularAlpha) {
                 extension = 1;
+
+                // If we fail low by a lot, we extend the search by more than one ply
+                // (TT move is very singular; there are no close alternatives)
                 if (singularScore <= singularAlpha - seDeBase() - seDePvCoeff() * pvNode)
                     extension = 2;
             }
