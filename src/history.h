@@ -51,6 +51,15 @@ struct QuietHistoryTable {
 struct TacticalHistoryTable {
     struct TacticalHistoryEntry {
         int16_t factoriser;
+        int16_t buckets[2]; // Buckets indexed by [captured-piece-is-defended]
+
+        inline int16_t &bucketRef(const Position *pos, const Move move) {
+            return buckets[IsAttackedByOpp(pos, To(move))];
+        };
+
+        inline int16_t bucket(const Position *pos, const Move move) const {
+            return buckets[IsAttackedByOpp(pos, To(move))];
+        };
     };
 
     // Indexed by [moved-piece][to-square][captured-piece]
