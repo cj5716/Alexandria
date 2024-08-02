@@ -51,30 +51,30 @@ struct QuietHistoryTable {
 struct TacticalHistoryTable {
     struct TacticalHistoryEntry {
         int16_t factoriser;
-        int16_t buckets[2]; // Buckets indexed by [captured-piece-is-defended]
+        int16_t buckets[6]; // Buckets indexed by [captured-piece]
 
         inline int16_t &bucketRef(const Position *pos, const Move move) {
-            return buckets[IsAttackedByOpp(pos, To(move))];
+            int capturedPiece = GetPieceType(pos->PieceOn(To(move)));
+            if (capturedPiece == EMPTY) capturedPiece = KING; // Impossible to capture kings so we use it as "Empty" slot to save space
+            return buckets[capturedPiece];
         };
 
         inline int16_t bucket(const Position *pos, const Move move) const {
-            return buckets[IsAttackedByOpp(pos, To(move))];
+            int capturedPiece = GetPieceType(pos->PieceOn(To(move)));
+            if (capturedPiece == EMPTY) capturedPiece = KING; // Impossible to capture kings so we use it as "Empty" slot to save space
+            return buckets[capturedPiece];
         };
     };
 
-    // Indexed by [moved-piece][to-square][captured-piece]
-    TacticalHistoryEntry table[12 * 64][6];
+    // Indexed by [moved-piece][to-square]
+    TacticalHistoryEntry table[12 * 64];
 
-    inline TacticalHistoryEntry getEntry(const Position *pos, const Move move) const {
-        int capturedPiece = GetPieceType(pos->PieceOn(To(move)));
-        if (capturedPiece == EMPTY) capturedPiece = KING; // Impossible to capture kings so we use it as "Empty" slot to save space
-        return table[PieceTo(move)][capturedPiece];
+    inline TacticalHistoryEntry getEntry(const Move move) const {
+        return table[PieceTo(move)];
     };
 
-    inline TacticalHistoryEntry &getEntryRef(const Position *pos, const Move move) {
-        int capturedPiece = GetPieceType(pos->PieceOn(To(move)));
-        if (capturedPiece == EMPTY) capturedPiece = KING; // Impossible to capture kings so we use it as "Empty" slot to save space
-        return table[PieceTo(move)][capturedPiece];
+    inline TacticalHistoryEntry &getEntryRef(const Move move) {
+        return table[PieceTo(move)];
     };
 
     inline void clear() {

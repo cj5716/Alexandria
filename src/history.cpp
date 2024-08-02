@@ -31,7 +31,7 @@ int16_t QuietHistoryTable::getScore(const Position *pos, const Move move) const 
 
 // Tactical history is a history table for tactical moves
 void TacticalHistoryTable::update(const Position *pos, const Move move, int16_t bonus) {
-    TacticalHistoryEntry &entry = getEntryRef(pos, move);
+    TacticalHistoryEntry &entry = getEntryRef(move);
     const int factoriserScale = tacticalHistFactoriserScale();
     const int bucketScale = 64 - factoriserScale;
     UpdateHistoryEntry(entry.factoriser, bonus * factoriserScale / 64, tacticalHistFactoriserMax());
@@ -39,7 +39,7 @@ void TacticalHistoryTable::update(const Position *pos, const Move move, int16_t 
 }
 
 int16_t TacticalHistoryTable::getScore(const Position *pos, const Move move) const {
-    TacticalHistoryEntry entry = getEntry(pos, move);
+    TacticalHistoryEntry entry = getEntry(move);
     return   entry.factoriser
            + entry.bucket(pos, move);
 }
