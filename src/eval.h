@@ -20,18 +20,7 @@
         else if (((CountBits(GetPieceBB(pos, BISHOP)) == 2)) && CountBits(pos->GetPieceColorBB(BISHOP, WHITE)) == 1)
             return true;
     }
-
     return false;
-}
-
-[[nodiscard]] static inline int ScaleMaterial(const Position* pos, int eval) {
-    const int knights = CountBits(GetPieceBB(pos, KNIGHT));
-    const int bishops = CountBits(GetPieceBB(pos, BISHOP));
-    const int rooks = CountBits(GetPieceBB(pos, ROOK));
-    const int queens = CountBits(GetPieceBB(pos, QUEEN));
-    const int phase = std::min(3 * knights + 3 * bishops + 5 * rooks + 10 * queens, 64);
-    // Scale between [0.75, 1.00]
-    return eval * (192 + phase) / 256;
 }
 
 [[nodiscard]] inline int EvalPositionRaw(Position* pos) {
@@ -42,13 +31,33 @@
     return nnue.output(pos->accumStack[pos->accumStackHead - 1], pos->side, outputBucket);
 }
 
+[[nodiscard]] static inline int ScaleMaterial(const Position* pos, int eval) {
+    const int knights = CountBits(GetPieceBB(pos, KNIGHT));
+    const int bishops = CountBits(GetPieceBB(pos, BISHOP));
+    const int rooks = CountBits(GetPieceBB(pos, ROOK));
+    const int queens = CountBits(GetPieceBB(pos, QUEEN));
+    const int phase = std::min(3 * knights + 3 * bishops + 5 * rooks + 10 * queens, 64);
+
+    // Scale the eval based on the calculated phase
+    return eval * (evalMatBase() + evalMatMult() * phase) / 4096;
+}
+
+[[nodiscard]] inline int Scale50mr(Position *pos, int eval) {
+    return eval * (eval50mrScale() - pos->Get50mrCounter()) / eval50mrScale();
+}
+
+[[nodiscard]] inline int ScaleEval(Position *pos, int eval) {
+    eval = ScaleMaterial(pos, eval);
+    eval = Scale50mr(pos, eval);
+
+    // Clamp eval to avoid it somehow being a mate score
+    eval = std::clamp(eval, -MATE_FOUND + 1, MATE_FOUND - 1);
+    return eval;
+}
+
 // position evaluation
 [[nodiscard]] inline int EvalPosition(Position* pos) {
     int eval = EvalPositionRaw(pos);
     eval = ScaleMaterial(pos, eval);
-    eval = eval * (200 - pos->Get50mrCounter()) / 200;
-    eval = (eval / 16) * 16 - 1 + (pos->posKey & 0x2);
-    // Clamp eval to avoid it somehow being a mate score
-    eval = std::clamp(eval, -MATE_FOUND + 1, MATE_FOUND - 1);
     return eval;
 }
