@@ -50,8 +50,16 @@ struct QuietHistoryTable {
 // Tactical history is a history table for tactical moves
 struct TacticalHistoryTable {
     struct TacticalHistoryEntry {
-        int16_t factoriser;
+        int16_t factorisers[2];
         int16_t buckets[6]; // Buckets indexed by [captured-piece]
+
+        inline int16_t &factoriserRef(const Position *pos, const Move move) {
+            return factorisers[GetPieceType(pos->PieceOn(To(move))) >= GetPieceType(Piece(move))];
+        };
+
+        inline int16_t factoriser(const Position *pos, const Move move) const {
+            return factorisers[GetPieceType(pos->PieceOn(To(move))) >= GetPieceType(Piece(move))];
+        };
 
         inline int16_t &bucketRef(const Position *pos, const Move move) {
             int capturedPiece = GetPieceType(pos->PieceOn(To(move)));

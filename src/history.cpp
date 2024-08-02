@@ -34,13 +34,13 @@ void TacticalHistoryTable::update(const Position *pos, const Move move, int16_t 
     TacticalHistoryEntry &entry = getEntryRef(move);
     const int factoriserScale = tacticalHistFactoriserScale();
     const int bucketScale = 64 - factoriserScale;
-    UpdateHistoryEntry(entry.factoriser, bonus * factoriserScale / 64, tacticalHistFactoriserMax());
+    UpdateHistoryEntry(entry.factoriserRef(pos, move), bonus * factoriserScale / 64, tacticalHistFactoriserMax());
     UpdateHistoryEntry(entry.bucketRef(pos, move), bonus * bucketScale / 64, tacticalHistBucketMax());
 }
 
 int16_t TacticalHistoryTable::getScore(const Position *pos, const Move move) const {
     TacticalHistoryEntry entry = getEntry(move);
-    return   entry.factoriser
+    return   entry.factoriser(pos, move)
            + entry.bucket(pos, move);
 }
 
