@@ -1,6 +1,7 @@
 #include "history.h"
 #include <algorithm>
 #include <cstring>
+#include "eval.h"
 #include "position.h"
 #include "move.h"
 #include "search.h"
@@ -39,7 +40,7 @@ void CorrectionHistoryTable::update(const Position *pos, const Move bestMove, co
     if (bound == HFLOWER && rawEval > bestScore) return; // Don't update correction history if the raw eval is a better lower bound
 
     int16_t &entry = table[index(pos)];
-    const int scaledDiff = std::clamp((bestScore - rawEval) * Grain, -corrHistMaxAdjust(), corrHistMaxAdjust());
+    const int scaledDiff = std::clamp((bestScore - Scale50mr(pos, rawEval)) * Grain, -corrHistMaxAdjust(), corrHistMaxAdjust());
     const int newWeight = weight(depth);
     assert(weight <= MaxWeight);
 

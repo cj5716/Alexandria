@@ -42,11 +42,11 @@
     return eval * (evalMatBase() + evalMatMult() * phase) / 4096;
 }
 
-[[nodiscard]] inline int Scale50mr(Position *pos, int eval) {
+[[nodiscard]] inline int Scale50mr(const Position *pos, int eval) {
     return eval * (eval50mrScale() - pos->Get50mrCounter()) / eval50mrScale();
 }
 
-[[nodiscard]] inline int ScaleEval(Position *pos, int eval) {
+[[nodiscard]] inline int ScaleEval(const Position *pos, int eval) {
     eval = ScaleMaterial(pos, eval);
     eval = Scale50mr(pos, eval);
 
