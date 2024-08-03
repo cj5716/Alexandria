@@ -1,18 +1,10 @@
 #include "history.h"
 #include <algorithm>
 #include <cstring>
+#include "eval.h"
 #include "position.h"
 #include "move.h"
 #include "search.h"
-
-int16_t HistoryBonus(const int depth) {
-    return std::min(histBonusQuadratic() * depth * depth + histBonusLinear() * depth + histBonusConst(), histBonusMax());
-}
-
-void UpdateHistoryEntry(int16_t &entry, const int16_t bonus, const int16_t max) {
-    const int scaledBonus = bonus - entry * std::abs(bonus) / max;
-    entry += scaledBonus;
-}
 
 // Quiet history is a history table for quiet moves
 void QuietHistoryTable::update(const Position *pos, const Move move, const int16_t bonus) {
@@ -38,6 +30,26 @@ void TacticalHistoryTable::update(const Position *pos, const Move move, int16_t 
 int16_t TacticalHistoryTable::getScore(const Position *pos, const Move move) const {
     TacticalHistoryEntry entry = getEntry(pos, move);
     return entry.factoriser;
+}
+
+// CorrectionHistoryTable is a history table indexed by [pawn-key-index]. It is used to correct eval
+void CorrectionHistoryTable::update(const Position *pos, const Move bestMove, const int depth, const uint8_t bound, const int bestScore, const int rawEval) {
+    if (pos->checkers) return; // Don't update correction history if in check
+    if (bestMove != NOMOVE && isTactical(bestMove)) return; // Don't update correction history for tactical best moves
+    if (bound == HFUPPER && rawEval < bestScore) return; // Don't update correction history if the raw eval is a better upper bound
+    if (bound == HFLOWER && rawEval > bestScore) return; // Don't update correction history if the raw eval is a better lower bound
+
+    int16_t &entry = table[index(pos)];
+    const int scaledDiff = std::clamp((bestScore - rawEval) * Grain, -corrHistMaxAdjust(), corrHistMaxAdjust());
+    const int newWeight = weight(depth);
+    assert(weight <= MaxWeight);
+
+    entry = (entry * (MaxWeight - newWeight) + scaledDiff * newWeight) / MaxWeight;
+}
+
+int16_t CorrectionHistoryTable::adjust(const Position *pos, const int eval) const {
+    int16_t entry = table[index(pos)];
+    return eval + entry / Grain;
 }
 
 // Use this function to update all quiet histories
