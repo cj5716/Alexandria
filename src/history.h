@@ -84,14 +84,18 @@ struct ContinuationHistoryTable {
     };
 
     // Indexed by [previous-piece][previous-to][current-piece][current-to]
-    ContinuationHistoryEntry table[12 * 64][12 * 64];
+    ContinuationHistoryEntry table[12 * 64][12 * 64][6];
 
     inline ContinuationHistoryEntry getEntry(const Position *pos, const Move prevMove, const Move currMove) const {
-        return table[PieceTo(prevMove)][PieceTo(currMove)];
+        int capturedPiece = GetPieceType(pos->PieceOn(To(currMove)));
+        if (capturedPiece == EMPTY) capturedPiece = KING; // Impossible to capture kings so we use it as "Empty" slot to save space
+        return table[PieceTo(prevMove)][PieceTo(currMove)][capturedPiece];
     };
 
     inline ContinuationHistoryEntry &getEntryRef(const Position *pos, const Move prevMove, const Move currMove) {
-        return table[PieceTo(prevMove)][PieceTo(currMove)];
+        int capturedPiece = GetPieceType(pos->PieceOn(To(currMove)));
+        if (capturedPiece == EMPTY) capturedPiece = KING; // Impossible to capture kings so we use it as "Empty" slot to save space
+        return table[PieceTo(prevMove)][PieceTo(currMove)][capturedPiece];
     };
 
     inline void clear() {
