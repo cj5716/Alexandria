@@ -86,14 +86,12 @@ struct ContinuationHistoryTable {
     // Indexed by [previous-piece][previous-to][current-piece][current-to]
     ContinuationHistoryEntry table[12 * 64][12 * 64];
 
-    inline ContinuationHistoryEntry getEntry(const Position *pos, const SearchStack *ss, const int offset, const Move move) const {
-        Move prevMove = (ss - offset)->move;
-        return table[PieceTo(prevMove)][PieceTo(move)];
+    inline ContinuationHistoryEntry getEntry(const Position *pos, const Move prevMove, const Move currMove) const {
+        return table[PieceTo(prevMove)][PieceTo(currMove)];
     };
 
-    inline ContinuationHistoryEntry &getEntryRef(const Position *pos, const SearchStack *ss, const int offset, const Move move) {
-        Move prevMove = (ss - offset)->move;
-        return table[PieceTo(prevMove)][PieceTo(move)];
+    inline ContinuationHistoryEntry &getEntryRef(const Position *pos, const Move prevMove, const Move currMove) {
+        return table[PieceTo(prevMove)][PieceTo(currMove)];
     };
 
     inline void clear() {
