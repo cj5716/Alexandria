@@ -121,7 +121,7 @@ TUNE_PARAM(quietHistBucketMax, 6144, 2048, 20000, 300.0, 0.002)
 
 TUNE_PARAM(tacticalHistMax, 8192, 2048, 20000, 300.0, 0.002)
 
-TUNE_PARAM(corrHistMaxAdjust, 22528, 16384, 32767, 800.0, 0.002)
+TUNE_PARAM(corrHistMaxAdjust, 12288, 12288, 32767, 800.0, 0.002)
 TUNE_PARAM(corrHistWeightQuadratic, 4, 0, 8, 0.5, 0.002)
 TUNE_PARAM(corrHistWeightLinear, 8, 0, 16, 0.5, 0.002)
 TUNE_PARAM(corrHistWeightConst, 4, 0, 8, 0.5, 0.002)
