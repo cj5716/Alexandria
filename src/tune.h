@@ -122,9 +122,9 @@ TUNE_PARAM(quietHistBucketMax, 6144, 2048, 20000, 300.0, 0.002)
 TUNE_PARAM(tacticalHistMax, 8192, 2048, 20000, 300.0, 0.002)
 
 TUNE_PARAM(corrHistMaxAdjust, 22528, 16384, 32767, 800.0, 0.002)
-TUNE_PARAM(corrHistWeightQuadratic, 16, 0, 32, 1.0, 0.002)
-TUNE_PARAM(corrHistWeightLinear, 32, 0, 64, 2.0, 0.002)
-TUNE_PARAM(corrHistWeightConst, 16, 0, 32, 10.0, 0.002)
+TUNE_PARAM(corrHistWeightQuadratic, 4, 0, 8, 0.5, 0.002)
+TUNE_PARAM(corrHistWeightLinear, 8, 0, 16, 0.5, 0.002)
+TUNE_PARAM(corrHistWeightConst, 4, 0, 8, 0.5, 0.002)
 TUNE_PARAM(corrHistWeightMax, 128, 1, 345, 17.0, 0.002)
 
 TUNE_PARAM(eval50mrScale, 200, 150, 250, 5.0, 0.002)
