@@ -80,8 +80,16 @@ struct TacticalHistoryTable {
 // Continuation history is a history table for move pairs (i.e. a previous move and its continuation)
 struct ContinuationHistoryTable {
     struct ContinuationHistoryEntry {
-        int16_t factoriser;
+        int16_t factorisers[2];
         int16_t buckets[6]; // [current-captured-piece]
+
+        inline int16_t &factoriserRef(const Move currMove) {
+            return factorisers[isTactical(currMove)];
+        };
+
+        inline int16_t factoriser(const Move currMove) const {
+            return factorisers[isTactical(currMove)];
+        };
 
         inline int16_t &bucketRef(const Position *pos, const Move currMove) {
             int capturedPiece = isEnpassant(currMove) ? PAWN : GetPieceType(pos->PieceOn(To(currMove)));

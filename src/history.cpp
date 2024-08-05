@@ -45,7 +45,7 @@ void ContinuationHistoryTable::updateSingle(const Position *pos, const SearchSta
     ContinuationHistoryEntry &entry = getEntryRef((ss - offset)->move, move);
     const int factoriserScale = continuationHistFactoriserScale();
     const int bucketScale = 64 - factoriserScale;
-    UpdateHistoryEntry(entry.factoriser, bonus * factoriserScale / 64, continuationHistFactoriserMax());
+    UpdateHistoryEntry(entry.factoriserRef(move), bonus * factoriserScale / 64, continuationHistFactoriserMax());
     UpdateHistoryEntry(entry.bucketRef(pos, move), bonus * bucketScale / 64, continuationHistBucketMax());
 }
 
@@ -56,7 +56,7 @@ void ContinuationHistoryTable::update(const Position *pos, const SearchStack *ss
 
 int16_t ContinuationHistoryTable::getScoreSingle(const Position *pos, const SearchStack *ss, const int offset, const Move move) const {
     ContinuationHistoryEntry entry = getEntry((ss - offset)->move, move);
-    return   entry.factoriser
+    return   entry.factoriser(move)
            + entry.bucket(pos, move);
 }
 
