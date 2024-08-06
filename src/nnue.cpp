@@ -286,6 +286,7 @@ void NNUE::ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, cons
     const vepi16 Zero = vec_zero_epi16();
     const vepi16 One  = vec_set1_epi16(FT_QUANT);
     vepi32 sums[L2_SIZE / L2_CHUNK_SIZE] = {};
+    uint32_t registers[sizeof(vepi32) / sizeof(uint32_t)];
     for (const int16_t *acc : {us, them}) {
         for (int i = 0; i < L1_SIZE / 2; i += 2 * FT_CHUNK_SIZE) {
             const vepi16 input0a   = vec_load_epi(reinterpret_cast<const vepi16*>(&acc[i + 0             + 0]));
@@ -306,6 +307,7 @@ void NNUE::ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, cons
             const vepi16 producta  = vec_mulhi_epi16(vec_slli_epi16(clipped0a, 16 - FT_SHIFT), clipped1a);
             const vepi16 productb  = vec_mulhi_epi16(vec_slli_epi16(clipped0b, 16 - FT_SHIFT), clipped1b);
             const vepi8  product   = vec_packus_permute_epi16(producta, productb);
+            vec_store_epi(reinterpret_cast<vepi32*>(registers), product);
 
             const uint16_t nnzMask = vec_nnz_mask(product);
             // We divide here since our lookup is only 8 bits
@@ -314,7 +316,7 @@ void NNUE::ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, cons
                 NNZEntry nnzEntry = nnzTable.table[maskSlice];
                 for (int j = 0; j < nnzEntry.count; ++j) {
                     uint8_t nnz = nnzEntry.indices[j];
-                    const vepi32 input32 = vec_broadcast_nth_u32(product, nnz + 8 * lookup);
+                    const vepi32 input32 = vec_set1_epi32(registers[nnz + 8 * lookup]);
                     const vepi8 *weight  = reinterpret_cast<const vepi8*>(&weights[((nnz + 8 * lookup) * L1_CHUNK_PER_32 + i + offset) * L2_SIZE]);
                     for (int k = 0; k < L2_SIZE / L2_CHUNK_SIZE; ++k)
                         sums[k] = vec_dpbusd_epi32(sums[k], input32, weight[k]);
