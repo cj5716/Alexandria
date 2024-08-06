@@ -25,6 +25,7 @@ const unsigned int gEVALSize = 1;
 #endif
 
 Network net;
+NNZTable nnzTable;
 
 // Thanks to Disservin for having me look at his code and Luecx for the
 // invaluable help and the immense patience
@@ -279,12 +280,12 @@ int NNUE::Pov_Accumulator::GetIndex(const int piece, const int square, bool flip
     return Idx;
 }
 
-
-void NNUE::ActivateFT(const int16_t *us, const int16_t *them, uint8_t *output) {
+void NNUE::ActivateFTAndPropagateL1(const int16_t *us, const int16_t *them, const int8_t *weights, const float *biases, float *output) {
     #if defined(USE_SIMD)
     int offset = 0;
     const vepi16 Zero = vec_zero_epi16();
     const vepi16 One  = vec_set1_epi16(FT_QUANT);
+    vepi32 sums[L2_SIZE / L2_CHUNK_SIZE] = {};
     for (const int16_t *acc : {us, them}) {
         for (int i = 0; i < L1_SIZE / 2; i += 2 * FT_CHUNK_SIZE) {
             const vepi16 input0a   = vec_load_epi(reinterpret_cast<const vepi16*>(&acc[i + 0             + 0]));
@@ -304,32 +305,23 @@ void NNUE::ActivateFT(const int16_t *us, const int16_t *them, uint8_t *output) {
 
             const vepi16 producta  = vec_mulhi_epi16(vec_slli_epi16(clipped0a, 16 - FT_SHIFT), clipped1a);
             const vepi16 productb  = vec_mulhi_epi16(vec_slli_epi16(clipped0b, 16 - FT_SHIFT), clipped1b);
-            vec_store_epi(reinterpret_cast<vepi8*>(&output[offset + i]), vec_packus_permute_epi16(producta, productb));
-        }
-        offset += L1_SIZE / 2;
-    }
-    #else
-    int offset = 0;
-    for (const int16_t *acc : {us, them}) {
-        for (int i = 0; i < L1_SIZE / 2; ++i) {
-            int16_t clipped0 = std::clamp<int16_t>(acc[i], 0, FT_QUANT);
-            int16_t clipped1 = std::clamp<int16_t>(acc[i + L1_SIZE / 2], 0, FT_QUANT);
-            output[offset + i] = static_cast<uint8_t>(clipped0 * clipped1 >> FT_SHIFT);
-        }
-        offset += L1_SIZE / 2;
-    }
-    #endif
-}
+            const vepi8  product   = vec_packus_permute_epi16(producta, productb);
 
-void NNUE::PropagateL1(const uint8_t *inputs, const int8_t *weights, const float *biases, float *output) {
-    #if defined(USE_SIMD)
-    vepi32 sums[L2_SIZE / L2_CHUNK_SIZE] = {};
-    const int32_t *inputs32 = reinterpret_cast<const int32_t*>(inputs);
-    for (int i = 0; i < L1_SIZE / L1_CHUNK_PER_32; ++i) {
-        const vepi32 input32 = vec_set1_epi32(inputs32[i]);
-        const vepi8 *weight = reinterpret_cast<const vepi8*>(&weights[i * L1_CHUNK_PER_32 * L2_SIZE]);
-        for (int j = 0; j < L2_SIZE / L2_CHUNK_SIZE; ++j)
-            sums[j] = vec_dpbusd_epi32(sums[j], input32, weight[j]);
+            const uint16_t nnzMask = vec_nnz_mask(product);
+            // We divide here since our lookup is only 8 bits
+            for (int lookup = 0; lookup < int(sizeof(vepi32) / sizeof(uint32_t)) / 8; ++lookup) {
+                uint8_t maskSlice = (nnzMask >> (8 * lookup)) & 0xFF;
+                NNZEntry nnzEntry = nnzTable.table[maskSlice];
+                for (int j = 0; j < nnzEntry.count; ++j) {
+                    uint8_t nnz = nnzEntry.indices[j];
+                    const vepi32 input32 = vec_broadcast_nth_u32(product, nnz + 8 * lookup);
+                    const vepi8 *weight  = reinterpret_cast<const vepi8*>(&weights[((nnz + 8 * lookup) * L1_CHUNK_PER_32 + i + offset) * L2_SIZE]);
+                    for (int k = 0; k < L2_SIZE / L2_CHUNK_SIZE; ++k)
+                        sums[k] = vec_dpbusd_epi32(sums[k], input32, weight[k]);
+                }
+            }
+        }
+        offset += L1_SIZE / 2;
     }
 
     for (int i = 0; i < L2_SIZE / L2_CHUNK_SIZE; ++i) {
@@ -337,15 +329,22 @@ void NNUE::PropagateL1(const uint8_t *inputs, const int8_t *weights, const float
         const vps32 biasVec = vec_load_ps(&biases[i * L2_CHUNK_SIZE]);
         const vps32 sumDiv  = vec_set1_ps(L1_DIV);
         const vps32 sumPs   = vec_add_ps(vec_div_ps(vec_cvtepi32_ps(sums[i]), sumDiv), biasVec);
-        const vps32 Zero    = vec_zero_ps();
-        vec_store_ps(&output[i * L2_CHUNK_SIZE], vec_max_ps(Zero, sumPs));
+        vec_store_ps(&output[i * L2_CHUNK_SIZE], vec_max_ps(vec_zero_ps(), sumPs));
     }
+
     #else
+    int offset = 0;
     int sums[L2_SIZE] = {};
-    for (int i = 0; i < L1_SIZE; ++i) {
-        for (int j = 0; j < L2_SIZE; ++j) {
-            sums[j] += static_cast<int32_t>(inputs[i] * weights[j * L1_SIZE + i]);
+    for (const int16_t *acc : {us, them}) {
+        for (int i = 0; i < L1_SIZE / 2; ++i) {
+            int16_t clipped0 = std::clamp<int16_t>(acc[i], 0, FT_QUANT);
+            int16_t clipped1 = std::clamp<int16_t>(acc[i + L1_SIZE / 2], 0, FT_QUANT);
+            int16_t product  = static_cast<uint8_t>(clipped0 * clipped1 >> FT_SHIFT);
+            for (int j = 0; j < L2_SIZE; ++j) {
+                sums[j] += static_cast<int32_t>(product * weights[j * L1_SIZE + offset + i]);
+            }
         }
+        offset += L1_SIZE / 2;
     }
 
     for (int i = 0; i < L2_SIZE; ++i) {
@@ -419,7 +418,6 @@ void NNUE::PropagateL3(const float *inputs, const float *weights, const float bi
 // according to the net
 int32_t NNUE::output(const NNUE::Accumulator &board_accumulator, const int stm, const int outputBucket) {
 
-    alignas (64) uint8_t FTOutputs[L1_SIZE];
     alignas (64) float   L1Outputs[L2_SIZE];
     alignas (64) float   L2Outputs[L3_SIZE];
     float L3Output;
@@ -427,12 +425,11 @@ int32_t NNUE::output(const NNUE::Accumulator &board_accumulator, const int stm, 
     const int16_t* us = board_accumulator.perspective[stm].values.data();
     const int16_t* them = board_accumulator.perspective[stm ^ 1].values.data();
 
-    ActivateFT(us, them, FTOutputs);
-
-    PropagateL1(FTOutputs,
-                net.L1Weights[outputBucket],
-                net.L1Biases[outputBucket],
-                L1Outputs);
+    ActivateFTAndPropagateL1(us,
+                             them,
+                             net.L1Weights[outputBucket],
+                             net.L1Biases[outputBucket],
+                             L1Outputs);
 
     PropagateL2(L1Outputs,
                 net.L2Weights[outputBucket],
