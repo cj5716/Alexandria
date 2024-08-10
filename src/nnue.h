@@ -15,8 +15,8 @@ constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
 constexpr int OUTPUT_BUCKETS = 8;
 
-constexpr int FT_QUANT  = 362;
-constexpr int FT_SHIFT  = 10;
+constexpr int FT_QUANT  = 511;
+constexpr int FT_SHIFT  = 11;
 constexpr int L1_QUANT  = 45;
 constexpr int NET_SCALE = 400;
 
