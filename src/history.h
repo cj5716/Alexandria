@@ -66,13 +66,13 @@ struct TacticalHistoryTable {
     TacticalHistoryEntry table[12 * 64][6];
 
     inline TacticalHistoryEntry getEntry(const Position *pos, const Move move) const {
-        int capturedPiece = GetPieceType(pos->PieceOn(To(move)));
+        int capturedPiece = isEnpassant(move) ? PAWN : GetPieceType(pos->PieceOn(To(move)));
         if (capturedPiece == EMPTY) capturedPiece = KING; // Impossible to capture kings so we use it as "Empty" slot to save space
         return table[PieceTo(move)][capturedPiece];
     };
 
     inline TacticalHistoryEntry &getEntryRef(const Position *pos, const Move move) {
-        int capturedPiece = GetPieceType(pos->PieceOn(To(move)));
+        int capturedPiece = isEnpassant(move) ? PAWN : GetPieceType(pos->PieceOn(To(move)));
         if (capturedPiece == EMPTY) capturedPiece = KING; // Impossible to capture kings so we use it as "Empty" slot to save space
         return table[PieceTo(move)][capturedPiece];
     };
@@ -89,16 +89,29 @@ struct TacticalHistoryTable {
 struct ContinuationHistoryTable {
     struct ContinuationHistoryEntry {
         int16_t factoriser;
+        int16_t buckets[2][6]; // [previous-was-tactical][current-captured-piece]
+
+        inline int16_t &bucketRef(const Position *pos, const Move prevMove, const Move currMove) {
+            int capturedPiece = isEnpassant(currMove) ? PAWN : GetPieceType(pos->PieceOn(To(currMove)));
+            if (capturedPiece == EMPTY) capturedPiece = KING; // Impossible to capture kings so we use it as "Empty" slot to save space
+            return buckets[isTactical(prevMove)][capturedPiece];
+        };
+
+        inline int16_t bucket(const Position *pos, const Move prevMove, const Move currMove) const {
+            int capturedPiece = isEnpassant(currMove) ? PAWN : GetPieceType(pos->PieceOn(To(currMove)));
+            if (capturedPiece == EMPTY) capturedPiece = KING; // Impossible to capture kings so we use it as "Empty" slot to save space
+            return buckets[isTactical(prevMove)][capturedPiece];
+        };
     };
 
-    // Indexed by [previous-piece][previous-to][current-piece][current-to]
+    // Indexed by [previous-piece-to][current-piece-to]
     ContinuationHistoryEntry table[12 * 64][12 * 64];
 
-    inline ContinuationHistoryEntry getEntry(const Position *pos, const Move prevMove, const Move currMove) const {
+    inline ContinuationHistoryEntry getEntry(const Move prevMove, const Move currMove) const {
         return table[PieceTo(prevMove)][PieceTo(currMove)];
     };
 
-    inline ContinuationHistoryEntry &getEntryRef(const Position *pos, const Move prevMove, const Move currMove) {
+    inline ContinuationHistoryEntry &getEntryRef(const Move prevMove, const Move currMove) {
         return table[PieceTo(prevMove)][PieceTo(currMove)];
     };
 
