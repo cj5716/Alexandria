@@ -16,7 +16,7 @@
 #define NETUP false
 
 // Net arch: (768 -> L1_SIZE) x 2 --pairwise-> (L2_SIZE -> L3_SIZE -> 1) x OUTPUT_BUCKETS
-// Activations: L1 - Clipped ReLU, L2: SCReLU, and L3: SCReLU
+// Activations: L1 - Clipped ReLU, L2: Squared ReLU, and L3: Squared ReLU
 constexpr int NUM_INPUTS = 768;
 constexpr int L1_SIZE = 1536;
 constexpr int L2_SIZE = 16;

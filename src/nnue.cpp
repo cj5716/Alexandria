@@ -250,20 +250,20 @@ void NNUE::update(Accumulator *acc, Position *pos) {
 }
 
 void NNUE::Pov_Accumulator::addSub(NNUE::Pov_Accumulator &prev_acc, std::size_t add, std::size_t sub) {
-        const auto Add = &net.FTWeights[add * L1_SIZE];
-        const auto Sub = &net.FTWeights[sub * L1_SIZE];
-        for (int i = 0; i < L1_SIZE; i++) {
-            this->values[i] = prev_acc.values[i] - Sub[i] + Add[i];
-        }
+    const auto Add = &net.FTWeights[add * L1_SIZE];
+    const auto Sub = &net.FTWeights[sub * L1_SIZE];
+    for (int i = 0; i < L1_SIZE; i++) {
+        this->values[i] = prev_acc.values[i] - Sub[i] + Add[i];
+    }
 }
 
 void NNUE::Pov_Accumulator::addSubSub(NNUE::Pov_Accumulator &prev_acc, std::size_t add, std::size_t sub1, std::size_t sub2) {
-        auto Add = &net.FTWeights[add * L1_SIZE];
-        auto Sub1 = &net.FTWeights[sub1 * L1_SIZE];
-        auto Sub2 = &net.FTWeights[sub2 * L1_SIZE];
-        for (int i = 0; i < L1_SIZE; i++) {
-            this->values[i] =  prev_acc.values[i] - Sub1[i] - Sub2[i] + Add[i];
-        }
+    auto Add = &net.FTWeights[add * L1_SIZE];
+    auto Sub1 = &net.FTWeights[sub1 * L1_SIZE];
+    auto Sub2 = &net.FTWeights[sub2 * L1_SIZE];
+    for (int i = 0; i < L1_SIZE; i++) {
+        this->values[i] =  prev_acc.values[i] - Sub1[i] - Sub2[i] + Add[i];
+    }
 }
 
 void NNUE::accumulate(NNUE::Accumulator& board_accumulator, Position* pos) {
@@ -446,10 +446,8 @@ void NNUE::PropagateL1(const uint8_t *inputs, [[maybe_unused]] uint16_t *nnzIndi
         const vps32 biasVec = vec_load_ps(&biases[i * L2_CHUNK_SIZE]);
         const vps32 sumMul  = vec_set1_ps(L1_MUL);
         const vps32 sumPs   = vec_mul_add_ps(vec_cvtepi32_ps(sums[i]), sumMul, biasVec);
-        const vps32 Zero    = vec_zero_ps();
-        const vps32 One     = vec_set1_ps(1.0f);
-        const vps32 clipped = vec_min_ps(vec_max_ps(sumPs, Zero), One);
-        const vps32 squared = vec_mul_ps(clipped, clipped);
+        const vps32 relu    = vec_max_ps(sumPs, vec_zero_ps());
+        const vps32 squared = vec_mul_ps(relu, relu);
         vec_store_ps(&output[i * L2_CHUNK_SIZE], squared);
     }
     #else
@@ -462,8 +460,8 @@ void NNUE::PropagateL1(const uint8_t *inputs, [[maybe_unused]] uint16_t *nnzIndi
 
     for (int i = 0; i < L2_SIZE; ++i) {
         // Convert into floats and activate L1
-        const float clipped = std::clamp(float(sums[i]) * L1_MUL + biases[i], 0.0f, 1.0f);
-        const float squared = clipped * clipped;
+        const float relu    = std::max(float(sums[i]) * L1_MUL + biases[i], 0.0f);
+        const float squared = relu * relu;
         output[i] = squared;
     }
     #endif
@@ -486,12 +484,11 @@ void NNUE::PropagateL2(const float *inputs, const float *weights, const float *b
 
     // Activate L2
     for (int i = 0; i < L3_SIZE / L3_CHUNK_SIZE; ++i) {
-        const vps32 Zero    = vec_zero_ps();
-        const vps32 One     = vec_set1_ps(1.0f);
-        const vps32 clipped = vec_min_ps(vec_max_ps(sumVecs[i], Zero), One);
-        const vps32 squared = vec_mul_ps(clipped, clipped);
+        const vps32 relu    = vec_max_ps(sumVecs[i], vec_zero_ps());
+        const vps32 squared = vec_mul_ps(relu, relu);
         vec_store_ps(&output[i * L3_CHUNK_SIZE], squared);
     }
+
     #else
     float sums[L3_SIZE];
 
@@ -508,8 +505,8 @@ void NNUE::PropagateL2(const float *inputs, const float *weights, const float *b
 
     // Activate L2
     for (int i = 0; i < L3_SIZE; ++i) {
-        const float clipped = std::clamp(sums[i], 0.0f, 1.0f);
-        const float squared = clipped * clipped;
+        const float relu    = std::max(sums[i], 0.0f);
+        const float squared = relu * relu;
         output[i] = squared;
     }
     #endif
