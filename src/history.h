@@ -89,18 +89,14 @@ struct TacticalHistoryTable {
 struct ContinuationHistoryTable {
     struct ContinuationHistoryEntry {
         int16_t factoriser;
-        int16_t buckets[2][6]; // [previous-was-tactical][current-captured-piece]
+        int16_t buckets[2][2]; // [previous-was-tactical][current-is-tactical]
 
-        inline int16_t &bucketRef(const Position *pos, const Move prevMove, const Move currMove) {
-            int capturedPiece = isEnpassant(currMove) ? PAWN : GetPieceType(pos->PieceOn(To(currMove)));
-            if (capturedPiece == EMPTY) capturedPiece = KING; // Impossible to capture kings so we use it as "Empty" slot to save space
-            return buckets[isTactical(prevMove)][capturedPiece];
+        inline int16_t &bucketRef(const Move prevMove, const Move currMove) {
+            return buckets[isTactical(prevMove)][isTactical(currMove)];
         };
 
-        inline int16_t bucket(const Position *pos, const Move prevMove, const Move currMove) const {
-            int capturedPiece = isEnpassant(currMove) ? PAWN : GetPieceType(pos->PieceOn(To(currMove)));
-            if (capturedPiece == EMPTY) capturedPiece = KING; // Impossible to capture kings so we use it as "Empty" slot to save space
-            return buckets[isTactical(prevMove)][capturedPiece];
+        inline int16_t bucket(const Move prevMove, const Move currMove) const {
+            return buckets[isTactical(prevMove)][isTactical(currMove)];
         };
     };
 
