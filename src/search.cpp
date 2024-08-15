@@ -332,6 +332,7 @@ int AspirationWindowSearch(int prev_eval, int depth, ThreadData* td) {
 void adjustEval(Position *pos, SearchData *sd, int rawEval, int &staticEval, int &eval, int ttScore, uint8_t ttBound) {
     staticEval = sd->correctionHistory.adjust(pos, rawEval);
 
+    // Adjust eval using TT score if it is more accurate
     if (    ttScore != SCORE_NONE
         && (   (ttBound == HFUPPER && ttScore < eval) // TT score is a better upper bound
             || (ttBound == HFLOWER && ttScore > eval) // TT score is a better lower bound
