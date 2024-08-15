@@ -33,8 +33,11 @@ int16_t TacticalHistoryTable::getScore(const Position *pos, const Move move) con
 
 // Continuation history is a history table for move pairs (i.e. a previous move and its continuation)
 void ContinuationHistoryTable::updateSingle(const Position *pos, const SearchStack *ss, const int offset, const Move move, const int16_t bonus) {
-    ContinuationHistoryEntry &entry = getEntryRef(pos, (ss - offset)->move, move);
-    UpdateHistoryEntry(entry.factoriser, bonus, continuationHistMax());
+    ContinuationHistoryEntry &entry = getEntryRef((ss - offset)->move, move);
+    const int factoriserScale = continuationHistFactoriserScale();
+    const int bucketScale = 64 - factoriserScale;
+    UpdateHistoryEntry(entry.factoriser, bonus * factoriserScale / 64, continuationHistFactoriserMax());
+    UpdateHistoryEntry(entry.bucketRef(pos, (ss - offset)->move, move), bonus * bucketScale / 64, continuationHistBucketMax());
 }
 
 void ContinuationHistoryTable::update(const Position *pos, const SearchStack *ss, const Move move, const int16_t bonus) {
@@ -43,8 +46,9 @@ void ContinuationHistoryTable::update(const Position *pos, const SearchStack *ss
 }
 
 int16_t ContinuationHistoryTable::getScoreSingle(const Position *pos, const SearchStack *ss, const int offset, const Move move) const {
-    ContinuationHistoryEntry entry = getEntry(pos, (ss - offset)->move, move);
-    return entry.factoriser;
+    ContinuationHistoryEntry entry = getEntry((ss - offset)->move, move);
+    return   entry.factoriser
+           + entry.bucket(pos, (ss - offset)->move, move);
 }
 
 int16_t ContinuationHistoryTable::getScore(const Position *pos, const SearchStack *ss, const Move move) const {
@@ -78,6 +82,7 @@ void UpdateAllHistories(const Position *pos, const SearchStack *ss, SearchData *
     if (isTactical(bestMove)) {
         // Positively update the move that failed high
         sd->tacticalHistory.update(pos, bestMove, bonus);
+        sd->continuationHistory.update(pos, ss, bestMove, bonus);
     }
     else {
         // Positively update the move that failed high
@@ -98,12 +103,14 @@ void UpdateAllHistories(const Position *pos, const SearchStack *ss, SearchData *
         Move tactical = tacticalMoves.moves[i].move;
         if (bestMove == tactical) continue;
         sd->tacticalHistory.update(pos, tactical, -bonus);
+        sd->continuationHistory.update(pos, ss, tactical, -bonus);
     }
 }
 
 int GetHistoryScore(const Position *pos, const SearchStack *ss, const SearchData *sd, const Move move) {
     if (isTactical(move)) {
-        return sd->tacticalHistory.getScore(pos, move);
+        return   2 * sd->tacticalHistory.getScore(pos, move)
+               +     sd->continuationHistory.getScore(pos, ss, move);
     }
     else {
         return   sd->quietHistory.getScore(pos, move)
@@ -116,4 +123,5 @@ void CleanHistories(SearchData *sd) {
     sd->quietHistory.clear();
     sd->tacticalHistory.clear();
     sd->continuationHistory.clear();
+    sd->correctionHistory.clear();
 }
