@@ -89,26 +89,21 @@ struct TacticalHistoryTable {
 struct ContinuationHistoryTable {
     struct ContinuationHistoryEntry {
         int16_t factoriser;
-        int16_t buckets[2][2]; // [previous-was-tactical][current-is-tactical]
-
-        inline int16_t &bucketRef(const Move prevMove, const Move currMove) {
-            return buckets[isTactical(prevMove)][isTactical(currMove)];
-        };
-
-        inline int16_t bucket(const Move prevMove, const Move currMove) const {
-            return buckets[isTactical(prevMove)][isTactical(currMove)];
-        };
     };
 
-    // Indexed by [previous-piece-to][current-piece-to]
-    ContinuationHistoryEntry table[12 * 64][12 * 64];
+    // Indexed by [previous-piece-to][current-piece-to][current-captured-piece]
+    ContinuationHistoryEntry table[12 * 64][12 * 64][6];
 
-    inline ContinuationHistoryEntry getEntry(const Move prevMove, const Move currMove) const {
-        return table[PieceTo(prevMove)][PieceTo(currMove)];
+    inline ContinuationHistoryEntry getEntry(const Position *pos, const Move prevMove, const Move currMove) const {
+        int capturedPiece = isEnpassant(currMove) ? PAWN : GetPieceType(pos->PieceOn(To(currMove)));
+        if (capturedPiece == EMPTY) capturedPiece = KING; // Impossible to capture kings so we use it as "Empty" slot to save space
+        return table[PieceTo(prevMove)][PieceTo(currMove)][capturedPiece];
     };
 
-    inline ContinuationHistoryEntry &getEntryRef(const Move prevMove, const Move currMove) {
-        return table[PieceTo(prevMove)][PieceTo(currMove)];
+    inline ContinuationHistoryEntry &getEntryRef(const Position *pos, const Move prevMove, const Move currMove) {
+        int capturedPiece = isEnpassant(currMove) ? PAWN : GetPieceType(pos->PieceOn(To(currMove)));
+        if (capturedPiece == EMPTY) capturedPiece = KING; // Impossible to capture kings so we use it as "Empty" slot to save space
+        return table[PieceTo(prevMove)][PieceTo(currMove)][capturedPiece];
     };
 
     inline void clear() {
