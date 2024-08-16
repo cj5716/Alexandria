@@ -89,6 +89,15 @@ struct TacticalHistoryTable {
 struct ContinuationHistoryTable {
     struct ContinuationHistoryEntry {
         int16_t factoriser;
+        int16_t buckets[2][2]; // Buckets indexed by [from-sq-is-attacked][to-sq-is-attacked]
+
+        inline int16_t &bucketRef(const Position *pos, const Move move) {
+            return buckets[IsAttackedByOpp(pos, From(move))][IsAttackedByOpp(pos, To(move))];
+        };
+
+        inline int16_t bucket(const Position *pos, const Move move) const {
+            return buckets[IsAttackedByOpp(pos, From(move))][IsAttackedByOpp(pos, To(move))];
+        };
     };
 
     // Indexed by [previous-piece-to][current-piece-to][current-captured-piece]
