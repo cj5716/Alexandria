@@ -87,6 +87,8 @@ TUNE_PARAM(maxImprovementPer256, 384, 256, 512, 13.0, 0.002)
 TUNE_PARAM(rfpMaxDepth, 8, 4, 14, 0.5, 0.002)
 TUNE_PARAM(rfpDepthCoeff, 70, 20, 200, 10.0, 0.002)
 TUNE_PARAM(rfpImprCoeff, 70, 20, 200, 10.0, 0.002)
+TUNE_PARAM(rfpImprConst, 255, 128, 512, 20.0, 0.002)
+TUNE_PARAM(rfpImprBase, 256, 128, 512, 20.0, 0.002)
 
 TUNE_PARAM(nmpDepth, 3, 1, 5, 0.5, 0.002)
 TUNE_PARAM(nmpRedConst, 3072, 1024, 5120, 400.0, 0.002)

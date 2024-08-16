@@ -451,7 +451,8 @@ int Negamax(int alpha, int beta, int depth, ThreadData* td, SearchStack* ss, Mov
 
     const int improvement = ss->staticEval - prevEval;
     const bool improving = improvement > 0;
-    const int improvementPer256 = std::clamp(improvement / std::abs(prevEval), -maxImprovementPer256(), maxImprovementPer256());
+    const int improvementPer256 = prevEval == 0 ? maxImprovementPer256()
+                                                : std::clamp(improvement * 256 / std::abs(prevEval), -maxImprovementPer256(), maxImprovementPer256());
 
     if (   !pvNode
         && !excludedMove
@@ -460,7 +461,7 @@ int Negamax(int alpha, int beta, int depth, ThreadData* td, SearchStack* ss, Mov
         // At low depths, if the evaluation is far above beta, we assume that at least one move will fail high
         // and return a fail high score.
         if (   depth <= rfpMaxDepth()
-            && eval >= beta + rfpDepthCoeff() * depth - rfpImprCoeff() * improving
+            && eval >= beta + rfpDepthCoeff() * depth - rfpImprCoeff() * (rfpImprConst() + improvementPer256) / rfpImprBase()
             && std::abs(eval) < MATE_FOUND)
             return eval;
 
