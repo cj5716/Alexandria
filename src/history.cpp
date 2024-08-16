@@ -109,8 +109,8 @@ void UpdateAllHistories(const Position *pos, const SearchStack *ss, SearchData *
 
 int GetHistoryScore(const Position *pos, const SearchStack *ss, const SearchData *sd, const Move move) {
     if (isTactical(move)) {
-        return   2 * sd->tacticalHistory.getScore(pos, move)
-               +     sd->continuationHistory.getScore(pos, ss, move);
+        return   sd->tacticalHistory.getScore(pos, move)
+               + sd->continuationHistory.getScore(pos, ss, move);
     }
     else {
         return   sd->quietHistory.getScore(pos, move)
