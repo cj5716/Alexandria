@@ -562,7 +562,8 @@ int Negamax(int alpha, int beta, int depth, ThreadData* td, SearchStack* ss, Mov
 
                 // If we fail low by a lot, we extend the search by more than one ply
                 // (TT move is very singular; there are no close alternatives)
-                if (singularScore <= singularAlpha - seDeBase() - seDePvCoeff() * pvNode)
+                const int doubleExtMargin = seDeBase() + seDePvCoeff() * pvNode;
+                if (singularScore <= singularAlpha - doubleExtMargin)
                     extension = 2;
             }
             // Multicut. If the lower bound of our singular search score is at least beta,
