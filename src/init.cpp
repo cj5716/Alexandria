@@ -148,7 +148,8 @@ void InitReductions() {
         futilityMargins[depth] = fpMarginQuadratic() * depth * depth + fpMarginLinear() * depth + fpMarginConst();
 
         // LMP Margins
-        lmpMargins[depth] = (double(lmpMarginConst()) + double(lmpMarginMult()) * std::pow(depth, double(lmpMarginPower()) / 100.0)) / 100.0;
+        lmpMargins[0][depth] = (double(lmpNonImpMarginConst()) + double(lmpNonImpMarginMult()) * std::pow(depth, double(lmpNonImpMarginPower()) / 100.0)) / 100.0;
+        lmpMargins[1][depth] = (double(lmpImpMarginConst()   ) + double(lmpImpMarginMult()   ) * std::pow(depth, double(lmpImpMarginPower()   ) / 100.0)) / 100.0;
 
         // LMR Reductions
         for (int moves = 0; moves < 64; ++moves) {
