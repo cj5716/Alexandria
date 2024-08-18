@@ -290,6 +290,7 @@ int AspirationWindowSearch(int prev_eval, int depth, ThreadData* td) {
     // Explicitly clean stack
     for (int i = -4; i < MAXDEPTH; i++) {
         (ss + i)->staticEval = SCORE_NONE;
+        (ss + i)->evalTrend = 0;
         (ss + i)->move = NOMOVE;
     }
     for (int i = 0; i < MAXDEPTH; i++) {
@@ -438,21 +439,14 @@ int Negamax(int alpha, int beta, int depth, ThreadData* td, SearchStack* ss, Mov
         StoreTTEntry(pos->posKey, NOMOVE, SCORE_NONE, rawEval, HFNONE, 0, pvNode, ttPv);
     }
 
-    int prevEval;
+    // evalTrend is a weighted average of the evals from our stm so far
     if (inCheck)
-        prevEval = ss->staticEval;
-    else if ((ss - 2)->staticEval != SCORE_NONE)
-        prevEval = (ss - 2)->staticEval;
-
-    else if ((ss - 4)->staticEval != SCORE_NONE)
-        prevEval = (ss - 4)->staticEval;
+        ss->evalTrend = (ss - 2)->evalTrend;
     else
-        prevEval = ss->staticEval;
+        ss->evalTrend = ((ss - 2)->evalTrend + ss->staticEval) / 2;
 
-    const int improvement = ss->staticEval - prevEval;
+    const int improvement = ss->staticEval - ss->evalTrend;
     const bool improving = improvement > 0;
-    const int improvementPer256 = prevEval == 0 ? maxImprovementPer256()
-                                                : std::clamp(improvement / std::abs(prevEval), -maxImprovementPer256(), maxImprovementPer256());
 
     if (   !pvNode
         && !excludedMove
