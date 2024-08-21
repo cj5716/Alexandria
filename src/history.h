@@ -113,7 +113,7 @@ struct ContinuationHistoryTable {
     void updateSingle(const Position *pos, const SearchStack *ss, const int offset, const Move move, const int16_t bonus);
     void update(const Position *pos, const SearchStack *ss, const Move move, const int16_t bonus);
     int16_t getScoreSingle(const Position *pos, const SearchStack *ss, const int offset, const Move move) const;
-    int16_t getScore(const Position *pos, const SearchStack *ss, const Move move) const;
+    int getScore(const Position *pos, const SearchStack *ss, const Move move) const;
 };
 
 // CorrectionHistoryTable is a history table indexed by [pawn-key-index]. It is used to correct eval

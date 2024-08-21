@@ -47,7 +47,7 @@ int16_t ContinuationHistoryTable::getScoreSingle(const Position *pos, const Sear
     return entry.factoriser;
 }
 
-int16_t ContinuationHistoryTable::getScore(const Position *pos, const SearchStack *ss, const Move move) const {
+int ContinuationHistoryTable::getScore(const Position *pos, const SearchStack *ss, const Move move) const {
     return   getScoreSingle(pos, ss, 1, move)
            + getScoreSingle(pos, ss, 2, move);
 }
