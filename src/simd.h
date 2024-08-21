@@ -21,21 +21,10 @@ inline vepi16 vec_load_epi   (const vepi16 *src) { return _mm512_load_si512(src)
 inline void   vec_store_epi  (vepi16 *dst, const vepi16 vec) { _mm512_store_si512(dst, vec); }
 inline vepi16 vec_max_epi16  (const vepi16 vec0, const vepi16 vec1) { return _mm512_max_epi16(vec0, vec1); }
 inline vepi16 vec_min_epi16  (const vepi16 vec0, const vepi16 vec1) { return _mm512_min_epi16(vec0, vec1); }
-inline vepi16 vec_mulhi_epi16(const vepi16 vec0, const vepi16 vec1) { return _mm512_mulhi_epi16(vec0, vec1); }
+inline vepi16 vec_mulhi_epu16(const vepi16 vec0, const vepi16 vec1) { return _mm512_mulhi_epu16(vec0, vec1); }
 inline vepi16 vec_slli_epi16 (const vepi16 vec, const int shift) { return _mm512_slli_epi16(vec, shift); }
-inline uint16_t vec_nnz_mask(const vepi32 vec) { return _mm512_cmpgt_epi32_mask(vec, _mm512_setzero_si512()); }
+inline uint16_t vec_nnz_mask(const vepi32 vec) { return _mm512_cmpgt_epu32_mask(vec, _mm512_setzero_si512()); }
 inline vepi8  vec_packus_epi16(const vepi16 vec0, const vepi16 vec1) { return _mm512_packus_epi16(vec0, vec1); }
-
-inline vepi32 vec_dpbusdx2_epi32(const vepi32 sum, const vepi8 vec0, const vepi8 vec1, const vepi8 vec2, const vepi8 vec3) {
-    #if defined(USE_VNNI512)
-    return _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(sum, vec0, vec1), vec2, vec3);
-    #else
-    const vepi16 product16a = _mm512_maddubs_epi16(vec0, vec1);
-    const vepi16 product16b = _mm512_maddubs_epi16(vec2, vec3);
-    const vepi32 product32  = _mm512_madd_epi16(_mm512_add_epi16(product16a, product16b), _mm512_set1_epi16(1));
-    return _mm512_add_epi32(sum, product32);
-    #endif
-}
 
 inline vepi32 vec_dpbusd_epi32(const vepi32 sum, const vepi8 vec0, const vepi8 vec1) {
     #if defined(USE_VNNI512)
@@ -81,17 +70,10 @@ inline vepi16 vec_load_epi   (const vepi16 *src) { return _mm256_load_si256(src)
 inline void   vec_store_epi  (vepi16 *dst, const vepi16 vec) { _mm256_store_si256(dst, vec); }
 inline vepi16 vec_max_epi16  (const vepi16 vec0, const vepi16 vec1) { return _mm256_max_epi16(vec0, vec1); }
 inline vepi16 vec_min_epi16  (const vepi16 vec0, const vepi16 vec1) { return _mm256_min_epi16(vec0, vec1); }
-inline vepi16 vec_mulhi_epi16(const vepi16 vec0, const vepi16 vec1) { return _mm256_mulhi_epi16(vec0, vec1); }
+inline vepi16 vec_mulhi_epu16(const vepi16 vec0, const vepi16 vec1) { return _mm256_mulhi_epu16(vec0, vec1); }
 inline vepi16 vec_slli_epi16 (const vepi16 vec, const int shift) { return _mm256_slli_epi16(vec, shift); }
-inline uint16_t vec_nnz_mask(const vepi32 vec) { return _mm256_movemask_ps(_mm256_castsi256_ps(_mm256_cmpgt_epi32(vec, _mm256_setzero_si256()))); }
+inline uint16_t vec_nnz_mask(const vepi32 vec) { return ~uint8_t(_mm256_movemask_ps(_mm256_castsi256_ps(_mm256_cmpeq_epi32(vec, _mm256_setzero_si256())))); }
 inline vepi8  vec_packus_epi16(const vepi16 vec0, const vepi16 vec1) { return _mm256_packus_epi16(vec0, vec1); }
-
-inline vepi32 vec_dpbusdx2_epi32(const vepi32 sum, const vepi8 vec0, const vepi8 vec1, const vepi8 vec2, const vepi8 vec3) {
-    const vepi16 product16a = _mm256_maddubs_epi16(vec0, vec1);
-    const vepi16 product16b = _mm256_maddubs_epi16(vec2, vec3);
-    const vepi32 product32  = _mm256_madd_epi16(_mm256_add_epi16(product16a, product16b), _mm256_set1_epi16(1));
-    return _mm256_add_epi32(sum, product32);
-}
 
 inline vepi32 vec_dpbusd_epi32(const vepi32 sum, const vepi8 vec0, const vepi8 vec1) {
     const vepi16 product16 = _mm256_maddubs_epi16(vec0, vec1);

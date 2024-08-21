@@ -354,18 +354,18 @@ void NNUE::ActivateFT(const int16_t *us, const int16_t *them, [[maybe_unused]] u
             const vepi16 input1a   = vec_load_epi(reinterpret_cast<const vepi16*>(&acc[i + 0             + L1_SIZE / 2]));
             const vepi16 input1b   = vec_load_epi(reinterpret_cast<const vepi16*>(&acc[i + FT_CHUNK_SIZE + L1_SIZE / 2]));
 
-            // Comments stolen from SF (since I was the original author of this anyways):
             // What we want to do is multiply inputs in a pairwise manner (after clipping), and then shift right by FT_SHIFT. Instead, we
             // shift left by (16 - FT_SHIFT), and use mulhi, stripping the bottom 16 bits, effectively shifting right by 16, resulting in a net shift
-            // of FT_SHIFT bits. We use mulhi because it maintains the sign of the multiplication (unlike mullo), allowing us to make use
-            // of packus to clip 2 of the inputs, resulting in a save of 2 "vec_max_epi16" calls.
+            // of FT_SHIFT bits. We use mulhi because it means that we keep the upper bits of the product (the ones we want to keep) and not the lower ones.
+            // We also make use of packus to clip the products from the top side, resulting in a save of 2 "vec_min_epi16" calls.
+            // Note that we cannot remove the top-side clip on both inputs because something like 32768 x 1 can change the results.
             const vepi16 clipped0a = vec_min_epi16(vec_max_epi16(input0a, Zero), One);
             const vepi16 clipped0b = vec_min_epi16(vec_max_epi16(input0b, Zero), One);
-            const vepi16 clipped1a = vec_min_epi16(input1a, One);
-            const vepi16 clipped1b = vec_min_epi16(input1b, One);
+            const vepi16 clipped1a = vec_max_epi16(input1a, Zero);
+            const vepi16 clipped1b = vec_max_epi16(input1b, Zero);
 
-            const vepi16 producta  = vec_mulhi_epi16(vec_slli_epi16(clipped0a, 16 - FT_SHIFT), clipped1a);
-            const vepi16 productb  = vec_mulhi_epi16(vec_slli_epi16(clipped0b, 16 - FT_SHIFT), clipped1b);
+            const vepi16 producta  = vec_mulhi_epu16(vec_slli_epi16(clipped0a, 16 - FT_SHIFT), clipped1a);
+            const vepi16 productb  = vec_mulhi_epu16(vec_slli_epi16(clipped0b, 16 - FT_SHIFT), clipped1b);
 
             // Note: we can skip permuting after packus because we already permuted at startup to offset this
             const vepi8  product   = vec_packus_epi16(producta, productb);
@@ -416,21 +416,7 @@ void NNUE::PropagateL1(const uint8_t *inputs, [[maybe_unused]] uint16_t *nnzIndi
 
     // We read in the inputs in chunks of 4 (as dpbusd horizontally sums by 4).
     // Then, each chunk of 4 is multiplied by the L1 weights. (The weights are pre-permuted to allow us to do this)
-    // We also unroll by 2 to save a madd every 2 multiplications (in the non VNNI case).
-    // Note that we sacrificed some quantisation accuracy to do this, as the additional accuracy had no elo gain.
-    int i = 0;
-    for (; i < nnzCount - 1; i += 2) {
-        const uint16_t indexa = nnzIndices[i + 0];
-        const uint16_t indexb = nnzIndices[i + 1];
-        const vepi32 input32a = vec_set1_epi32(inputs32[indexa]);
-        const vepi32 input32b = vec_set1_epi32(inputs32[indexb]);
-        const vepi8 *weighta  = reinterpret_cast<const vepi8*>(&weights[indexa * L1_CHUNK_PER_32 * L2_SIZE]);
-        const vepi8 *weightb  = reinterpret_cast<const vepi8*>(&weights[indexb * L1_CHUNK_PER_32 * L2_SIZE]);
-        for (int j = 0; j < L2_SIZE / L2_CHUNK_SIZE; ++j)
-            sums[j] = vec_dpbusdx2_epi32(sums[j], input32a, weighta[j], input32b, weightb[j]);
-    }
-
-    for (; i < nnzCount; ++i) {
+    for (int i = 0; i < nnzCount; ++i) {
         const uint16_t index = nnzIndices[i];
         const vepi32 input32 = vec_set1_epi32(inputs32[index]);
         const vepi8 *weight  = reinterpret_cast<const vepi8*>(&weights[index * L1_CHUNK_PER_32 * L2_SIZE]);
@@ -441,7 +427,7 @@ void NNUE::PropagateL1(const uint8_t *inputs, [[maybe_unused]] uint16_t *nnzIndi
     // We divide by the ONE value to proceed into the later layers, which is carried out in floats.
     // A nice trick by ciekce: instead of dividing, and then adding the L1 bias, we multiply by its reciprocal,
     // and then add the bias, which allows us to use FMA.
-    for (i = 0; i < L2_SIZE / L2_CHUNK_SIZE; ++i) {
+    for (int i = 0; i < L2_SIZE / L2_CHUNK_SIZE; ++i) {
         // Convert into floats, and activate L1
         const vps32 biasVec = vec_load_ps(&biases[i * L2_CHUNK_SIZE]);
         const vps32 sumMul  = vec_set1_ps(L1_MUL);

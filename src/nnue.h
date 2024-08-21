@@ -24,13 +24,13 @@ constexpr int L3_SIZE = 32;
 constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int FT_QUANT  = 362;
-constexpr int FT_SHIFT  = 10;
+constexpr int FT_SHIFT  = 9;
 constexpr int L1_QUANT  = 32;
 constexpr int NET_SCALE = 400;
 
 constexpr float L1_MUL  = float(1 << FT_SHIFT) / float(FT_QUANT * FT_QUANT * L1_QUANT);
 constexpr float WEIGHT_CLIPPING = 1.98f;
-static_assert(std::round(L1_QUANT * WEIGHT_CLIPPING) * (FT_QUANT * FT_QUANT >> FT_SHIFT) * 4 <= 32767);
+static_assert(std::round(L1_QUANT * WEIGHT_CLIPPING) * (FT_QUANT * FT_QUANT >> FT_SHIFT) * 2 <= 32767);
 
 #if defined(USE_SIMD)
 constexpr int FT_CHUNK_SIZE = sizeof(vepi16) / sizeof(int16_t);
