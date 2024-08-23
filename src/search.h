@@ -14,6 +14,7 @@ struct SearchStack {
     int ply;
     int staticEval;
     Move move;
+    Move killer;
 };
 
 struct SearchData {

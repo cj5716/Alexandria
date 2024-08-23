@@ -47,6 +47,7 @@ void InitMP(Movepicker* mp, Position* pos, SearchData* sd, SearchStack* ss, cons
     mp->sd = sd;
     mp->ss = ss;
     mp->ttMove = ttMove;
+    mp->killer = ss->killer;
     mp->idx = 0;
     mp->stage = mp->ttMove ? PICK_TT : GEN_TACTICAL;
 }
@@ -107,6 +108,15 @@ Move NextMove(Movepicker* mp, const bool skip) {
         ++mp->stage;
         goto top;
 
+    case PICK_KILLER:
+        if (mp->killer == mp->ttMove)
+            goto top;
+
+        if (!IsPseudoLegal(mp->pos, mp->killer))
+            goto top;
+
+        return mp->killer;
+
     case GEN_QUIETS:
         GenerateMoves(&mp->moveList, mp->pos, MOVEGEN_QUIET);
         ScoreMoves(mp);
@@ -118,7 +128,7 @@ Move NextMove(Movepicker* mp, const bool skip) {
             partialInsertionSort(&mp->moveList, mp->idx);
             const Move move = mp->moveList.moves[mp->idx].move;
             ++mp->idx;
-            if (move == mp->ttMove)
+            if (move == mp->ttMove || move == mp->killer)
                 continue;
 
             assert(!isTactical(move));

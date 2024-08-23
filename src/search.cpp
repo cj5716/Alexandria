@@ -288,11 +288,12 @@ int AspirationWindowSearch(int prev_eval, int depth, ThreadData* td) {
     SearchData* sd = &td->sd;
     SearchStack stack[MAXDEPTH + 4], *ss = stack + 4;
     // Explicitly clean stack
-    for (int i = -4; i < MAXDEPTH; i++) {
+    for (int i = -4; i < MAXDEPTH; ++i) {
         (ss + i)->staticEval = SCORE_NONE;
         (ss + i)->move = NOMOVE;
+        (ss + i)->killer = NOMOVE;
     }
-    for (int i = 0; i < MAXDEPTH; i++) {
+    for (int i = 0; i < MAXDEPTH; ++i) {
         (ss + i)->ply = i;
     }
 
@@ -437,6 +438,9 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
         // Save the eval into the TT
         StoreTTEntry(pos->posKey, NOMOVE, SCORE_NONE, rawEval, HFNONE, 0, pvNode, ttPv);
     }
+
+    // Clear killers for the next ply
+    (ss + 1)->killer = NOMOVE;
 
     int prevEval;
     if (inCheck)
@@ -677,8 +681,10 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
                     pvTable->pvLength[ss->ply] = pvTable->pvLength[ss->ply + 1];
                 }
 
+                // node (move) fails high
                 if (score >= beta) {
-                    // node (move) fails high
+                    if (isQuiet) ss->killer = move;
+                    assert(!isTactical(ss->killer));
                     UpdateAllHistories(pos, ss, sd, depth, move, quietMoves, tacticalMoves);
                     break;
                 }
