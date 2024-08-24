@@ -212,9 +212,9 @@ public:
     static void finish_netup([[maybe_unused]] const char *file);
     static void accumulate(NNUE::Accumulator &board_accumulator, Position* pos);
     static void update(Accumulator *acc, Position* pos);
-    static void ActivateFT(const int16_t *us, const int16_t *them, uint16_t *nnzIndices, int &nnzCount, uint8_t *output);
-    static void PropagateL1(const uint8_t *inputs, uint16_t *nnzIndices, int nnzCount, const int8_t *weights, const float *biases, float *output);
-    static void PropagateL2(const float *inputs, const float *weights, const float *biases, float *output);
+    static void ActivateFT(const int16_t *us, const int16_t *them, uint16_t *nnzIndices, int &nnzCount, uint8_t (&output)[L1_SIZE]);
+    static void PropagateL1(const uint8_t *inputs, uint16_t *nnzIndices, int nnzCount, const int8_t *weights, const float *biases, float (&output)[L2_SIZE]);
+    static void PropagateL2(const float *inputs, const float *weights, const float *biases, float (&output)[L3_SIZE]);
     static void PropagateL3(const float *inputs, const float *weights, const float bias, float &output);
     [[nodiscard]] static int32_t output(const NNUE::Accumulator &board_accumulator, const int stm, const int outputBucket);
 };
