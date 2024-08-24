@@ -109,6 +109,8 @@ Move NextMove(Movepicker* mp, const bool skip) {
         goto top;
 
     case PICK_KILLER:
+        ++mp->stage;
+
         if (mp->killer == mp->ttMove)
             goto top;
 
