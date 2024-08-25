@@ -34,7 +34,10 @@ int TacticalHistoryTable::getScore(const Position *pos, const Move move) const {
 // Continuation history is a history table for move pairs (i.e. a previous move and its continuation)
 void ContinuationHistoryTable::updateSingle(const Position *pos, const SearchStack *ss, const int offset, const Move move, const int16_t bonus) {
     ContinuationHistoryEntry &entry = getEntryRef(pos, (ss - offset)->move, move);
-    UpdateHistoryEntry(entry.factoriser, bonus, continuationHistMax());
+    const int factoriserScale = continuationHistFactoriserScale();
+    const int bucketScale = 64 - factoriserScale;
+    UpdateHistoryEntry(entry.factoriser, bonus * factoriserScale / 64, continuationHistFactoriserMax());
+    UpdateHistoryEntry(entry.bucketRef(pos, move), bonus * bucketScale / 64, continuationHistBucketMax());
 }
 
 void ContinuationHistoryTable::update(const Position *pos, const SearchStack *ss, const Move move, const int16_t bonus) {
@@ -45,7 +48,8 @@ void ContinuationHistoryTable::update(const Position *pos, const SearchStack *ss
 
 int ContinuationHistoryTable::getScoreSingle(const Position *pos, const SearchStack *ss, const int offset, const Move move) const {
     ContinuationHistoryEntry entry = getEntry(pos, (ss - offset)->move, move);
-    return entry.factoriser;
+    return   entry.factoriser
+           + entry.bucket(pos, move);
 }
 
 int ContinuationHistoryTable::getScore(const Position *pos, const SearchStack *ss, const Move move) const {
