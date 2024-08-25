@@ -348,11 +348,14 @@ void NNUE::ActivateFT(const int16_t *us, const int16_t *them, [[maybe_unused]] u
     v128i base = vec128_zero_epi16();
     const v128i LookupIncr = vec128_set1_epi16(8);
     for (const int16_t *acc : {us, them}) {
-        for (int i = 0; i < L1_SIZE / 2; i += 2 * FT_CHUNK_SIZE) {
-            const vepi16 input0a   = vec_load_epi(reinterpret_cast<const vepi16*>(&acc[i + 0             + 0]));
-            const vepi16 input0b   = vec_load_epi(reinterpret_cast<const vepi16*>(&acc[i + FT_CHUNK_SIZE + 0]));
-            const vepi16 input1a   = vec_load_epi(reinterpret_cast<const vepi16*>(&acc[i + 0             + L1_SIZE / 2]));
-            const vepi16 input1b   = vec_load_epi(reinterpret_cast<const vepi16*>(&acc[i + FT_CHUNK_SIZE + L1_SIZE / 2]));
+        const vepi16 *accHalf1 = reinterpret_cast<const vepi16*>(&acc[0]);
+        const vepi16 *accHalf2 = reinterpret_cast<const vepi16*>(&acc[L1_SIZE / 2]);
+        vepi16 *const store    = reinterpret_cast<vepi8*>(&output[offset]);
+        for (int i = 0; i < L1_SIZE / 2 / FT_CHUNK_SIZE; i += 2) {
+            const vepi16 input0a   = accHalf1[i];
+            const vepi16 input0b   = accHalf1[i + 1];
+            const vepi16 input1a   = accHalf2[i];
+            const vepi16 input1b   = accHalf2[i + 1];
 
             // Comments stolen from SF (since I was the original author of this anyways):
             // What we want to do is multiply inputs in a pairwise manner (after clipping), and then shift right by FT_SHIFT. Instead, we
@@ -369,7 +372,7 @@ void NNUE::ActivateFT(const int16_t *us, const int16_t *them, [[maybe_unused]] u
 
             // Note: we can skip permuting after packus because we already permuted at startup to offset this
             const vepi8  product   = vec_packus_epi16(producta, productb);
-            vec_store_epi(reinterpret_cast<vepi8*>(&output[offset + i]), product);
+            store[i / 2] = product;
 
             // What this code below does, is to store all active (nonzero) indices in the nnzIndices array,
             // to allow us to do the L1 affine transform sparsely.
