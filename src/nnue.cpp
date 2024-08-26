@@ -557,12 +557,9 @@ int32_t NNUE::output(const NNUE::Accumulator &board_accumulator, const int stm, 
     alignas (64) float    L2Outputs[L3_SIZE];
     float L3Output;
 
-    const int16_t* us = board_accumulator.perspective[stm].values.data();
-    const int16_t* them = board_accumulator.perspective[stm ^ 1].values.data();
-
     // Feed Forward NNUE (i.e. outputs of FT are inputs of L1, outputs of L1 are inputs of L2, etc.)
-    ActivateFT (us,
-                them,
+    ActivateFT (board_accumulator.perspective[stm].values,
+                board_accumulator.perspective[stm ^ 1].values,
                 nnzIndices,
                 nnzCount,
                 FTOutputs);
