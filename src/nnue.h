@@ -174,14 +174,14 @@ public:
         }
     };
 // final total accumulator that holds the 2 povs
-    struct Accumulator {
+    struct alignas(64) Accumulator {
 
         Accumulator(){
             this->perspective[WHITE].pov = WHITE;
             this->perspective[BLACK].pov = BLACK;
         }
 
-        std::array<Pov_Accumulator, 2> perspective;
+        alignas(64) std::array<Pov_Accumulator, 2> perspective;
 
         void AppendAddIndex(int piece, int square, std::array<bool, 2> flip) {
             assert(this->perspective[WHITE].NNUEAdd.size() <= 1);
