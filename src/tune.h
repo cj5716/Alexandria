@@ -151,7 +151,9 @@ TUNE_PARAM(quietHistFactoriserScale, 16, 0, 64, 2.0, 0.002)
 TUNE_PARAM(quietHistFactoriserMax, 2048, 2048, 20000, 150.0, 0.002)
 TUNE_PARAM(quietHistBucketMax, 6144, 2048, 20000, 300.0, 0.002)
 
-TUNE_PARAM(tacticalHistMax, 8192, 4096, 20000, 300.0, 0.002)
+TUNE_PARAM(tacticalHistFactoriserScale, 48, 0, 64, 2.0, 0.002)
+TUNE_PARAM(tacticalHistFactoriserMax, 6144, 2048, 20000, 300.0, 0.002)
+TUNE_PARAM(tacticalHistBucketMax, 2048, 2048, 20000, 150.0, 0.002)
 
 TUNE_PARAM(continuationHistMax, 16384, 8192, 32767, 300.0, 0.002)
 
