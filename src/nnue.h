@@ -175,9 +175,9 @@ public:
     };
 
     // final total accumulator that holds the 2 povs
-    struct alignas(64) Accumulator {
+    struct Accumulator {
 
-        Accumulator(){
+        Accumulator() {
             this->perspective[WHITE].pov = WHITE;
             this->perspective[BLACK].pov = BLACK;
         }
