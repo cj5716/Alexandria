@@ -157,7 +157,7 @@ class NNUE {
 public:
     // per pov accumulator
     struct Pov_Accumulator {
-        alignas(64) int16_t values[L1_SIZE];
+        std::array<int16_t, L1_SIZE> values;
         int pov;
         std::vector<std::size_t> NNUEAdd = {};
         std::vector<std::size_t> NNUESub = {};
@@ -173,16 +173,15 @@ public:
             return NNUEAdd.empty();
         }
     };
-
-    // final total accumulator that holds the 2 povs
+// final total accumulator that holds the 2 povs
     struct Accumulator {
 
-        Accumulator() {
+        Accumulator(){
             this->perspective[WHITE].pov = WHITE;
             this->perspective[BLACK].pov = BLACK;
         }
 
-        alignas(64) Pov_Accumulator perspective[2];
+        std::array<Pov_Accumulator, 2> perspective;
 
         void AppendAddIndex(int piece, int square, std::array<bool, 2> flip) {
             assert(this->perspective[WHITE].NNUEAdd.size() <= 1);

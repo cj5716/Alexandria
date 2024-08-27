@@ -444,16 +444,16 @@ void NNUE::PropagateL1(const uint8_t *inputs, [[maybe_unused]] uint16_t *nnzIndi
     // We divide by the ONE value to proceed into the later layers, which is carried out in floats.
     // A nice trick by ciekce: instead of dividing, and then adding the L1 bias, we multiply by its reciprocal,
     // and then add the bias, which allows us to use FMA.
+    vps32 *const outvec  = reinterpret_cast<vps32*>(output);
+    const vps32* biasvec = reinterpret_cast<const vps32*>(biases);
     for (i = 0; i < L2_SIZE / L2_CHUNK_SIZE; ++i) {
         // Convert into floats, and activate L1
-        const vps32 biasVec = vec_load_ps(&biases[i * L2_CHUNK_SIZE]);
         const vps32 sumMul  = vec_set1_ps(L1_MUL);
-        const vps32 sumPs   = vec_mul_add_ps(vec_cvtepi32_ps(sums[i]), sumMul, biasVec);
+        const vps32 sumPs   = vec_fma_ps(vec_cvtepi32_ps(sums[i]), sumMul, biasvec[i]);
         const vps32 Zero    = vec_zero_ps();
         const vps32 One     = vec_set1_ps(1.0f);
         const vps32 clipped = vec_min_ps(vec_max_ps(sumPs, Zero), One);
-        const vps32 squared = vec_mul_ps(clipped, clipped);
-        vec_store_ps(&output[i * L2_CHUNK_SIZE], squared);
+        outvec[i] = vec_mul_ps(clipped, clipped);
     }
     #else
     int sums[L2_SIZE] = {};
@@ -477,23 +477,24 @@ void NNUE::PropagateL2(const float *inputs, const float *weights, const float *b
     #if defined(USE_SIMD)
     vps32 sumVecs[L3_SIZE / L3_CHUNK_SIZE];
 
+    const vps32 *biasvec = reinterpret_cast<const vps32*>(biases);
     for (int i = 0; i < L3_SIZE / L3_CHUNK_SIZE; ++i)
-        sumVecs[i] = vec_load_ps(&biases[i * L3_CHUNK_SIZE]);
+        sumVecs[i] = biasvec[i];
 
     for (int i = 0; i < L2_SIZE; ++i) {
         const vps32 inputVec = vec_set1_ps(inputs[i]);
         const vps32 *weight  = reinterpret_cast<const vps32*>(&weights[i * L3_SIZE]);
         for (int j = 0; j < L3_SIZE / L3_CHUNK_SIZE; ++j)
-            sumVecs[j] = vec_mul_add_ps(inputVec, weight[j], sumVecs[j]);
+            sumVecs[j] = vec_fma_ps(inputVec, weight[j], sumVecs[j]);
     }
 
     // Activate L2
+    vps32 *const outvec = reinterpret_cast<vps32*>(output);
     for (int i = 0; i < L3_SIZE / L3_CHUNK_SIZE; ++i) {
         const vps32 Zero    = vec_zero_ps();
         const vps32 One     = vec_set1_ps(1.0f);
         const vps32 clipped = vec_min_ps(vec_max_ps(sumVecs[i], Zero), One);
-        const vps32 squared = vec_mul_ps(clipped, clipped);
-        vec_store_ps(&output[i * L3_CHUNK_SIZE], squared);
+        outvec[i] = vec_mul_ps(clipped, clipped);
     }
     #else
     float sums[L3_SIZE];
@@ -528,12 +529,13 @@ void NNUE::PropagateL3(const float *inputs, const float *weights, const float bi
     vps32 sumVecs[numSums] = {};
 
     // Affine transform for L3
-    for (int i = 0; i < L3_SIZE / L3_CHUNK_SIZE; ++i) {
-        const vps32 weightVec = vec_load_ps(&weights[i * L3_CHUNK_SIZE]);
-        const vps32 inputsVec = vec_load_ps(&inputs[i * L3_CHUNK_SIZE]);
-        sumVecs[i % numSums] = vec_mul_add_ps(inputsVec, weightVec, sumVecs[i % numSums]);
-    }
+    const vps32 *weightvec = reinterpret_cast<const vps32*>(weights);
+    const vps32 *inputsvec = reinterpret_cast<const vps32*>(inputs);
+    for (int i = 0; i < L3_SIZE / L3_CHUNK_SIZE; ++i)
+        sumVecs[i % numSums] = vec_fma_ps(inputsvec[i], weightvec[i], sumVecs[i % numSums]);
+
     output = vec_reduce_add_ps(sumVecs) + bias;
+
     #else
     constexpr int numSums = avx512chunk;
     float sums[numSums] = {};
@@ -551,15 +553,18 @@ void NNUE::PropagateL3(const float *inputs, const float *weights, const float bi
 int32_t NNUE::output(const NNUE::Accumulator &board_accumulator, const int stm, const int outputBucket) {
 
     int nnzCount = 0;
-    alignas (64) uint16_t nnzIndices[L1_SIZE / L1_CHUNK_PER_32];
-    alignas (64) uint8_t  FTOutputs[L1_SIZE];
-    alignas (64) float    L1Outputs[L2_SIZE];
-    alignas (64) float    L2Outputs[L3_SIZE];
+    uint16_t nnzIndices[L1_SIZE / L1_CHUNK_PER_32];
+    uint8_t  FTOutputs[L1_SIZE];
+    float    L1Outputs[L2_SIZE];
+    float    L2Outputs[L3_SIZE];
     float L3Output;
 
+    const int16_t* us = board_accumulator.perspective[stm].values.data();
+    const int16_t* them = board_accumulator.perspective[stm ^ 1].values.data();
+
     // Feed Forward NNUE (i.e. outputs of FT are inputs of L1, outputs of L1 are inputs of L2, etc.)
-    ActivateFT (board_accumulator.perspective[stm].values,
-                board_accumulator.perspective[stm ^ 1].values,
+    ActivateFT (us,
+                them,
                 nnzIndices,
                 nnzCount,
                 FTOutputs);
