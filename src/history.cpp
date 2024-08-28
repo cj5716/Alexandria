@@ -76,14 +76,18 @@ int16_t CorrectionHistoryTable::adjust(const Position *pos, const int eval) cons
 
 // Use this function to update all quiet histories
 void UpdateAllHistories(const Position *pos, const SearchStack *ss, SearchData *sd, const int depth, const Move bestMove, const MoveList &quietMoves, const MoveList &tacticalMoves) {
-    int16_t bonus = HistoryBonus(depth);
+    const int16_t bonus = HistoryBonus(depth);
+
+    // Scale the bonus/malus on the number of times the move was searched
+    auto scaleUpdate = [](const int update, const int searchedTimes) { return update * (searchedTimes + 1) / 2; };
+
     if (!isTactical(bestMove)) {
         // Positively update best move
         // Penalise all quiets that failed to do so (they were ordered earlier but weren't as good)
         for (int i = 0; i < quietMoves.count; ++i) {
             Move quiet = quietMoves.moves[i].move;
             int update = bestMove == quiet ? bonus : -bonus;
-            update *= quietMoves.moves[i].score; // Scale the bonus/malus on the number of times the move was searched
+            update = scaleUpdate(update, quietMoves.moves[i].score);
             sd->quietHistory.update(pos, quiet, update);
             sd->continuationHistory.update(pos, ss, quiet, update);
         }
@@ -94,7 +98,7 @@ void UpdateAllHistories(const Position *pos, const SearchStack *ss, SearchData *
     for (int i = 0; i < tacticalMoves.count; ++i) {
         Move tactical = tacticalMoves.moves[i].move;
         int update = bestMove == tactical ? bonus : -bonus;
-        update *= tacticalMoves.moves[i].score; // Scale the bonus/malus on the number of times the move was searched
+        update = scaleUpdate(update, tacticalMoves.moves[i].score);
         sd->tacticalHistory.update(pos, tactical, update);
         sd->continuationHistory.update(pos, ss, tactical, update);
     }
