@@ -17,8 +17,8 @@ inline vepi16 vec_zero_epi16() { return _mm512_setzero_si512(); }
 inline vepi32 vec_zero_epi32() { return _mm512_setzero_si512(); }
 inline vepi16 vec_set1_epi16 (const int16_t n) { return _mm512_set1_epi16(n); }
 inline vepi32 vec_set1_epi32 (const int32_t n) { return _mm512_set1_epi32(n); }
-inline vepi16 vec_load_epi   (const vepi16 *src) { return _mm512_loadu_si512(src); }
-inline void   vec_store_epi  (vepi16 *dst, const vepi16 vec) { _mm512_storeu_si512(dst, vec); }
+inline vepi16 vec_load_epi   (const vepi16 *src) { return _mm512_load_si512(src); }
+inline void   vec_store_epi  (vepi16 *dst, const vepi16 vec) { _mm512_store_si512(dst, vec); }
 inline vepi16 vec_max_epi16  (const vepi16 vec0, const vepi16 vec1) { return _mm512_max_epi16(vec0, vec1); }
 inline vepi16 vec_min_epi16  (const vepi16 vec0, const vepi16 vec1) { return _mm512_min_epi16(vec0, vec1); }
 inline vepi16 vec_mulhi_epi16(const vepi16 vec0, const vepi16 vec1) { return _mm512_mulhi_epi16(vec0, vec1); }
@@ -57,8 +57,8 @@ inline vps32 vec_cvtepi32_ps(const vepi32 vec) { return _mm512_cvtepi32_ps(vec);
 
 inline vps32 vec_zero_ps () { return _mm512_setzero_ps(); }
 inline vps32 vec_set1_ps (const float n) { return _mm512_set1_ps(n); }
-inline vps32 vec_load_ps (const float *src) { return _mm512_loadu_ps(src); }
-inline void  vec_store_ps(float *dst, const vps32 vec) { return _mm512_storeu_ps(dst, vec); }
+inline vps32 vec_load_ps (const float *src) { return _mm512_load_ps(src); }
+inline void  vec_store_ps(float *dst, const vps32 vec) { return _mm512_store_ps(dst, vec); }
 inline vps32 vec_add_ps  (const vps32 vec0, const vps32 vec1) { return _mm512_add_ps(vec0, vec1); }
 inline vps32 vec_mul_ps  (const vps32 vec0, const vps32 vec1) { return _mm512_mul_ps(vec0, vec1); }
 inline vps32 vec_min_ps  (const vps32 vec0, const vps32 vec1) { return _mm512_min_ps(vec0, vec1); }
@@ -77,8 +77,8 @@ inline vepi16 vec_zero_epi16() { return _mm256_setzero_si256(); }
 inline vepi32 vec_zero_epi32() { return _mm256_setzero_si256(); }
 inline vepi16 vec_set1_epi16 (const int16_t n) { return _mm256_set1_epi16(n); }
 inline vepi32 vec_set1_epi32 (const int32_t n) { return _mm256_set1_epi32(n); }
-inline vepi16 vec_load_epi   (const vepi16 *src) { return _mm256_loadu_si256(src); }
-inline void   vec_store_epi  (vepi16 *dst, const vepi16 vec) { _mm256_storeu_si256(dst, vec); }
+inline vepi16 vec_load_epi   (const vepi16 *src) { return _mm256_load_si256(src); }
+inline void   vec_store_epi  (vepi16 *dst, const vepi16 vec) { _mm256_store_si256(dst, vec); }
 inline vepi16 vec_max_epi16  (const vepi16 vec0, const vepi16 vec1) { return _mm256_max_epi16(vec0, vec1); }
 inline vepi16 vec_min_epi16  (const vepi16 vec0, const vepi16 vec1) { return _mm256_min_epi16(vec0, vec1); }
 inline vepi16 vec_mulhi_epi16(const vepi16 vec0, const vepi16 vec1) { return _mm256_mulhi_epi16(vec0, vec1); }
@@ -109,8 +109,8 @@ inline vps32 vec_cvtepi32_ps(const vepi32 vec) { return _mm256_cvtepi32_ps(vec);
 
 inline vps32 vec_zero_ps () { return _mm256_setzero_ps(); }
 inline vps32 vec_set1_ps (const float n) { return _mm256_set1_ps(n); }
-inline vps32 vec_load_ps (const float *src) { return _mm256_loadu_ps(src); }
-inline void  vec_store_ps(float *dst, const vps32 vec) { return _mm256_storeu_ps(dst, vec); }
+inline vps32 vec_load_ps (const float *src) { return _mm256_load_ps(src); }
+inline void  vec_store_ps(float *dst, const vps32 vec) { return _mm256_store_ps(dst, vec); }
 inline vps32 vec_add_ps  (const vps32 vec0, const vps32 vec1) { return _mm256_add_ps(vec0, vec1); }
 inline vps32 vec_mul_ps  (const vps32 vec0, const vps32 vec1) { return _mm256_mul_ps(vec0, vec1); }
 inline vps32 vec_min_ps  (const vps32 vec0, const vps32 vec1) { return _mm256_min_ps(vec0, vec1); }

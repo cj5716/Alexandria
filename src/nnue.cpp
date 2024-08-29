@@ -106,7 +106,7 @@ void NNUE::init(const char *file) {
         net.FTBiases[i] = quantisedNet.FTBiases[i];
 
     // Transpose FT weights and biases so that packus transposes it back to the intended order
-    #if defined(USE_SIMD)
+    #if false
     __m128i *weight = reinterpret_cast<__m128i*>(net.FTWeights);
     __m128i *biases = reinterpret_cast<__m128i*>(net.FTBiases);
     constexpr int numChunks = sizeof(__m128i) / sizeof(int16_t);
@@ -146,7 +146,7 @@ void NNUE::init(const char *file) {
     for (int bucket = 0; bucket < OUTPUT_BUCKETS; ++bucket) {
 
         // Transpose L1 weights
-        #if defined(USE_SIMD)
+        #if false
         for (int i = 0; i < L1_SIZE / L1_CHUNK_PER_32; ++i)
             for (int j = 0; j < L2_SIZE; ++j)
                 for (int k = 0; k < L1_CHUNK_PER_32; ++k)
@@ -339,7 +339,7 @@ int NNUE::Pov_Accumulator::GetIndex(const int piece, const int square, bool flip
 
 
 void NNUE::ActivateFT(const int16_t *us, const int16_t *them, [[maybe_unused]] uint16_t *nnzIndices, [[maybe_unused]] int &nnzCount, uint8_t *output) {
-    #if defined(USE_SIMD)
+    #if false
     int offset = 0;
     const vepi16 Zero = vec_zero_epi16();
     const vepi16 One  = vec_set1_epi16(FT_QUANT);
@@ -409,7 +409,7 @@ void NNUE::ActivateFT(const int16_t *us, const int16_t *them, [[maybe_unused]] u
 }
 
 void NNUE::PropagateL1(const uint8_t *inputs, [[maybe_unused]] uint16_t *nnzIndices, [[maybe_unused]] int nnzCount, const int8_t *weights, const float *biases, float *output) {
-    #if defined(USE_SIMD)
+    #if false
     vepi32 sums[L2_SIZE / L2_CHUNK_SIZE] = {};
     const int32_t *inputs32 = reinterpret_cast<const int32_t*>(inputs);
 

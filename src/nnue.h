@@ -157,7 +157,7 @@ class NNUE {
 public:
     // per pov accumulator
     struct Pov_Accumulator {
-        std::array<int16_t, L1_SIZE> values;
+        alignas(64) std::array<int16_t, L1_SIZE> values;
         int pov;
         std::vector<std::size_t> NNUEAdd = {};
         std::vector<std::size_t> NNUESub = {};
