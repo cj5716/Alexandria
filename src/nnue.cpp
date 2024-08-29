@@ -250,20 +250,20 @@ void NNUE::update(Accumulator *acc, Position *pos) {
 }
 
 void NNUE::Pov_Accumulator::addSub(NNUE::Pov_Accumulator &prev_acc, std::size_t add, std::size_t sub) {
-        const auto Add = &net.FTWeights[add * L1_SIZE];
-        const auto Sub = &net.FTWeights[sub * L1_SIZE];
-        for (int i = 0; i < L1_SIZE; i++) {
-            this->values[i] = prev_acc.values[i] - Sub[i] + Add[i];
-        }
+    const auto Add = &net.FTWeights[add * L1_SIZE];
+    const auto Sub = &net.FTWeights[sub * L1_SIZE];
+    for (int i = 0; i < L1_SIZE; i++) {
+        this->values[i] = prev_acc.values[i] - Sub[i] + Add[i];
+    }
 }
 
 void NNUE::Pov_Accumulator::addSubSub(NNUE::Pov_Accumulator &prev_acc, std::size_t add, std::size_t sub1, std::size_t sub2) {
-        auto Add = &net.FTWeights[add * L1_SIZE];
-        auto Sub1 = &net.FTWeights[sub1 * L1_SIZE];
-        auto Sub2 = &net.FTWeights[sub2 * L1_SIZE];
-        for (int i = 0; i < L1_SIZE; i++) {
-            this->values[i] =  prev_acc.values[i] - Sub1[i] - Sub2[i] + Add[i];
-        }
+    const auto Add = &net.FTWeights[add * L1_SIZE];
+    const auto Sub1 = &net.FTWeights[sub1 * L1_SIZE];
+    const auto Sub2 = &net.FTWeights[sub2 * L1_SIZE];
+    for (int i = 0; i < L1_SIZE; i++) {
+        this->values[i] =  prev_acc.values[i] - Sub1[i] - Sub2[i] + Add[i];
+    }
 }
 
 void NNUE::accumulate(NNUE::Accumulator& board_accumulator, Position* pos) {
@@ -294,10 +294,10 @@ void NNUE::Pov_Accumulator::applyUpdate(NNUE::Pov_Accumulator& previousPovAccumu
     }
     // Castling
     else {
-        this->addSub( previousPovAccumulator, this->NNUEAdd[0], this->NNUESub[0]);
+        this->addSub(previousPovAccumulator, this->NNUEAdd[0], this->NNUESub[0]);
         this->addSub(*this, this->NNUEAdd[1], this->NNUESub[1]);
-        // Note that for second addSub, we put acc instead of acc - 1 because we are updating on top of
-        // the half-updated accumulator
+        // Note that for second addSub, we update vs current accumulator instead of the previous one because we are updating on top of
+        // the half-updated accumulator and not from scratch
     }
 
     // Reset the add and sub vectors for this accumulator, this will make it "clean" for future updates
@@ -354,7 +354,6 @@ void NNUE::ActivateFT(const int16_t *us, const int16_t *them, [[maybe_unused]] u
             const vepi16 input1a   = vec_load_epi(reinterpret_cast<const vepi16*>(&acc[i + 0             + L1_SIZE / 2]));
             const vepi16 input1b   = vec_load_epi(reinterpret_cast<const vepi16*>(&acc[i + FT_CHUNK_SIZE + L1_SIZE / 2]));
 
-            // Comments stolen from SF (since I was the original author of this anyways):
             // What we want to do is multiply inputs in a pairwise manner (after clipping), and then shift right by FT_SHIFT. Instead, we
             // shift left by (16 - FT_SHIFT), and use mulhi, stripping the bottom 16 bits, effectively shifting right by 16, resulting in a net shift
             // of FT_SHIFT bits. We use mulhi because it maintains the sign of the multiplication (unlike mullo), allowing us to make use
