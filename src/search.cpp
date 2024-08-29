@@ -700,9 +700,12 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
                     pvTable->pvLength[ss->ply] = pvTable->pvLength[ss->ply + 1];
                 }
 
+                // node (move) fails high
                 if (score >= beta) {
-                    // node (move) fails high
-                    UpdateAllHistories(pos, ss, sd, depth, move, quietMoves, tacticalMoves);
+                    // increase bonus if our static eval suggested we were failing low
+                    const int bonusDepth = depth + (ss->staticEval <= alpha);
+                    const int malusDepth = depth;
+                    UpdateAllHistories(pos, ss, sd, bonusDepth, malusDepth, move, quietMoves, tacticalMoves);
                     break;
                 }
                 // Update alpha iff alpha < beta
