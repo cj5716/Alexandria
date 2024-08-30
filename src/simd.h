@@ -1,10 +1,9 @@
+#if defined(USE_SIMD)
 #pragma once
 #include <cstdint>
 
-#if defined(USE_SIMD)
 #include <immintrin.h>
 #include <xmmintrin.h>
-#endif
 
 #if defined(USE_AVX512)
 using vepi8  = __m512i;
@@ -139,4 +138,5 @@ inline float reduce_add(float *sums, const int length) {
 
     return reduce_add(sums, length / 2);
 }
+#endif
 #endif
