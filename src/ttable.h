@@ -44,10 +44,6 @@ extern TTable TT;
 constexpr uint8_t MAX_AGE = 1 << 5; // must be power of 2
 constexpr uint8_t AGE_MASK = MAX_AGE - 1;
 
-void* AlignedMalloc(size_t size, size_t alignment);
-
-void AlignedFree(void *src);
-
 void ClearTT();
 // Initialize an TT of size MB
 void InitTT(uint64_t MB);

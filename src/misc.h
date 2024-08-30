@@ -35,3 +35,25 @@ inline long long int _count, _accumulator;
 inline void dbg_mean_of(int val) { _count++; _accumulator += val; }
 
 inline void dbg_print() { std::cout << double(_accumulator) / _count << std::endl; }
+
+#if defined(__linux__) && !defined(__ANDROID__)
+#define USE_MADVISE
+#endif
+
+// Allocate an aligned chunk of memory
+inline void* AlignedMalloc(size_t size, size_t alignment) {
+    #if defined(USE_MADVISE)
+    return aligned_alloc(alignment, size);
+    #else
+    return _aligned_malloc(size, alignment);
+    #endif
+}
+
+// Free the aligned chunk of memory
+inline void AlignedFree(void *src) {
+    #if defined(USE_MADVISE)
+    free(src);
+    #else
+    _aligned_free(src);
+    #endif
+}

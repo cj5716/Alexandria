@@ -173,7 +173,8 @@ public:
             return NNUEAdd.empty();
         }
     };
-// final total accumulator that holds the 2 povs
+
+    // final total accumulator that holds the 2 povs
     struct Accumulator {
 
         Accumulator(){

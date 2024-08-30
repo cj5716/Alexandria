@@ -11,6 +11,7 @@
 #include "move.h"
 #include "types.h"
 #include "uci.h"
+#include "misc.h"
 
 #ifdef __GNUC__
 #define PACK(__Declaration__) __Declaration__ __attribute__((__packed__))
@@ -35,6 +36,15 @@ struct BoardState {
 // for rollback purposes
 
 struct Position {
+
+    Position() {
+        accumStack = reinterpret_cast<NNUE::Accumulator*>(AlignedMalloc(MAXPLY * sizeof(NNUE::Accumulator), 64));
+    }
+
+    ~Position() {
+        AlignedFree(accumStack);
+    }
+
 public:
     int pieces[64]; // array that stores for every square of the board what piece is on it
 
@@ -54,8 +64,8 @@ public:
     // Occupancies bitboards based on piece and side
     Bitboard bitboards[12] = {};
     Bitboard occupancies[2] = {};
-  
-    NNUE::Accumulator accumStack[MAXPLY];
+
+    NNUE::Accumulator *accumStack;
     int accumStackHead;
 
     inline NNUE::Accumulator& AccumulatorTop() {

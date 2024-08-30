@@ -1,4 +1,5 @@
 #include "ttable.h"
+#include "misc.h"
 #include "io.h"
 #include <iostream>
 #include <cstdlib>
@@ -8,30 +9,13 @@
 #include <xmmintrin.h>
 #endif
 
-#if defined(__linux__) && !defined(__ANDROID__)
+#if defined(USE_MADVISE)
 #include <sys/mman.h>
-#define USE_MADVISE
 #else
 #include <stdlib.h>
 #endif
 
 TTable TT;
-
-void* AlignedMalloc(size_t size, size_t alignment) {
-    #if defined(USE_MADVISE)
-    return aligned_alloc(alignment, size);
-    #else
-    return _aligned_malloc(size, alignment);
-    #endif
-}
-
-void AlignedFree(void *src) {
-    #if defined(USE_MADVISE)
-    free(src);
-    #else
-    _aligned_free(src);
-    #endif
-}
 
 void ClearTT() {
     for (uint64_t i = 0; i < TT.paddedSize / sizeof(TTBucket); ++i) {
