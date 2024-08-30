@@ -546,12 +546,7 @@ void NNUE::PropagateL3(const float *inputs, const float *weights, const float bi
 // according to the net
 int32_t NNUE::output(const NNUE::Accumulator &board_accumulator, const int stm, const int outputBucket) {
 
-    int nnzCount = 0;
-    alignas (64) uint16_t nnzIndices[L1_SIZE / L1_CHUNK_PER_32];
-    alignas (64) uint8_t  FTOutputs[L1_SIZE];
-    alignas (64) float    L1Outputs[L2_SIZE];
-    alignas (64) float    L2Outputs[L3_SIZE];
-    float L3Output;
+    FeedForward feedForward = *reinterpret_cast<FeedForward*>(AlignedMalloc(sizeof(FeedForward), 64));
 
     const int16_t* us = board_accumulator.perspective[stm].values.data();
     const int16_t* them = board_accumulator.perspective[stm ^ 1].values.data();
@@ -559,30 +554,30 @@ int32_t NNUE::output(const NNUE::Accumulator &board_accumulator, const int stm, 
     // Feed Forward NNUE (i.e. outputs of FT are inputs of L1, outputs of L1 are inputs of L2, etc.)
     ActivateFT (us,
                 them,
-                nnzIndices,
-                nnzCount,
-                FTOutputs);
+                feedForward.nnzIndices,
+                feedForward.nnzCount,
+                feedForward.FTOutputs);
 
-    PropagateL1(FTOutputs,
-                nnzIndices,
-                nnzCount,
+    PropagateL1(feedForward.FTOutputs,
+                feedForward.nnzIndices,
+                feedForward.nnzCount,
                 net.L1Weights[outputBucket],
                 net.L1Biases[outputBucket],
-                L1Outputs);
+                feedForward.L1Outputs);
 
-    PropagateL2(L1Outputs,
+    PropagateL2(feedForward.L1Outputs,
                 net.L2Weights[outputBucket],
                 net.L2Biases[outputBucket],
-                L2Outputs);
+                feedForward.L2Outputs);
 
-    PropagateL3(L2Outputs,
+    PropagateL3(feedForward.L2Outputs,
                 net.L3Weights[outputBucket],
                 net.L3Biases[outputBucket],
-                L3Output);
+                feedForward.L3Output);
 
     #if NETUP
     nnzData.update(FTOutputs);
     #endif
 
-    return L3Output * NET_SCALE;
+    return feedForward.L3Output * NET_SCALE;
 }

@@ -151,10 +151,18 @@ struct NNZTable {
     };
 };
 
+struct FeedForward {
+    int nnzCount = 0;
+    alignas (64) uint16_t nnzIndices[L1_SIZE / L1_CHUNK_PER_32];
+    alignas (64) uint8_t  FTOutputs[L1_SIZE];
+    alignas (64) float    L1Outputs[L2_SIZE];
+    alignas (64) float    L2Outputs[L3_SIZE];
+    float L3Output;
+};
+
 struct Position;
 
-class NNUE {
-public:
+struct NNUE {
     // per pov accumulator
     struct Pov_Accumulator {
         alignas(64) std::array<int16_t, L1_SIZE> values;
