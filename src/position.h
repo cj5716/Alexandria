@@ -37,14 +37,6 @@ struct BoardState {
 
 struct Position {
 
-    Position() {
-        accumStack = reinterpret_cast<NNUE::Accumulator*>(AlignedMalloc(MAXPLY * sizeof(NNUE::Accumulator), 64));
-    }
-
-    ~Position() {
-        AlignedFree(accumStack);
-    }
-
 public:
     int pieces[64]; // array that stores for every square of the board what piece is on it
 
@@ -65,7 +57,7 @@ public:
     Bitboard bitboards[12] = {};
     Bitboard occupancies[2] = {};
 
-    NNUE::Accumulator *accumStack;
+    NNUE::Accumulator accumStack[MAXPLY];
     int accumStackHead;
 
     inline NNUE::Accumulator& AccumulatorTop() {
