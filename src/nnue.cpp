@@ -410,7 +410,7 @@ void NNUE::ActivateFT(const int16_t *us, const int16_t *them, [[maybe_unused]] u
 
 void NNUE::PropagateL1(const uint8_t *inputs, [[maybe_unused]] uint16_t *nnzIndices, [[maybe_unused]] int nnzCount, const int8_t *weights, const float *biases, float *output) {
     #if false
-    vepi32 sums[L2_SIZE / L2_CHUNK_SIZE] = {};
+    alignas(64) vepi32 sums[L2_SIZE / L2_CHUNK_SIZE] = {};
     const int32_t *inputs32 = reinterpret_cast<const int32_t*>(inputs);
 
     // We read in the inputs in chunks of 4 (as dpbusd horizontally sums by 4).
@@ -471,7 +471,7 @@ void NNUE::PropagateL1(const uint8_t *inputs, [[maybe_unused]] uint16_t *nnzIndi
 void NNUE::PropagateL2(const float *inputs, const float *weights, const float *biases, float *output) {
     // For each input, multiply by all the L2 weights
     #if defined(USE_SIMD)
-    vps32 sumVecs[L3_SIZE / L3_CHUNK_SIZE];
+    alignas(64) vps32 sumVecs[L3_SIZE / L3_CHUNK_SIZE];
 
     for (int i = 0; i < L3_SIZE / L3_CHUNK_SIZE; ++i)
         sumVecs[i] = vec_load_ps(&biases[i * L3_CHUNK_SIZE]);
@@ -521,7 +521,7 @@ void NNUE::PropagateL3(const float *inputs, const float *weights, const float bi
     constexpr int avx512chunk = 512 / 32;
     #if defined(USE_SIMD)
     constexpr int numSums = avx512chunk / (sizeof(vps32) / sizeof(float));
-    vps32 sumVecs[numSums] = {};
+    alignas(64) vps32 sumVecs[numSums] = {};
 
     // Affine transform for L3
     for (int i = 0; i < L3_SIZE / L3_CHUNK_SIZE; ++i) {
