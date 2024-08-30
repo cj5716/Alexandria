@@ -1,7 +1,7 @@
-#if defined(USE_SIMD)
 #pragma once
 #include <cstdint>
 
+#if defined(USE_SIMD)
 #include <immintrin.h>
 #include <xmmintrin.h>
 
@@ -130,6 +130,7 @@ inline float vec_reduce_add_ps(const vps32 *vecs) {
 
     return _mm_cvtss_f32(sum_32);
 }
+#endif
 #else
 inline float reduce_add(float *sums, const int length) {
     if (length == 2) return sums[0] + sums[1];
@@ -138,5 +139,4 @@ inline float reduce_add(float *sums, const int length) {
 
     return reduce_add(sums, length / 2);
 }
-#endif
 #endif
