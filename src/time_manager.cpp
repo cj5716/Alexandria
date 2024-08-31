@@ -2,6 +2,7 @@
 #include "position.h"
 #include "search.h"
 #include <algorithm>
+#include <cmath>
 #include "misc.h"
 
 // Calculate how much time to spend on searching a move
@@ -56,7 +57,8 @@ void ScaleTm(ThreadData* td, const int bestMoveStabilityFactor, const int evalSt
     const int bestmove = GetBestMove(&td->pvTable);
     // Calculate how many nodes were spent on checking the best move
     const double bestMoveNodesFraction = static_cast<double>(td->nodeSpentTable[FromTo(bestmove)]) / static_cast<double>(td->info.nodes);
-    const double nodeScalingFactor = (1.52 - bestMoveNodesFraction) * 1.74;
+    const double nodeScalingFactor = 2.38032 - 1.566 * std::pow(bestMoveNodesFraction, 1.25);
+    dbg_mean_of(nodeScalingFactor);
     const double bestMoveScalingFactor = bestmoveScale[bestMoveStabilityFactor];
     const double evalScalingFactor = evalScale[evalStabilityFactor];
     // Scale the search time based on how many nodes we spent and how the best move changed
