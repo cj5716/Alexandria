@@ -702,9 +702,11 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
 
                 // node (move) fails high
                 if (score >= beta) {
-                    // increase bonus if our static eval suggested we were failing low
-                    const int bonusDepth = depth + (ss->staticEval <= alpha);
-                    const int malusDepth = depth;
+                    // Increase bonus if our eval suggested we were failing low,
+                    // and decrease bonus if our eval suggested we were failing high (the fail-high was according to expectations)
+                    // Do the opposite for malus (as the search result was opposite vs best move)
+                    const int bonusDepth = depth + (eval <= alpha) - (eval >= beta);
+                    const int malusDepth = depth - (eval <= alpha) + (eval >= beta);
                     UpdateAllHistories(pos, ss, sd, bonusDepth, malusDepth, move, quietMoves, tacticalMoves);
                     break;
                 }

@@ -144,9 +144,9 @@ TUNE_PARAM(givesCheckReduction, 1024, 512, 1536, 128, 0.002)
 TUNE_PARAM(doDeeperBaseScore, 53, 20, 100, 6, 0.002)
 TUNE_PARAM(doDeeperDepthMultiplier, 2, 1, 4, 0.5, 0.002)
 
-TUNE_PARAM(histBonusQuadratic, 15, 0, 32, 1.0, 0.002)
-TUNE_PARAM(histBonusLinear, 30, 0, 64, 2.0, 0.002)
-TUNE_PARAM(histBonusConst, 15, 0, 32, 1.0, 0.002)
+TUNE_PARAM(histBonusQuadratic, 16, 0, 32, 1.0, 0.002)
+TUNE_PARAM(histBonusLinear, 32, 0, 64, 2.0, 0.002)
+TUNE_PARAM(histBonusConst, 16, 0, 32, 1.0, 0.002)
 TUNE_PARAM(histBonusMax, 1200, 400, 4800, 100.0, 0.002)
 
 TUNE_PARAM(quietHistFactoriserScale, 16, 0, 64, 2.0, 0.002)
