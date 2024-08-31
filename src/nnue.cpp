@@ -453,9 +453,12 @@ void NNUE::PropagateL1(const uint8_t *inputs, [[maybe_unused]] uint16_t *nnzIndi
     }
     #else
     int sums[L2_SIZE] = {};
-    for (int i = 0; i < L1_SIZE; ++i) {
+    for (int i = 0; i < L1_SIZE; i += 4) {
         for (int j = 0; j < L2_SIZE; ++j) {
-            sums[j] += static_cast<int32_t>(inputs[i] * weights[j * L1_SIZE + i]);
+            sums[j] += static_cast<int32_t>(inputs[i + 0]) * weights[i * L2_SIZE + j * 4 + 0];
+            sums[j] += static_cast<int32_t>(inputs[i + 1]) * weights[i * L2_SIZE + j * 4 + 1];
+            sums[j] += static_cast<int32_t>(inputs[i + 2]) * weights[i * L2_SIZE + j * 4 + 2];
+            sums[j] += static_cast<int32_t>(inputs[i + 3]) * weights[i * L2_SIZE + j * 4 + 3];
         }
     }
 
