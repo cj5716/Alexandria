@@ -349,7 +349,7 @@ void UpdateMasks(Position* pos, const int side) {
         // Attacks king, add this piece to checkers bitboard
         if (attacked & ourKingBB) pos->state.checkers |= 1ULL << source_square;
         else {
-            Bitboard betweenSq = RayBetween(source_square, ourKingSq) & ~ourKingBB;
+            Bitboard betweenSq = RayBetween(source_square, ourKingSq);
 
             // If the attack has a direction towards our king and there is exactly 1 friendly piece in between,
             // add that piece to our pinned pieces bitboard
@@ -370,7 +370,7 @@ void UpdateMasks(Position* pos, const int side) {
         // Attacks king, add this piece to checkers bitboard
         if (attacked & ourKingBB) pos->state.checkers |= 1ULL << source_square;
         else {
-            Bitboard betweenSq = RayBetween(source_square, ourKingSq) & ~ourKingBB;
+            Bitboard betweenSq = RayBetween(source_square, ourKingSq);
 
             // If the attack has a direction towards our king and there is exactly 1 friendly piece in between,
             // add that piece to our pinned pieces bitboard
