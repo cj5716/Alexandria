@@ -11,6 +11,28 @@ struct SearchData;
 struct SearchStack;
 struct MoveList;
 
+struct SearchedMove {
+    Move move;
+    bool didLMR;
+    bool didFullDepthSearch;
+    SearchedMove() {};
+
+    SearchedMove(Move m, bool dLMR, bool dFDS) {
+        move = m;
+        didLMR = dLMR;
+        didFullDepthSearch = dFDS;
+    };
+};
+
+struct SearchedMoveList {
+    int count = 0;
+    SearchedMove moves[256];
+    inline void add(SearchedMove searchedMove) {
+        moves[count] = searchedMove;
+        count++;
+    };
+};
+
 inline int16_t HistoryBonus(const int depth) {
     return std::min(  histBonusQuadratic() * depth * depth
                     + histBonusLinear() * depth
@@ -151,7 +173,8 @@ struct CorrectionHistoryTable {
 };
 
 // Update all histories after a beta cutoff
-void UpdateAllHistories(const Position *pos, const SearchStack *ss, SearchData *sd, const int bonusDepth, const int malusDepth, const Move bestMove, const MoveList &quietMoves, const MoveList &tacticalMoves);
+void UpdateAllHistories(const Position *pos, const SearchStack *ss, SearchData *sd, const int depth, const Move bestMove,
+                        const SearchedMoveList &quietMoves, const SearchedMoveList &tacticalMoves, const int eval, const int alpha, const int beta);
 
 // Get history score for a given move
 int GetHistoryScore(const Position *pos, const SearchStack *ss, const SearchData *sd, const Move move);
