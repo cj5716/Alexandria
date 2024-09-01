@@ -348,15 +348,14 @@ void UpdateMasks(Position* pos, const int side) {
 
         // Attacks king, add this piece to checkers bitboard
         if (attacked & ourKingBB) pos->state.checkers |= 1ULL << source_square;
-        else {
-            Bitboard betweenSq = RayBetween(source_square, ourKingSq);
 
-            // If the attack has a direction towards our king and there is exactly 1 friendly piece in between,
-            // add that piece to our pinned pieces bitboard
-            if (betweenSq & attacked) {
-                Bitboard blockers = betweenSq & pos->Occupancy(side);
-                if (CountBits(blockers) == 1) pos->state.pinned |= blockers;
-            }
+        // If the attack will intercept our king on an empty board and there is exactly 1 friendly piece in between,
+        // add that piece to our pinned pieces bitboard
+        else if (   get_diagonal[source_square] == get_diagonal[ourKingSq]
+                 || get_antidiagonal(source_square) == get_antidiagonal(ourKingSq)) {
+
+            const Bitboard blockers = RayBetween(source_square, ourKingSq) & pos->Occupancy(side);
+            if (CountBits(blockers) == 1) pos->state.pinned |= blockers;
         }
     }
 
@@ -369,15 +368,14 @@ void UpdateMasks(Position* pos, const int side) {
 
         // Attacks king, add this piece to checkers bitboard
         if (attacked & ourKingBB) pos->state.checkers |= 1ULL << source_square;
-        else {
-            Bitboard betweenSq = RayBetween(source_square, ourKingSq);
 
-            // If the attack has a direction towards our king and there is exactly 1 friendly piece in between,
-            // add that piece to our pinned pieces bitboard
-            if (betweenSq & attacked) {
-                Bitboard blockers = betweenSq & pos->Occupancy(side);
-                if (CountBits(blockers) == 1) pos->state.pinned |= blockers;
-            }
+        // If the attack will intercept our king on an empty board and there is exactly 1 friendly piece in between,
+        // add that piece to our pinned pieces bitboard
+        else if (   get_rank[source_square] == get_rank[ourKingSq]
+                 || get_file[source_square] == get_file[ourKingSq]) {
+
+            const Bitboard blockers = RayBetween(source_square, ourKingSq) & pos->Occupancy(side);
+            if (CountBits(blockers) == 1) pos->state.pinned |= blockers;
         }
     }
 
