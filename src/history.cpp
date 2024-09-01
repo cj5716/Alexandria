@@ -87,8 +87,14 @@ void UpdateAllHistories(const Position *pos, const SearchStack *ss, SearchData *
         // Decrease bonus if our eval suggested we were failing high (result was expected outcome)
         if (eval >= beta) bonusDepth -= 1;
 
-        // Double the bonus if the move passed through LMR
-        return HistoryBonus(bonusDepth) * (1 + move.didLMR);
+        // If a full window search was performed, give an x1 multiplier.
+        // Then, if a full depth zero-window search was performed, give an x2 multiplier.
+        // In the base case, give an x3 multiplier.
+        const int bonusMultiplier = move.didPVS ? 1
+                                  : move.didZWS ? 2
+                                                : 3;
+
+        return HistoryBonus(bonusDepth) * bonusMultiplier;
     };
 
     auto getMalus = [&](const SearchedMove move) {
@@ -100,8 +106,14 @@ void UpdateAllHistories(const Position *pos, const SearchStack *ss, SearchData *
         // Increase malus if our eval suggested we were failing high (result was against expectations for this move)
         if (eval >= beta) malusDepth += 1;
 
-        // Double the malus if we did a full depth search on the move
-        return -HistoryBonus(malusDepth) * (1 + move.didFullDepthSearch);
+        // If a full window search was performed, give an x3 multiplier.
+        // Then, if a full depth zero-window search was performed, give an x2 multiplier.
+        // In the base case, give an x1 multiplier.
+        const int malusMultiplier = move.didPVS ? 3
+                                  : move.didZWS ? 2
+                                                : 1;
+
+        return -HistoryBonus(malusDepth) * malusMultiplier;
     };
 
     if (!isTactical(bestMove)) {

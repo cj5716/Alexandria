@@ -14,13 +14,15 @@ struct MoveList;
 struct SearchedMove {
     Move move;
     bool didLMR;
-    bool didFullDepthSearch;
+    bool didZWS;
+    bool didPVS;
     SearchedMove() {};
 
-    SearchedMove(Move m, bool dLMR, bool dFDS) {
+    SearchedMove(Move m, bool dLMR, bool dZWS, bool dPVS) {
         move = m;
         didLMR = dLMR;
-        didFullDepthSearch = dFDS;
+        didZWS = dZWS;
+        didPVS = dPVS;
     };
 };
 
