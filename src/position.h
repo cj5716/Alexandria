@@ -198,14 +198,8 @@ void ResetInfo(SearchInfo* info);
 // Retrieve a generic piece (useful when we don't know what type of piece we are dealing with
 [[nodiscard]] Bitboard GetPieceBB(const Position* pos, const int piecetype);
 
-// Returns the threats bitboard of the pieces of <side> color
-[[nodiscard]] Bitboard getThreats(const Position* pos, const int side);
-
 // Returns if the square is attacked by the opponent
 [[nodiscard]] bool IsAttackedByOpp(const Position *pos, const int square);
-
-// Returns whether the opponent of <side> has a guaranteed SEE > 0
-[[nodiscard]] bool oppCanWinMaterial(const Position* pos, const int side);
 
 // Return a piece based on the type and the color
 [[nodiscard]] int GetPiece(const int piecetype, const int color);
@@ -219,7 +213,7 @@ void ResetInfo(SearchInfo* info);
 // Get on what square of the board the king of color c resides
 [[nodiscard]] int KingSQ(const Position* pos, const int c);
 
-void UpdatePinsAndCheckers(Position* pos, const int side);
+void UpdateMasks(Position* pos, const int side);
 
 Bitboard RayBetween(int square1, int square2);
 

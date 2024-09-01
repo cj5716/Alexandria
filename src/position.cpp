@@ -209,8 +209,8 @@ void ParseFen(const std::string& command, Position* pos) {
     pos->posKey = GeneratePosKey(pos);
     pos->pawnKey = GeneratePawnKey(pos);
 
-    // Update pinmasks and checkers
-    UpdatePinsAndCheckers(pos, pos->side);
+    // Update masks (pins, checkers, threats etc.)
+    UpdateMasks(pos, pos->side);
 
     // If we are in check get the squares between the checking piece and the king
     if (pos->getCheckers()) {
@@ -220,9 +220,6 @@ void ParseFen(const std::string& command, Position* pos) {
     }
     else
         pos->state.checkMask = fullCheckmask;
-
-    // Update opponent threats
-    pos->state.oppThreats = getThreats(pos, pos->side ^ 1);
 
     // Update nnue accumulator to reflect board state
     nnue.accumulate(pos->accumStack[0], pos);
@@ -313,88 +310,83 @@ Bitboard GetPieceBB(const Position* pos, const int piecetype) {
     return pos->GetPieceColorBB(piecetype, WHITE) | pos->GetPieceColorBB(piecetype, BLACK);
 }
 
-bool oppCanWinMaterial(const Position* pos, const int side) {
-    Bitboard occ = pos->Occupancy(BOTH);
-    Bitboard  us = pos->Occupancy(side);
-    Bitboard oppPawns = pos->GetPieceColorBB(PAWN, side ^ 1);
-    Bitboard ourPawns = pos->GetPieceColorBB(PAWN, side);
-    while (oppPawns) {
-        const int source_square = popLsb(oppPawns);
-        if (pawn_attacks[side ^ 1][source_square] & (us ^ ourPawns))
-            return true;
-    }
-
-    Bitboard oppKnights = pos->GetPieceColorBB(KNIGHT, side ^ 1);
-    Bitboard ourKnights = pos->GetPieceColorBB(KNIGHT, side);
-    Bitboard oppBishops = pos->GetPieceColorBB(BISHOP, side ^ 1);
-    Bitboard ourBishops = pos->GetPieceColorBB(BISHOP, side);
-    while (oppKnights) {
-        const int source_square = popLsb(oppKnights);
-        if (knight_attacks[source_square] & (us ^ ourPawns ^ ourKnights ^ ourBishops))
-            return true;
-    }
-
-    while (oppBishops) {
-        const int source_square = popLsb(oppBishops);
-        if (GetBishopAttacks(source_square, occ) & (us ^ ourPawns ^ ourKnights ^ ourBishops))
-            return true;
-    }
-
-    Bitboard oppRooks = pos->GetPieceColorBB(ROOK, side ^ 1);
-    Bitboard ourRooks = pos->GetPieceColorBB(ROOK, side);
-    while (oppRooks) {
-        const int source_square = popLsb(oppRooks);
-        if (GetRookAttacks(source_square, occ) & (us ^ ourPawns ^ ourKnights ^ ourBishops ^ ourRooks))
-            return true;
-    }
-
-    return false;
-}
-
-Bitboard getThreats(const Position* pos, const int side) {
+void UpdateMasks(Position* pos, const int side) {
     // Take the occupancies of both positions, encoding where all the pieces on the board reside
-    Bitboard occ = pos->Occupancy(BOTH);
-    uint64_t threats = 0;
+    const Bitboard occ = pos->Occupancy(BOTH);
+    const Bitboard ourKingBB = pos->GetPieceColorBB(KING, side);
+    const int ourKingSq = KingSQ(pos, side);
+    pos->state.oppThreats = pos->state.pinned = pos->state.checkers = 0ULL;
 
     // Get Pawn attacks
-    Bitboard pawns = pos->GetPieceColorBB(PAWN, side);
+    Bitboard pawns = pos->GetPieceColorBB(PAWN, side ^ 1);
     while (pawns) {
-        int source_square = popLsb(pawns);
-        threats |= pawn_attacks[side][source_square];
+        const int source_square = popLsb(pawns);
+        const Bitboard attacked = pawn_attacks[side ^ 1][source_square];
+        pos->state.oppThreats |= attacked; // Add to threats bitboard
+
+        // Attacks king, add this piece to checkers bitboard
+        if (attacked & ourKingBB) pos->state.checkers |= 1ULL << source_square;
     }
 
     // Get Knight attacks
-    Bitboard knights = pos->GetPieceColorBB(KNIGHT, side);
+    Bitboard knights = pos->GetPieceColorBB(KNIGHT, side ^ 1);
     while (knights) {
-        int source_square = popLsb(knights);
-        threats |= knight_attacks[source_square];
+        const int source_square = popLsb(knights);
+        const Bitboard attacked = knight_attacks[source_square];
+        pos->state.oppThreats |= attacked; // Add to threats bitboard
+
+        // Attacks king, add this piece to checkers bitboard
+        if (attacked & ourKingBB) pos->state.checkers |= 1ULL << source_square;
     }
 
-    // Get Bishop attacks
-    Bitboard bishops = pos->GetPieceColorBB(BISHOP, side);
-    while (bishops) {
-        int source_square = popLsb(bishops);
-        threats |= GetBishopAttacks(source_square, occ);
+    // Get diagonal attacks
+    Bitboard diagSliders = pos->GetPieceColorBB(BISHOP, side ^ 1) | pos->GetPieceColorBB(QUEEN, side ^ 1);
+    while (diagSliders) {
+        const int source_square = popLsb(diagSliders);
+        const Bitboard attacked = GetBishopAttacks(source_square, occ);
+        pos->state.oppThreats |= attacked; // Add to threats bitboard
+
+        // Attacks king, add this piece to checkers bitboard
+        if (attacked & ourKingBB) pos->state.checkers |= 1ULL << source_square;
+        else {
+            Bitboard betweenSq = RayBetween(source_square, ourKingSq) & ~ourKingBB;
+
+            // If the attack has a direction towards our king and there is exactly 1 friendly piece in between,
+            // add that piece to our pinned pieces bitboard
+            if (betweenSq & attacked) {
+                Bitboard blockers = betweenSq & pos->Occupancy(side);
+                if (CountBits(blockers) == 1) pos->state.pinned |= blockers;
+            }
+        }
     }
-    // Get Rook attacks
-    Bitboard rooks = pos->GetPieceColorBB(ROOK, side);
-    while (rooks) {
-        int source_square = popLsb(rooks);
-        threats |= GetRookAttacks(source_square, occ);
+
+    // Get horizontal attacks
+    Bitboard horrSliders = pos->GetPieceColorBB(ROOK, side ^ 1) | pos->GetPieceColorBB(QUEEN, side ^ 1);
+    while (horrSliders) {
+        const int source_square = popLsb(horrSliders);
+        const Bitboard attacked = GetRookAttacks(source_square, occ);
+        pos->state.oppThreats |= attacked; // Add to threats bitboard
+
+        // Attacks king, add this piece to checkers bitboard
+        if (attacked & ourKingBB) pos->state.checkers |= 1ULL << source_square;
+        else {
+            Bitboard betweenSq = RayBetween(source_square, ourKingSq) & ~ourKingBB;
+
+            // If the attack has a direction towards our king and there is exactly 1 friendly piece in between,
+            // add that piece to our pinned pieces bitboard
+            if (betweenSq & attacked) {
+                Bitboard blockers = betweenSq & pos->Occupancy(side);
+                if (CountBits(blockers) == 1) pos->state.pinned |= blockers;
+            }
+        }
     }
-    // Get Queen attacks
-    Bitboard queens = pos->GetPieceColorBB(QUEEN, side);
-    while (queens) {
-        int source_square = popLsb(queens);
-        threats |= GetQueenAttacks(source_square, occ);
-    }
+
     // Get King attacks
-    Bitboard king = pos->GetPieceColorBB(KING, side);
+    Bitboard king = pos->GetPieceColorBB(KING, side ^ 1);
     while (king) {
-        int source_square = popLsb(king);
-        threats |= king_attacks[source_square];
+        const int source_square = popLsb(king);
+        pos->state.oppThreats |= king_attacks[source_square];
     }
-    return threats;
 }
 
 bool IsAttackedByOpp(const Position *pos, const int square) {
@@ -422,28 +414,6 @@ bool BoardHasNonPawns(const Position* pos, const int side) {
 // Get on what square of the board the king of color c resides
 int KingSQ(const Position* pos, const int c) {
     return GetLsbIndex(pos->GetPieceColorBB(KING, c));
-}
-
-void UpdatePinsAndCheckers(Position* pos, const int side) {
-    const Bitboard them = pos->Occupancy(side ^ 1);
-    const int kingSquare = KingSQ(pos, side);
-    const Bitboard pawnCheckers = pos->GetPieceColorBB(PAWN, side ^ 1) & pawn_attacks[side][kingSquare];
-    const Bitboard knightCheckers = pos->GetPieceColorBB(KNIGHT, side ^ 1) & knight_attacks[kingSquare];
-    const Bitboard bishopsQueens = pos->GetPieceColorBB(BISHOP, side ^ 1) | pos->GetPieceColorBB(QUEEN, side ^ 1);
-    const Bitboard rooksQueens = pos->GetPieceColorBB(ROOK, side ^ 1) | pos->GetPieceColorBB(QUEEN, side ^ 1);
-    Bitboard sliderAttacks = (bishopsQueens & GetBishopAttacks(kingSquare, them)) | (rooksQueens & GetRookAttacks(kingSquare, them));
-    pos->state.pinned = 0ULL;
-    pos->state.checkers = pawnCheckers | knightCheckers;
-
-    while (sliderAttacks) {
-        const int sq = popLsb(sliderAttacks);
-        const Bitboard blockers = (RayBetween(kingSquare, sq) | (1ULL << sq)) & pos->Occupancy(side);
-        const int numBlockers = CountBits(blockers);
-        if (!numBlockers)
-            pos->state.checkers |= 1ULL << sq;
-        else if (numBlockers == 1)
-            pos->state.pinned |= blockers;
-    }
 }
 
 Bitboard RayBetween(int square1, int square2) {

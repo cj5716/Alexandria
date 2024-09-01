@@ -312,10 +312,13 @@ void MakeMove(const Move move, Position* pos) {
 
     // change side
     pos->ChangeSide();
+
     // Xor the new side into the key
     HashKey(pos->posKey, SideKey);
-    // Update pinmasks and checkers
-    UpdatePinsAndCheckers(pos, pos->side);
+
+    // Update masks (pins, checkers, threats etc.)
+    UpdateMasks(pos, pos->side);
+
     // If we are in check get the squares between the checking piece and the king
     if (pos->getCheckers()) {
         const int kingSquare = KingSQ(pos, pos->side);
@@ -335,9 +338,6 @@ void MakeMove(const Move move, Position* pos) {
             }
         }
     }
-
-    // Update opponent threats
-    pos->state.oppThreats = getThreats(pos, pos->side ^ 1);
 
     // Make sure a freshly generated zobrist key matches the one we are incrementally updating
     assert(pos->posKey == GeneratePosKey(pos));
@@ -438,11 +438,8 @@ void MakeNullMove(Position* pos) {
     pos->state.fiftyMove++;
     pos->state.plyFromNull = 0;
 
-    // Update pinmasks and checkers
-    UpdatePinsAndCheckers(pos, pos->side);
-
-    // Update opponent threats
-    pos->state.oppThreats = getThreats(pos, pos->side ^ 1);
+    // Update masks (pins, checkers, threats etc.)
+    UpdateMasks(pos, pos->side);
 }
 
 // Take back a null move
