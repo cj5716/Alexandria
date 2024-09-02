@@ -128,6 +128,10 @@ TUNE_PARAM(seDePvCoeff, 300, 0, 450, 30.0, 0.002)
 TUNE_PARAM(seTeBase, 350, 100, 350, 10.0, 0.002)
 TUNE_PARAM(seTePvCoeff, 600, 0, 600, 40.0, 0.002)
 
+TUNE_PARAM(ldSeMinQuality, 1, 1, 3, 0.5, 0.002)
+TUNE_PARAM(ldSeEvalMargin, 150, 50, 150, 10.0, 0.002)
+TUNE_PARAM(ldSeScoreMargin, 150, 50, 150, 10.0, 0.002)
+
 TUNE_PARAM(quietLmrBase, 1690, 0, 2535, 128.0, 0.002)
 TUNE_PARAM(quietLmrMult, 366, 244, 549, 32.0, 0.002)
 

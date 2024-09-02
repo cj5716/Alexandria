@@ -552,37 +552,55 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
 
         int extension = 0;
 
-        // Singular extensions. If the TT bound suggests that the TT move is likely to fail high, and the TT entry
-        // is of a certain quality, we do a search at reduced margins and depth, whilst excluding the TT move.
-        // If this this excluded search fails low, then we know there are no moves which maintain 
-        // the score close to the TT score, and so we extend the search of the TT move (search it at a higher depth).
-        if (    ss->ply < 3 * td->RootDepth
-            &&  move == ttMove
-            && !rootNode
-            && !excludedMove
-            &&  depth >= seDepth()
-            && (ttBound == HFEXACT || ttBound == HFLOWER)
-            &&  abs(ttScore) < MATE_FOUND
-            &&  ttDepth >= depth - seMinQuality()
-            &&  ttDepth * 2 >= depth) {
-            const int singularAlpha = std::max(ttScore - depth * seMarginMult() / 16, -MATE_FOUND);
-            const int singularBeta  = singularAlpha + 1;
-            const int singularDepth = std::max((depth - 1) / 2, 1);
+        // We do not perform extensions if we are too far from root
+        if (ss->ply < 3 * td->RootDepth) {
 
-            const int singularScore = Negamax<false>(singularAlpha, singularBeta, singularDepth, predictedCutNode, td, ss, ttMove);
-            if (singularScore <= singularAlpha) {
-                // If we fail low by a lot, we extend the search by more than one ply
-                // (TT move is very singular; there are no close alternatives)
-                const int doubleExtMargin = seDeBase() + seDePvCoeff() * pvNode;
-                const int tripleExtMargin = seTeBase() + seTePvCoeff() * pvNode;
-                extension = 1
-                          + (singularScore + doubleExtMargin <= singularAlpha)
-                          + (singularScore + tripleExtMargin <= singularAlpha);
+            // Singular extensions. If the TT bound suggests that the TT move is likely to fail high, and the TT entry
+            // is of a certain quality, we do a search at reduced margins and depth, whilst excluding the TT move.
+            // If this this excluded search fails low, then we know there are no moves which maintain 
+            // the score close to the TT score, and so we extend the search of the TT move (search it at a higher depth).
+            if (    move == ttMove
+                && !rootNode
+                && !excludedMove
+                &&  depth >= seDepth()
+                && (ttBound == HFEXACT || ttBound == HFLOWER)
+                &&  abs(ttScore) < MATE_FOUND
+                &&  ttDepth >= depth - seMinQuality()
+                &&  ttDepth * 2 >= depth) {
+                const int singularAlpha = std::max(ttScore - depth * seMarginMult() / 16, -MATE_FOUND);
+                const int singularBeta  = singularAlpha + 1;
+                const int singularDepth = std::max((depth - 1) / 2, 1);
+
+                const int singularScore = Negamax<false>(singularAlpha, singularBeta, singularDepth, predictedCutNode, td, ss, ttMove);
+                if (singularScore <= singularAlpha) {
+                    // If we fail low by a lot, we extend the search by more than one ply
+                    // (TT move is very singular; there are no close alternatives)
+                    const int doubleExtMargin = seDeBase() + seDePvCoeff() * pvNode;
+                    const int tripleExtMargin = seTeBase() + seTePvCoeff() * pvNode;
+                    extension = 1
+                              + (singularScore + doubleExtMargin <= singularAlpha)
+                              + (singularScore + tripleExtMargin <= singularAlpha);
+                }
+                // Multicut. If the lower bound of our singular search score is at least beta,
+                // assume both it and the TT move fails high, and return a cutoff early.
+                else if (singularScore >= beta) {
+                    return singularScore;
+                }
             }
-            // Multicut. If the lower bound of our singular search score is at least beta,
-            // assume both it and the TT move fails high, and return a cutoff early.
-            else if (singularScore >= beta) {
-                return singularScore;
+
+            // At lower depths, if the TT entry is of a certain quality and is lower bound,
+            // we extend if the TT move is very promising.
+            else if (    move == ttMove
+                     && !rootNode
+                     && !excludedMove
+                     &&  depth < seDepth()
+                     && (ttBound == HFEXACT || ttBound == HFLOWER)
+                     &&  abs(ttScore) < MATE_FOUND
+                     &&  ttDepth >= depth - ldSeMinQuality()
+                     &&  ttDepth * 2 >= depth
+                     &&  ss->staticEval + ldSeEvalMargin() <= alpha
+                     &&  ttScore >= beta + ldSeScoreMargin()) {
+                extension = 1;
             }
         }
 
