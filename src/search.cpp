@@ -596,11 +596,11 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
                      &&  depth < seDepth()
                      && (ttBound == HFEXACT || ttBound == HFLOWER)
                      &&  abs(ttScore) < MATE_FOUND
-                     &&  ttDepth >= depth - ldSeMinQuality()
-                     &&  ttDepth * 2 >= depth
-                     &&  ss->staticEval + ldSeEvalMargin() <= alpha
-                     &&  ttScore >= beta + ldSeScoreMargin()) {
-                extension = 1;
+                     &&  ttDepth * 2 >= depth) {
+                const int ldSeMargin = ldSeBase() + ldSeMult() * depth;
+                if (   ss->staticEval <= alpha
+                    && ttScore >= beta + ldSeMargin)
+                    extension = 1;
             }
         }
 
