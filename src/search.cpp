@@ -461,7 +461,10 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
 
     const int improvement = ss->staticEval - prevEval;
     const bool improving = improvement > 0;
-    const bool canIIR = depth >= iirMinDepth() && ttBound == HFNONE;
+    bool canIIR = false;
+
+    canIIR |= predictedCutNode && depth >= iirCutNodeMinDepth() && ttMove == NOMOVE;
+    canIIR |= pvNode && depth >= iirPvNodeMinDepth() && ttMove == NOMOVE;
 
     if (   !pvNode
         && !excludedMove
