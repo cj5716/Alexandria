@@ -75,11 +75,11 @@ int16_t CorrectionHistoryTable::adjust(const Position *pos, const int eval) cons
 }
 
 // Use this function to update all quiet histories
-void UpdateAllHistories(const Position *pos, const SearchStack *ss, SearchData *sd, const int depth, const Move bestMove,
+void UpdateAllHistories(const Position *pos, const SearchStack *ss, SearchData *sd, const Move bestMove,
                         const SearchedMoveList &quietMoves, const SearchedMoveList &tacticalMoves, const int eval, const int alpha, const int beta) {
 
     auto getBonus = [&](const SearchedMove move) {
-        int bonusDepth = depth;
+        int bonusDepth = move.highestSearchedDepth;
 
         // Increase bonus if our eval suggested we were failing low (result was against expectations)
         if (eval <= alpha) bonusDepth += 1;
@@ -98,7 +98,7 @@ void UpdateAllHistories(const Position *pos, const SearchStack *ss, SearchData *
     };
 
     auto getMalus = [&](const SearchedMove move) {
-        int malusDepth = depth;
+        int malusDepth = move.highestSearchedDepth;
 
         // Decrease malus if our eval suggested we were failing low (result was expected outcome for this move)
         if (eval <= alpha) malusDepth -= 1;

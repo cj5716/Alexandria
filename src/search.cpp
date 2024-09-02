@@ -594,6 +594,7 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
 
         // we adjust the search depth based on potential extensions
         int newDepth = depth - 1 + extension;
+        int highestSearchedDepth = 0;
         bool didLMR = false, didZWS = false, didPVS = false;
 
         // Speculative prefetch of the TT entry
@@ -636,6 +637,7 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
             // Carry out the reduced depth, zero window search
             score = -Negamax<false>(-alpha - 1, -alpha, reducedDepth, true, td, ss + 1);
             didLMR = true;
+            highestSearchedDepth = std::max(highestSearchedDepth, reducedDepth);
 
             // If the reduced depth search fails high, do a full depth search (but still on zero window).
             if (score > alpha && newDepth > reducedDepth) {
@@ -646,6 +648,7 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
                 if (newDepth > reducedDepth) {
                     score = -Negamax<false>(-alpha - 1, -alpha, newDepth, !predictedCutNode, td, ss + 1);
                     didZWS = true;
+                    highestSearchedDepth = std::max(highestSearchedDepth, newDepth);
                 }
             }
         }
@@ -657,6 +660,7 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
         else if (!pvNode || totalMoves > 1) {
             score = -Negamax<false>(-alpha - 1, -alpha, newDepth, !predictedCutNode, td, ss + 1);
             didZWS = true;
+            highestSearchedDepth = std::max(highestSearchedDepth, newDepth);
         }
 
         // If this is our first move, we search with a full window.
@@ -664,10 +668,11 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
         if (pvNode && (totalMoves == 1 || score > alpha)) {
             score = -Negamax<true>(-beta, -alpha, newDepth, false, td, ss + 1);
             didPVS = true;
+            highestSearchedDepth = std::max(highestSearchedDepth, newDepth);
         }
 
         // Add the move to the corresponding list, along with the data on its search
-        SearchedMove moveData(move, didLMR, didZWS, didPVS);
+        SearchedMove moveData(move, didLMR, didZWS, didPVS, highestSearchedDepth);
         if (isQuiet) quietMoves.add(moveData);
         else tacticalMoves.add(moveData);
 
@@ -701,7 +706,7 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
 
                 // node (move) fails high
                 if (score >= beta) {
-                    UpdateAllHistories(pos, ss, sd, depth, move, quietMoves, tacticalMoves, eval, alpha, beta);
+                    UpdateAllHistories(pos, ss, sd, move, quietMoves, tacticalMoves, eval, alpha, beta);
                     break;
                 }
                 // Update alpha iff alpha < beta

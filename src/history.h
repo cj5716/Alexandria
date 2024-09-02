@@ -16,13 +16,15 @@ struct SearchedMove {
     bool didLMR;
     bool didZWS;
     bool didPVS;
+    int highestSearchedDepth;
     SearchedMove() {};
 
-    SearchedMove(Move m, bool dLMR, bool dZWS, bool dPVS) {
+    SearchedMove(Move m, bool dLMR, bool dZWS, bool dPVS, int hsd) {
         move = m;
         didLMR = dLMR;
         didZWS = dZWS;
         didPVS = dPVS;
+        highestSearchedDepth = hsd;
     };
 };
 
@@ -175,7 +177,7 @@ struct CorrectionHistoryTable {
 };
 
 // Update all histories after a beta cutoff
-void UpdateAllHistories(const Position *pos, const SearchStack *ss, SearchData *sd, const int depth, const Move bestMove,
+void UpdateAllHistories(const Position *pos, const SearchStack *ss, SearchData *sd, const Move bestMove,
                         const SearchedMoveList &quietMoves, const SearchedMoveList &tacticalMoves, const int eval, const int alpha, const int beta);
 
 // Get history score for a given move
