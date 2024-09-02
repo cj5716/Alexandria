@@ -349,13 +349,13 @@ void UpdateMasks(Position* pos, const int side) {
         // Attacks king, add this piece to checkers bitboard
         if (attacked & ourKingBB) pos->state.checkers |= 1ULL << source_square;
 
-        // If the attack will intercept our king on an empty board and there is exactly 1 friendly piece in between,
-        // add that piece to our pinned pieces bitboard
+        // If the attack will intercept our king on an empty board and there is exactly 1 piece in between,
+        // and that piece is friendly, add it to our pinned pieces bitboard
         else if (   get_diagonal[source_square] == get_diagonal[ourKingSq]
                  || get_antidiagonal(source_square) == get_antidiagonal(ourKingSq)) {
 
-            const Bitboard blockers = RayBetween(source_square, ourKingSq) & pos->Occupancy(side);
-            if (CountBits(blockers) == 1) pos->state.pinned |= blockers;
+            const Bitboard blockers = RayBetween(source_square, ourKingSq) & occ;
+            if (CountBits(blockers) == 1 && (blockers & pos->Occupancy(side))) pos->state.pinned |= blockers;
         }
     }
 
@@ -374,8 +374,8 @@ void UpdateMasks(Position* pos, const int side) {
         else if (   get_rank[source_square] == get_rank[ourKingSq]
                  || get_file[source_square] == get_file[ourKingSq]) {
 
-            const Bitboard blockers = RayBetween(source_square, ourKingSq) & pos->Occupancy(side);
-            if (CountBits(blockers) == 1) pos->state.pinned |= blockers;
+            const Bitboard blockers = RayBetween(source_square, ourKingSq) & occ;
+            if (CountBits(blockers) == 1 && (blockers & pos->Occupancy(side))) pos->state.pinned |= blockers;
         }
     }
 
