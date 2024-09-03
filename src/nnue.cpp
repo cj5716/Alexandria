@@ -183,56 +183,6 @@ bool NNUE::efficientlyUpdatePov(NNUE::Accumulator *acc, Position *pos, const int
 
 }
 
-void NNUE::Pov_Accumulator::applyUpdate(NNUE::Pov_Accumulator& previousPovAccumulator) {
-
-    assert(previousPovAccumulator.isClean());
-
-    // return early if we already updated this accumulator (aka it's "clean"), we can use pending adds to check if it has pending changes (any change will result in at least one add)
-    if (this->isClean())
-        return;
-
-    // figure out what update we need to apply and do that
-    int adds = NNUEAdd.size();
-    int subs =  NNUESub.size();
-
-    // Quiets
-    if (adds == 1 && subs == 1) {
-        this->addSub( previousPovAccumulator, this->NNUEAdd[0], this->NNUESub[0]);
-    }
-    // Captures
-    else if (adds == 1 && subs == 2) {
-        this->addSubSub(previousPovAccumulator, this->NNUEAdd[0], this->NNUESub[0],this->NNUESub[1]);
-    }
-    // Castling
-    else {
-        this->addSub( previousPovAccumulator, this->NNUEAdd[0], this->NNUESub[0]);
-        this->addSub(*this, this->NNUEAdd[1], this->NNUESub[1]);
-        // Note that for second addSub, we put acc instead of acc - 1 because we are updating on top of
-        // the half-updated accumulator
-    }
-
-    // Reset the add and sub vectors for this accumulator, this will make it "clean" for future updates
-    this->NNUEAdd.clear();
-    this->NNUESub.clear();
-}
-
-void NNUE::Pov_Accumulator::addSub(NNUE::Pov_Accumulator &prev_acc, std::size_t add, std::size_t sub) {
-    const auto Add = &net.FTWeights[add * L1_SIZE];
-    const auto Sub = &net.FTWeights[sub * L1_SIZE];
-    for (int i = 0; i < L1_SIZE; i++) {
-        this->values[i] = prev_acc.values[i] - Sub[i] + Add[i];
-    }
-}
-
-void NNUE::Pov_Accumulator::addSubSub(NNUE::Pov_Accumulator &prev_acc, std::size_t add, std::size_t sub1, std::size_t sub2) {
-    const auto Add = &net.FTWeights[add * L1_SIZE];
-    const auto Sub1 = &net.FTWeights[sub1 * L1_SIZE];
-    const auto Sub2 = &net.FTWeights[sub2 * L1_SIZE];
-    for (int i = 0; i < L1_SIZE; i++) {
-        this->values[i] =  prev_acc.values[i] - Sub1[i] - Sub2[i] + Add[i];
-    }
-}
-
 void NNUE::Pov_Accumulator::accumulate(Position *pos) {
     for (int i = 0; i < L1_SIZE; i++) {
        values[i] = net.FTBiases[i];
