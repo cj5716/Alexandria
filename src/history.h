@@ -27,6 +27,14 @@ struct SearchedMove {
         move = m;
         scalingFactor = scale;
     };
+
+    int bonusScale() const{
+        return static_cast<int>(scalingFactor);
+    }
+
+    int malusScale() const{
+        return scalingFactor == didPVS ? 3 : scalingFactor == didZWS ? 2 : 1;
+    }
 };
 
 struct SearchedMoveList {
