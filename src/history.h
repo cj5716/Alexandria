@@ -11,7 +11,7 @@ struct SearchData;
 struct SearchStack;
 struct MoveList;
 
-enum ScalingFactor{
+enum ScalingFactor {
      None,
      didPVS,
      didZWS,
@@ -28,12 +28,12 @@ struct SearchedMove {
         scalingFactor = scale;
     };
 
-    int bonusScale() const{
+    [[nodiscard]] int bonusScale() const {
         return static_cast<int>(scalingFactor);
     }
 
-    int malusScale() const{
-        return scalingFactor == didPVS ? 3 : scalingFactor == didZWS ? 2 : 1;
+    [[nodiscard]] int malusScale() const {
+        return 4 - static_cast<int>(scalingFactor);
     }
 };
 
