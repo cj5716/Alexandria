@@ -13,8 +13,8 @@ struct MoveList;
 
 enum ScalingFactor{
      None,
-    didPVS,
-    didZWS,
+     didPVS,
+     didZWS,
      didLMR,
 };
 
