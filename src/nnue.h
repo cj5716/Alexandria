@@ -39,7 +39,7 @@ constexpr int L2_CHUNK_SIZE = sizeof(vps32 ) / sizeof(float);
 constexpr int L3_CHUNK_SIZE = sizeof(vps32 ) / sizeof(float);
 constexpr int L1_CHUNK_PER_32 = sizeof(int32_t) / sizeof(int8_t);
 #else
-constexpr int L1_CHUNK_PER_32 = 1;
+constexpr int L1_CHUNK_PER_32 = sizeof(int32_t) / sizeof(int8_t);
 #endif
 
 using NNUEIndices = std::array<std::size_t, 2>;
