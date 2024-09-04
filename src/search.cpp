@@ -537,7 +537,7 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
 
             // Late Move Pruning. If we have searched many moves, but no beta cutoff has occurred,
             // assume that there are no better quiet moves and skip the rest.
-            if (totalMoves >= lmpMargins[improving][std::min(lmrDepth, 63)])
+            if (totalMoves >= lmpMargins[improving][std::min(depth, 63)])
                 skipQuiets = true;
 
             // Futility Pruning. At low depths, if the eval is far below alpha,
@@ -549,7 +549,7 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
             // SEE Pruning. At low depths, if the SEE (Static Exchange Evaluation) of the move
             // is extremely low, skip considering it in our search.
             if (    depth <= seePruneDepth()
-                && !SEE(pos, move, seeMargins[isQuiet][std::min(depth, 63)]))
+                && !SEE(pos, move, seeMargins[isQuiet][std::min(lmrDepth, 63)]))
                 continue;
         }
 
