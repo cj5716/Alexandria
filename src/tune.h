@@ -114,6 +114,9 @@ TUNE_PARAM(fpNonImpMarginLinear, 13, 0, 26, 2.0, 0.002)
 TUNE_PARAM(fpNonImpMarginConst, 27, 0, 54, 10.0, 0.002)
 TUNE_PARAM(fpDepth, 10, 5, 15, 0.5, 0.002)
 
+TUNE_PARAM(histPruneDepth, 3, 3, 10, 0.5, 0.002)
+TUNE_PARAM(histPruneCoeff, 16384, 8192, 22528, 500.0, 0.002)
+
 TUNE_PARAM(seePruneDepth, 8, 5, 15, 0.5, 0.002)
 TUNE_PARAM(tacticalSeeCoeff, 3000, 1000, 8000, 350.0, 0.002)
 TUNE_PARAM(tacticalSeePower, 200, 50, 400, 15.0, 0.002)
