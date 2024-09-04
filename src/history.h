@@ -11,30 +11,19 @@ struct SearchData;
 struct SearchStack;
 struct MoveList;
 
-enum ScalingFactor {
-     None,
-     didPVS,
-     didZWS,
-     didLMR,
-};
-
 struct SearchedMove {
     Move move;
-    ScalingFactor scalingFactor;
+    bool didLMR;
+    bool didZWS;
+    bool didPVS;
     SearchedMove() {};
 
-    SearchedMove(Move m, ScalingFactor scale) {
+    SearchedMove(Move m, bool dLMR, bool dZWS, bool dPVS) {
         move = m;
-        scalingFactor = scale;
+        didLMR = dLMR;
+        didZWS = dZWS;
+        didPVS = dPVS;
     };
-
-    [[nodiscard]] int bonusScale() const {
-        return static_cast<int>(scalingFactor);
-    }
-
-    [[nodiscard]] int malusScale() const {
-        return 4 - static_cast<int>(scalingFactor);
-    }
 };
 
 struct SearchedMoveList {

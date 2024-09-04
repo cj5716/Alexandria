@@ -87,10 +87,12 @@ void UpdateAllHistories(const Position *pos, const SearchStack *ss, SearchData *
         // Decrease bonus if our eval suggested we were failing high (result was expected outcome)
         if (eval >= beta) bonusDepth -= 1;
 
-        // If a full window search was performed, give an x1 multiplier.
-        // Then, if a full depth zero-window search was performed, give an x2 multiplier.
-        // In the base case, give an x3 multiplier.
-        const int bonusMultiplier = move.bonusScale();
+        // If this best move had to go through LMR, give a x3 multiplier.
+        // If this move skipped LMR but had to do a ZWS (not thought as best during ordering), give a x2 multiplier.
+        // Otherwise, if the move only went thorugh PVS, it was already thought as best and so give a x1 multiplier.
+        const int bonusMultiplier = move.didLMR ? 3
+                                  : move.didZWS ? 2
+                                                : 1;
 
         return HistoryBonus(bonusDepth) * bonusMultiplier;
     };
@@ -104,10 +106,12 @@ void UpdateAllHistories(const Position *pos, const SearchStack *ss, SearchData *
         // Increase malus if our eval suggested we were failing high (result was against expectations for this move)
         if (eval >= beta) malusDepth += 1;
 
-        // If a full window search was performed, give an x3 multiplier.
+        // If a full window search was performed on this non-best move, give an x3 multiplier.
         // Then, if a full depth zero-window search was performed, give an x2 multiplier.
-        // In the base case, give an x1 multiplier.
-        const int malusMultiplier = move.malusScale();
+        // If we failed in the LMR search, give an x1 multiplier as it is the most expected outcome.
+        const int malusMultiplier = move.didPVS ? 3
+                                  : move.didZWS ? 2
+                                                : 1;
 
         return -HistoryBonus(malusDepth) * malusMultiplier;
     };
