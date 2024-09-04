@@ -152,6 +152,10 @@ void InitReductions() {
         lmpMargins[0][depth] = (double(lmpNonImpMarginConst()) + double(lmpNonImpMarginMult()) * std::pow(depth, double(lmpNonImpMarginPower()) / 100.0)) / 100.0;
         lmpMargins[1][depth] = (double(lmpImpMarginConst()   ) + double(lmpImpMarginMult()   ) * std::pow(depth, double(lmpImpMarginPower()   ) / 100.0)) / 100.0;
 
+        // History Pruning Margins
+        histMargins[0][depth] = histPruneNonImpQuadratic() * depth * depth + histPruneNonImpLinear() * depth + histPruneNonImpConst();
+        histMargins[1][depth] = histPruneImpQuadratic()    * depth * depth + histPruneImpLinear()    * depth + histPruneImpConst();
+
         // LMR Reductions
         for (int moves = 0; moves < 64; ++moves) {
             // Manually set reduction to 0 if depth or moves is 0 as log(0) is NaN

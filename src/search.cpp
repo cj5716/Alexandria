@@ -553,7 +553,7 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
             // as it suggests that the move is unlikely to cause a score improvement.
             if (   depth <= histPruneDepth()
                 && isQuiet
-                && moveHistory < -histPruneCoeff() * depth) {
+                && moveHistory < -histMargins[improving][std::min(depth, 63)]) {
                 skipQuiets = true;
                 continue;
             }
