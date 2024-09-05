@@ -482,7 +482,7 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
         // it means our position is so good we don't even need to make a move. Thus, we return a fail high score.
         if (   depth > nmpDepth()
             && eval >= beta
-            && (ss - 1)->move != NOMOVE
+            && sd->allowNMP
             && BoardHasNonPawns(pos, pos->side)) {
 
             const int R = (nmpRedConst() + nmpRedDepthCoeff() * depth + nmpRedIirCoeff() * canIIR) / 1024
@@ -490,8 +490,12 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
 
             ss->move = NOMOVE;
             MakeNullMove(pos);
+            sd->allowNMP = false;
+
             const int nmpScore = -Negamax<false>(-beta, -beta + 1, depth - R, !predictedCutNode, td, ss + 1);
+
             TakeNullMove(pos);
+            sd->allowNMP = true;
 
             // Don't return unproven mates from null move search
             if (nmpScore >= beta)

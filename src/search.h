@@ -23,6 +23,7 @@ struct SearchData {
     TacticalHistoryTable     tacticalHistory;
     ContinuationHistoryTable continuationHistory;
     CorrectionHistoryTable   correctionHistory;
+    bool allowNMP = true;
 };
 
 struct PvTable {
