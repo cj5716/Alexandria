@@ -164,7 +164,7 @@ void InitReductions() {
             lmrReductions[1][moves][depth] = double(quietLmrBase()) + double(quietLmrMult()) * std::log(depth) * std::log(moves); // Quiet LMR
         }
 
-        // Pruning Reductions
+        // Pruning Reductions (used for forward pruning)
         for (int moves = 0; moves < 64; ++moves) {
             // Manually set reduction to 0 if depth or moves is 0 as log(0) is NaN
             if (depth == 0 || moves == 0) {
@@ -172,8 +172,8 @@ void InitReductions() {
                 pruningReductions[1][moves][depth] = 0;
                 continue;
             }
-            pruningReductions[0][moves][depth] = double(tacticalPruningBase()) + double(tacticalPruningMult()) * std::log(depth) * std::log(moves); // Tactical LMR
-            pruningReductions[1][moves][depth] = double(quietPruningBase()) + double(quietPruningMult()) * std::log(depth) * std::log(moves); // Quiet LMR
+            pruningReductions[0][moves][depth] = double(tacticalPruningBase()) + double(tacticalPruningMult()) * std::log(depth) * std::log(moves); // tactical moves forward pruning
+            pruningReductions[1][moves][depth] = double(quietPruningBase()) + double(quietPruningMult()) * std::log(depth) * std::log(moves); // quiet moves forward pruning
         }
 
     }
