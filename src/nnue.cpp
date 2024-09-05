@@ -109,8 +109,7 @@ bool NNUE::efficientlyUpdatePov(NNUE::Accumulator *acc, Position *pos, const int
     int accumulatorsToUpdate = 0;
 
     // Loop backwards until we find a clean accumulator or need to refresh
-    // If we reach the root, we have to refresh (there is nothing below to update against)
-    while (cleanAcc != &pos->accumStack[0]) {
+    while (true) {
         // We need to refresh, so we cannot preform UE
         if (cleanAcc->perspective[pov].needsRefresh) return false;
 
@@ -121,60 +120,95 @@ bool NNUE::efficientlyUpdatePov(NNUE::Accumulator *acc, Position *pos, const int
         // We found a clean accumulator, so we can update from there
         if (cleanAcc->perspective[pov].isClean()) break;
 
+        // The root of the accumulator stack is not clean, so we are forced to refresh
+        if (cleanAcc == &pos->accumStack[0]) return false;
+
         // We need to update this accumulator as well, so increment the counter
         accumulatorsToUpdate++;
     }
 
     #if defined(USE_SIMD)
-    constexpr int NUM_REGS = sizeof(vepi16) / sizeof(int16_t) * 16; // Equivalent to 16 vepi16s
-    #else
-    constexpr int NUM_REGS = 128; // Arbitrary number; assume 128-bit vectors
-    #endif
+    // Use tiling if we are using SIMD
+    constexpr int NUM_REGS = 16;
+    vepi16 registers[NUM_REGS];
 
-    int16_t registers[NUM_REGS];
+    for (int offset = 0; offset < L1_SIZE; offset += NUM_REGS * sizeof(vepi16) / sizeof(int16_t)) {
 
-    for (int offset = 0; offset < L1_SIZE; offset += NUM_REGS) {
         // Load the clean accumulator into the registers
+        const vepi16 *clean = reinterpret_cast<const vepi16*>(cleanAcc->perspective[pov].values.data() + offset);
         for (int i = 0; i < NUM_REGS; ++i)
-            registers[i] = cleanAcc->perspective[pov].values[offset + i];
+            registers[i] = vec_loadu_epi(&clean[i]);
 
         // Loop through the unclean accumulators
         for (int i = accumulatorsToUpdate; i >= 0; --i) {
 
             NNUE::Pov_Accumulator &currPovAccum = (acc - i)->perspective[pov];
+
             assert(!currPovAccum.isClean());
             auto adds = currPovAccum.NNUEAdd;
             auto subs = currPovAccum.NNUESub;
 
             // Assume a quiet move first, with 1 add and 1 sub
-            const int16_t *addSlice0 = &net.FTWeights[offset + adds[0] * L1_SIZE];
-            const int16_t *subSlice0 = &net.FTWeights[offset + subs[0] * L1_SIZE];
+            const vepi16 *addSlice0 = reinterpret_cast<const vepi16*>(&net.FTWeights[offset + adds[0] * L1_SIZE]);
+            const vepi16 *subSlice0 = reinterpret_cast<const vepi16*>(&net.FTWeights[offset + subs[0] * L1_SIZE]);
             for (int k = 0; k < NUM_REGS; ++k)
-                registers[k] += addSlice0[k] - subSlice0[k];
+                registers[k] = vec_sub_epi16(vec_add_epi16(registers[k], addSlice0[k]), subSlice0[k]);
 
             // 2 adds mean castling as we cannot move 2 pieces in a move otherwise
             if (adds.size() == 2) {
-                const int16_t *addSlice1 = &net.FTWeights[offset + adds[1] * L1_SIZE];
+                const vepi16 *addSlice1 = reinterpret_cast<const vepi16*>(&net.FTWeights[offset + adds[1] * L1_SIZE]);
                 for (int k = 0; k < NUM_REGS; ++k)
-                    registers[k] += addSlice1[k];
+                    registers[k] = vec_add_epi16(registers[k], addSlice1[k]);
             }
 
             // 2 subs means castling or capture
             if (subs.size() == 2) {
-                const int16_t *subSlice1 = &net.FTWeights[offset + subs[1] * L1_SIZE];
+                const vepi16 *subSlice1 = reinterpret_cast<const vepi16*>(&net.FTWeights[offset + subs[1] * L1_SIZE]);
                 for (int k = 0; k < NUM_REGS; ++k)
-                    registers[k] -= subSlice1[k];
+                    registers[k] = vec_sub_epi16(registers[k], subSlice1[k]);
             }
 
             // Store the values from the registers into the accumulators
-            int16_t *accumSlice = &currPovAccum.values[offset];
+            vepi16 *accumSlice = reinterpret_cast<vepi16*>(currPovAccum.values.data() + offset);
             for (int k = 0; k < NUM_REGS; ++k)
                 accumSlice[k] = registers[k];
         }
     }
+    #endif
 
     for (int i = accumulatorsToUpdate; i >= 0; --i) {
-        NNUE::Pov_Accumulator &currPovAccum = (acc - i)->perspective[pov];
+        NNUE::Pov_Accumulator &currPovAccum = (acc - i - 0)->perspective[pov];
+
+        // Update the accumulators now if we are not using SIMD
+        #if !defined(USE_SIMD)
+        NNUE::Pov_Accumulator &prevPovAccum = (acc - i - 1)->perspective[pov];
+
+        assert(!currPovAccum.isClean());
+        auto adds = currPovAccum.NNUEAdd;
+        auto subs = currPovAccum.NNUESub;
+        const int16_t *addSlice0 = &net.FTWeights[adds[0] * L1_SIZE];
+        const int16_t *subSlice0 = &net.FTWeights[subs[0] * L1_SIZE];
+        // Quiet moves, only 1 add and 1 sub
+        if (adds.size() == 1 && subs.size() == 1) {
+            for (int k = 0; k < L1_SIZE; ++k)
+                currPovAccum.values[k] = prevPovAccum.values[k] + addSlice0[k] - subSlice0[k];
+        }
+        // Captures with 1 add and 2 subs
+        else if (adds.size() == 1 && subs.size() == 2) {
+            const int16_t *subSlice1 = &net.FTWeights[subs[1] * L1_SIZE];
+            for (int k = 0; k < L1_SIZE; ++k)
+                currPovAccum.values[k] = prevPovAccum.values[k] + addSlice0[k] - subSlice0[k] - subSlice1[k];
+        }
+        // Castling, 2 adds and 2 subs
+        else {
+            const int16_t *addSlice1 = &net.FTWeights[adds[1] * L1_SIZE];
+            const int16_t *subSlice1 = &net.FTWeights[subs[1] * L1_SIZE];
+            for (int k = 0; k < L1_SIZE; ++k)
+                currPovAccum.values[k] = prevPovAccum.values[k] + addSlice0[k] + addSlice1[k] - subSlice0[k] - subSlice1[k];
+        }
+        #endif
+
+        // Clear the add and sub vectors for the accumulator to make it clean for future updates
         currPovAccum.NNUEAdd.clear();
         currPovAccum.NNUESub.clear();
     }
