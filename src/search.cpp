@@ -623,11 +623,11 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
             // Reduce less if the move gave check
             if (pos->getCheckers()) depthReductionGranular -= givesCheckReduction();
 
-            // Reduce less if we are improving
-            if (improving) depthReductionGranular -= improvingReduction();
-
             // Reduce more if we are predicted to fail high (i.e. we stem from an LMR search earlier in the tree)
             if (predictedCutNode) depthReductionGranular += predictedCutNodeReduction();
+
+            // Use improvement to adjust LMR reduction (reduce less if improved, reduce more if did not improve)
+            depthReductionGranular -= improvementReductionScale() * improvement / (std::abs(improvement) + improvementReductionStretch());
 
             // Use move history to adjust LMR reduction (reduce less if good history, more if bad history)
             depthReductionGranular -= moveHistory * histReductionMul() / 64;
