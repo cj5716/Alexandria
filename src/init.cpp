@@ -172,8 +172,8 @@ void InitReductions() {
                 pruningReductions[1][moves][depth] = 0;
                 continue;
             }
-            pruningReductions[0][moves][depth] = double(tacticalPruningBase()) + double(tacticalPruningMult()) * std::log(depth) * std::log(moves); // tactical moves forward pruning
-            pruningReductions[1][moves][depth] = double(quietPruningBase()) + double(quietPruningMult()) * std::log(depth) * std::log(moves); // quiet moves forward pruning
+            pruningReductions[0][moves][depth] = double(tacticalPruningBase()) + double(tacticalPruningMult()) * std::log(depth) * std::log(moves); // Tactical moves forward pruning
+            pruningReductions[1][moves][depth] = double(quietPruningBase()) + double(quietPruningMult()) * std::log(depth) * std::log(moves); // Quiet moves forward pruning
         }
 
     }
