@@ -151,27 +151,42 @@ bool NNUE::efficientlyUpdatePov(NNUE::Accumulator *acc, Position *pos, const int
             // Assume a quiet move first, with 1 add and 1 sub
             const vepi16 *addSlice0 = reinterpret_cast<const vepi16*>(&net.FTWeights[offset + adds[0] * L1_SIZE]);
             const vepi16 *subSlice0 = reinterpret_cast<const vepi16*>(&net.FTWeights[offset + subs[0] * L1_SIZE]);
-            for (int k = 0; k < NUM_REGS; ++k)
-                registers[k] = vec_sub_epi16(vec_add_epi16(registers[k], addSlice0[k]), subSlice0[k]);
 
-            // 2 adds mean castling as we cannot move 2 pieces in a move otherwise
-            if (adds.size() == 2) {
-                const vepi16 *addSlice1 = reinterpret_cast<const vepi16*>(&net.FTWeights[offset + adds[1] * L1_SIZE]);
-                for (int k = 0; k < NUM_REGS; ++k)
-                    registers[k] = vec_add_epi16(registers[k], addSlice1[k]);
+            // Quiet moves, only 1 add and 1 sub
+            if (adds.size() == 1 && subs.size() == 1) {
+                for (int k = 0; k < NUM_REGS; ++k) {
+                    const vepi16 add1sub0 = vec_add_epi16(registers[k], addSlice0[k]);
+                    const vepi16 add1sub1 = vec_sub_epi16(add1sub0    , subSlice0[k]);
+                    registers[k] = add1sub1;
+                }
             }
-
-            // 2 subs means castling or capture
-            if (subs.size() == 2) {
+            // Captures with 1 add and 2 subs
+            else if (adds.size() == 1 && subs.size() == 2) {
                 const vepi16 *subSlice1 = reinterpret_cast<const vepi16*>(&net.FTWeights[offset + subs[1] * L1_SIZE]);
-                for (int k = 0; k < NUM_REGS; ++k)
-                    registers[k] = vec_sub_epi16(registers[k], subSlice1[k]);
+                for (int k = 0; k < NUM_REGS; ++k) {
+                    const vepi16 add1sub0 = vec_add_epi16(registers[k], addSlice0[k]);
+                    const vepi16 add1sub1 = vec_sub_epi16(add1sub0    , subSlice0[k]);
+                    const vepi16 add1sub2 = vec_sub_epi16(add1sub1    , subSlice1[k]);
+                    registers[k] = add1sub2;
+                }
+            }
+            // Castling, 2 adds and 2 subs
+            else {
+                const vepi16 *addSlice1 = reinterpret_cast<const vepi16*>(&net.FTWeights[offset + adds[1] * L1_SIZE]);
+                const vepi16 *subSlice1 = reinterpret_cast<const vepi16*>(&net.FTWeights[offset + subs[1] * L1_SIZE]);
+                for (int k = 0; k < NUM_REGS; ++k) {
+                    const vepi16 add1sub0 = vec_add_epi16(registers[k], addSlice0[k]);
+                    const vepi16 add2sub0 = vec_add_epi16(add1sub0    , addSlice1[k]);
+                    const vepi16 add2sub1 = vec_sub_epi16(add2sub0    , subSlice0[k]);
+                    const vepi16 add2sub2 = vec_sub_epi16(add2sub1    , subSlice1[k]);
+                    registers[k] = add2sub2;
+                }
             }
 
             // Store the values from the registers into the accumulators
             vepi16 *accumSlice = reinterpret_cast<vepi16*>(currPovAccum.values.data() + offset);
             for (int k = 0; k < NUM_REGS; ++k)
-                accumSlice[k] = registers[k];
+                vec_storeu_epi(&accumSlice[k], registers[k]);
         }
     }
     #endif
