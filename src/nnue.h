@@ -157,7 +157,7 @@ class NNUE {
 public:
     // per pov accumulator
     struct Pov_Accumulator {
-        std::array<int16_t, L1_SIZE> values;
+        int16_t values[L1_SIZE];
         int pov;
         std::vector<std::size_t> NNUEAdd = {};
         std::vector<std::size_t> NNUESub = {};
@@ -211,10 +211,10 @@ public:
     static void init(const char *file);
     static void finish_netup([[maybe_unused]] const char *file);
     static void accumulate(NNUE::Accumulator &board_accumulator, Position* pos);
-    static void update(Accumulator *acc, Position* pos);
-    static void ActivateFT(const int16_t *us, const int16_t *them, uint16_t *nnzIndices, int &nnzCount, uint8_t *output);
-    static void PropagateL1(const uint8_t *inputs, uint16_t *nnzIndices, int nnzCount, const int8_t *weights, const float *biases, float *output);
-    static void PropagateL2(const float *inputs, const float *weights, const float *biases, float *output);
-    static void PropagateL3(const float *inputs, const float *weights, const float bias, float &output);
+    static void update(NNUE::Accumulator *acc, Position* pos);
+    static void ActivateFT(const int16_t us[L1_SIZE], const int16_t them[L1_SIZE], uint16_t nnzIndices[L1_SIZE / L1_CHUNK_PER_32], int &nnzCount, uint8_t output[L1_SIZE]);
+    static void PropagateL1(const uint8_t inputs[L1_SIZE], [[maybe_unused]] uint16_t nnzIndices[L1_SIZE / L1_CHUNK_PER_32], [[maybe_unused]] int nnzCount, const int8_t weights[L1_SIZE * L2_SIZE], const float biases[L2_SIZE], float output[L2_SIZE]);
+    static void PropagateL2(const float inputs[L2_SIZE], const float weights[L2_SIZE * L3_SIZE], const float biases[L3_SIZE], float output[L3_SIZE]);
+    static void PropagateL3(const float inputs[L3_SIZE], const float weights[L3_SIZE], const float bias, float &output);
     [[nodiscard]] static int32_t output(const NNUE::Accumulator &board_accumulator, const int stm, const int outputBucket);
 };

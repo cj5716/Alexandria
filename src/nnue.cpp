@@ -338,7 +338,7 @@ int NNUE::Pov_Accumulator::GetIndex(const int piece, const int square, bool flip
 }
 
 
-void NNUE::ActivateFT(const int16_t *us, const int16_t *them, [[maybe_unused]] uint16_t *nnzIndices, [[maybe_unused]] int &nnzCount, uint8_t *output) {
+void NNUE::ActivateFT(const int16_t us[L1_SIZE], const int16_t them[L1_SIZE], uint16_t nnzIndices[L1_SIZE / L1_CHUNK_PER_32], int &nnzCount, uint8_t output[L1_SIZE]) {
     #if defined(USE_SIMD)
     int offset = 0;
     const vepi16 Zero = vec_zero_epi16();
@@ -409,7 +409,7 @@ void NNUE::ActivateFT(const int16_t *us, const int16_t *them, [[maybe_unused]] u
     #endif
 }
 
-void NNUE::PropagateL1(const uint8_t *inputs, [[maybe_unused]] uint16_t *nnzIndices, [[maybe_unused]] int nnzCount, const int8_t *weights, const float *biases, float *output) {
+void NNUE::PropagateL1(const uint8_t inputs[L1_SIZE], [[maybe_unused]] uint16_t nnzIndices[L1_SIZE / L1_CHUNK_PER_32], [[maybe_unused]] int nnzCount, const int8_t weights[L1_SIZE * L2_SIZE], const float biases[L2_SIZE], float output[L2_SIZE]) {
     #if defined(USE_SIMD)
     vepi32 sums[L2_SIZE / L2_CHUNK_SIZE] = {};
     const int32_t *inputs32 = reinterpret_cast<const int32_t*>(inputs);
@@ -454,12 +454,10 @@ void NNUE::PropagateL1(const uint8_t *inputs, [[maybe_unused]] uint16_t *nnzIndi
     }
     #else
     int sums[L2_SIZE] = {};
-    for (int i = 0; i < L1_SIZE; i += 4) {
+    for (int i = 0; i < L1_SIZE; i += L1_CHUNK_PER_32) {
         for (int j = 0; j < L2_SIZE; ++j) {
-            sums[j] += static_cast<int32_t>(inputs[i + 0]) * weights[i * L2_SIZE + j * 4 + 0];
-            sums[j] += static_cast<int32_t>(inputs[i + 1]) * weights[i * L2_SIZE + j * 4 + 1];
-            sums[j] += static_cast<int32_t>(inputs[i + 2]) * weights[i * L2_SIZE + j * 4 + 2];
-            sums[j] += static_cast<int32_t>(inputs[i + 3]) * weights[i * L2_SIZE + j * 4 + 3];
+            for (int k = 0; k < L1_CHUNK_PER_32; ++k)
+                sums[j] += static_cast<int32_t>(inputs[i + k] * weights[i * L2_SIZE + j * L1_CHUNK_PER_32 + k]);
         }
     }
 
@@ -472,7 +470,7 @@ void NNUE::PropagateL1(const uint8_t *inputs, [[maybe_unused]] uint16_t *nnzIndi
     #endif
 }
 
-void NNUE::PropagateL2(const float *inputs, const float *weights, const float *biases, float *output) {
+void NNUE::PropagateL2(const float inputs[L2_SIZE], const float weights[L2_SIZE * L3_SIZE], const float biases[L3_SIZE], float output[L3_SIZE]) {
     // For each input, multiply by all the L2 weights
     #if defined(USE_SIMD)
     vps32 sumVecs[L3_SIZE / L3_CHUNK_SIZE];
@@ -518,7 +516,7 @@ void NNUE::PropagateL2(const float *inputs, const float *weights, const float *b
     #endif
 }
 
-void NNUE::PropagateL3(const float *inputs, const float *weights, const float bias, float &output) {
+void NNUE::PropagateL3(const float inputs[L3_SIZE], const float weights[L3_SIZE], const float bias, float &output) {
     // These weird multiple-sum shenanigans is to make sure we add the floats in the exact same manner
     // and order on ALL architectures, so that behaviour is deterministic
     // We multiply the weights by the inputs, and sum them up
@@ -557,12 +555,9 @@ int32_t NNUE::output(const NNUE::Accumulator &board_accumulator, const int stm, 
     alignas (64) float    L2Outputs[L3_SIZE];
     float L3Output;
 
-    const int16_t* us = board_accumulator.perspective[stm].values.data();
-    const int16_t* them = board_accumulator.perspective[stm ^ 1].values.data();
-
     // Feed Forward NNUE (i.e. outputs of FT are inputs of L1, outputs of L1 are inputs of L2, etc.)
-    ActivateFT (us,
-                them,
+    ActivateFT (board_accumulator.perspective[stm].values,
+                board_accumulator.perspective[stm ^ 1].values,
                 nnzIndices,
                 nnzCount,
                 FTOutputs);
