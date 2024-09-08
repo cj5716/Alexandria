@@ -482,11 +482,11 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
 
             // If the search is trending upwards, chances that a fail high will occur is even more likely,
             // so we prune more aggressively.
-            margin -= rfpImprCoeff() * improving;
+            if (improving) margin -= rfpImprCoeff();
 
             // If we are going to carry out IIR, it shows that the node is not very promising,
             // so we prune more aggressively.
-            margin -= rfpIirCoeff() * doIIR;
+            if (doIIR) margin -= rfpIirCoeff();
 
             // Don't let the margin go negative
             margin = std::max(margin, 0);
