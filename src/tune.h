@@ -146,7 +146,7 @@ TUNE_PARAM(lmrMinMovesNonPv, 1, 1, 3, 0.5, 0.002)
 TUNE_PARAM(ttPvReduction, 1024, 512, 1536, 128, 0.002)
 TUNE_PARAM(givesCheckReduction, 1024, 512, 1536, 128, 0.002)
 TUNE_PARAM(predictedCutNodeReduction, 2048, 1024, 3072, 128, 0.002)
-TUNE_PARAM(improvementReductionScale, 2560, 2048, 4096, 128, 0.002)
+TUNE_PARAM(improvementReductionScale, 2304, 2048, 4096, 128, 0.002)
 TUNE_PARAM(improvementReductionStretch, 94, 50, 900, 50, 0.002)
 TUNE_PARAM(histReductionMul, 8, 5, 15, 0.5, 0.002)
 
