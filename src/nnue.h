@@ -46,6 +46,9 @@ public:
 
         void accumulate(Position *pos);
         [[nodiscard]] int GetIndex(const int piece, const int square, const bool flip) const;
+        void addSub(NNUE::Pov_Accumulator &prev_acc, std::size_t add, std::size_t sub);
+        void addSubSub(NNUE::Pov_Accumulator &prev_acc, std::size_t add, std::size_t sub1, std::size_t sub2);
+        void applyUpdate(Pov_Accumulator &previousPovAccumulator);
 
         [[nodiscard]] bool isClean() const {
             return NNUEAdd.empty();
