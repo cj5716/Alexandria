@@ -40,7 +40,7 @@ void partialInsertionSort(MoveList* moveList, const int moveNum) {
     std::swap(moveList->moves[moveNum], moveList->moves[bestNum]);
 }
 
-void InitMP(Movepicker* mp, Position* pos, SearchData* sd, SearchStack* ss, const Move ttMove, const MovepickerType movepickerType) {
+void InitMP(Movepicker* mp, Position* pos, SearchData* sd, SearchStack* ss, const Move ttMove, const MovepickerType movepickerType, const int SEEthreshold) {
 
     mp->movepickerType = movepickerType;
     mp->pos = pos;
@@ -49,6 +49,7 @@ void InitMP(Movepicker* mp, Position* pos, SearchData* sd, SearchStack* ss, cons
     mp->ttMove = ttMove;
     mp->idx = 0;
     mp->stage = mp->ttMove ? PICK_TT : GEN_TACTICAL;
+    mp->SEEthreshold = SEEthreshold;
 }
 
 Move NextMove(Movepicker* mp, const bool skip) {
@@ -61,8 +62,14 @@ Move NextMove(Movepicker* mp, const bool skip) {
             mp->stage = GEN_BAD_TACTICAL;
         }
 
-        // In qsearch, the skip variable is used to dictate whether we skip quiet moves and bad captures
+        // In qsearch, the skip variable is used to dictate whether we skip quiet moves and bad tacticals
         if (   mp->movepickerType == QSEARCH
+            && mp->stage > PICK_GOOD_TACTICAL) {
+            return NOMOVE;
+        }
+
+        // In probcut, we only search tacticals that pass the SEE threshold
+        if (   mp->movepickerType == PROBCUT
             && mp->stage > PICK_GOOD_TACTICAL) {
             return NOMOVE;
         }
@@ -72,6 +79,10 @@ Move NextMove(Movepicker* mp, const bool skip) {
         ++mp->stage;
         // If we are in qsearch and not in check, skip quiet TT moves
         if (mp->movepickerType == QSEARCH && skip && !isTactical(mp->ttMove))
+            goto top;
+
+        // If we are in probcut, only search the TT move if it is tactical
+        if (mp->movepickerType == PROBCUT && !isTactical(mp->ttMove))
             goto top;
 
         // If the TT move if not pseudo legal we skip it too

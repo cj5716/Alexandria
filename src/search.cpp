@@ -506,12 +506,64 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
 
             ss->move = NOMOVE;
             MakeNullMove(pos);
-            const int nmpScore = -Negamax<false>(-beta, -beta + 1, depth - R, !predictedCutNode, td, ss + 1);
+            const int nmpScore = -Negamax<false>(-beta, -(beta - 1), depth - R, !predictedCutNode, td, ss + 1);
             TakeNullMove(pos);
 
             // Don't return unproven mates from null move search
             if (nmpScore >= beta)
                 return abs(nmpScore) > MATE_FOUND ? beta : nmpScore;
+        }
+
+        // ProbCut
+        // On predicted cut-nodes, we search tactical moves at a reduced depth.
+        // If we fail high by a large margin, trust that a full depth search will still fail high, even if not by as much.
+        const int pcBeta = beta + pcMargin();
+        const int pcSearchDepth = depth - 3;
+        if (   !rootNode
+            &&  predictedCutNode
+            &&  depth >= pcMinDepth()
+            &&  std::abs(beta) < MATE_FOUND
+            //  If the position has been searched before at a depth >= the depth we are searching and did not beat the raised beta,
+            //  the chances are that it won't beat beta here either, so skip attempting probcut in this case.
+            && !(ttDepth >= pcSearchDepth && ttScore < pcBeta)) {
+
+            // We only search moves that fulfil (static eval + SEE >= raised beta).
+            Movepicker mp;
+            InitMP(&mp, pos, sd, ss, ttMove, PROBCUT, pcBeta - ss->staticEval);
+
+            // loop over moves within the movelist
+            Move move;
+            while ((move = NextMove(&mp, true)) != NOMOVE) {
+                if (!IsLegal(pos, move)) continue;
+
+                // Speculative prefetch of the TT entry
+                TTPrefetch(keyAfter(pos, move));
+                ss->move = move;
+
+                // Play the move
+                MakeMove<true>(move, pos);
+
+                // increment nodes count
+                info->nodes++;
+
+                // Use a preliminary qsearch to check if it has a chance of failing high
+                int pcScore = -Quiescence<false>(-pcBeta, -(pcBeta - 1), td, ss + 1);
+
+                // If the preliminary qsearch failed high, proceed on to a full search
+                if (pcScore >= pcBeta) {
+                    // Note: we search with pcSearchDepth - 1 because we make the move before performing the search (a la the main move-loop)
+                    pcScore = -Negamax<false>(-pcBeta, -(pcBeta - 1), pcSearchDepth - 1, !predictedCutNode, td, ss + 1);
+                }
+
+                // take move back
+                UnmakeMove(move, pos);
+
+                // We failed high, and our prediction came true, so we cutoff
+                if (pcScore >= pcBeta) {
+                    StoreTTEntry(pos->posKey, MoveToTT(move), ScoreToTT(pcScore, ss->ply), rawEval, HFLOWER, pcSearchDepth, pvNode, ttPv);
+                    return pcScore;
+                }
+            }
         }
     }
 
@@ -670,7 +722,7 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
                 const bool doShallowerSearch = score < (bestScore + newDepth);
                 newDepth += doDeeperSearch - doShallowerSearch;
                 if (newDepth > reducedDepth) {
-                    score = -Negamax<false>(-alpha - 1, -alpha, newDepth, !predictedCutNode, td, ss + 1);
+                    score = -Negamax<false>(-(alpha + 1), -alpha, newDepth, !predictedCutNode, td, ss + 1);
                     earliestSearchStage = std::min(earliestSearchStage, didZWS);
                     latestSearchStage   = std::max(latestSearchStage, didZWS);
                 }
@@ -682,7 +734,7 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
         // We assume that our move ordering is perfect, and so we expect all non-first moves to be worse.
         // This zero window search will either confirm or deny our prediction, as the score cannot be exact (no integer lies in (-alpha - 1, -alpha))
         else if (!pvNode || totalMoves > 1) {
-            score = -Negamax<false>(-alpha - 1, -alpha, newDepth, !predictedCutNode, td, ss + 1);
+            score = -Negamax<false>(-(alpha + 1), -alpha, newDepth, !predictedCutNode, td, ss + 1);
             earliestSearchStage = std::min(earliestSearchStage, didZWS);
             latestSearchStage   = std::max(latestSearchStage, didZWS);
         }

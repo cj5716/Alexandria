@@ -16,7 +16,8 @@ enum {
 
 enum MovepickerType : uint8_t {
     SEARCH,
-    QSEARCH
+    QSEARCH,
+    PROBCUT
 };
 
 struct Movepicker {
@@ -27,10 +28,10 @@ struct Movepicker {
     MoveList moveList;
     MoveList badCaptureList;
     Move ttMove;
+    int SEEthreshold;
     int idx;
     int stage;
 };
 
-void InitMP(Movepicker* mp, Position* pos, SearchData* sd, SearchStack* ss, const Move ttMove, const MovepickerType movepickerType);
+void InitMP(Movepicker* mp, Position* pos, SearchData* sd, SearchStack* ss, const Move ttMove, const MovepickerType movepickerType, const int SEEthreshold = SCORE_NONE);
 Move NextMove(Movepicker* mp, const bool skip);
-
