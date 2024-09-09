@@ -148,7 +148,7 @@ void NNUE::Pov_Accumulator::applyUpdate(NNUE::Pov_Accumulator& previousPovAccumu
     }
     // Castling
     else {
-        this->addSub( previousPovAccumulator, this->NNUEAdd[0], this->NNUESub[0]);
+        this->addSub(previousPovAccumulator, this->NNUEAdd[0], this->NNUESub[0]);
         this->addSub(*this, this->NNUEAdd[1], this->NNUESub[1]);
         // Note that for second addSub, we put acc instead of acc - 1 because we are updating on top of
         // the half-updated accumulator
@@ -163,7 +163,7 @@ void NNUE::Pov_Accumulator::addSub(NNUE::Pov_Accumulator &prev_acc, std::size_t 
     const auto Add = &net.FTWeights[add * L1_SIZE];
     const auto Sub = &net.FTWeights[sub * L1_SIZE];
     for (int i = 0; i < L1_SIZE; i++) {
-        this->values[i] = prev_acc.values[i] - Sub[i] + Add[i];
+        this->values[i] = prev_acc.values[i] + Add[i] - Sub[i];
     }
 }
 
@@ -172,7 +172,7 @@ void NNUE::Pov_Accumulator::addSubSub(NNUE::Pov_Accumulator &prev_acc, std::size
     const auto Sub1 = &net.FTWeights[sub1 * L1_SIZE];
     const auto Sub2 = &net.FTWeights[sub2 * L1_SIZE];
     for (int i = 0; i < L1_SIZE; i++) {
-        this->values[i] =  prev_acc.values[i] - Sub1[i] - Sub2[i] + Add[i];
+        this->values[i] = prev_acc.values[i] + Add[i] - Sub1[i] - Sub2[i];
     }
 }
 
