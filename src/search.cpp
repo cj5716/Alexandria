@@ -466,7 +466,6 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
     const bool canIIR = depth >= iirMinDepth() && ttBound == HFNONE;
 
     if (   !pvNode
-        && !excludedMove
         && !inCheck) {
         // Reverse Futility Pruning (RFP) / Static Null Move Pruning (SNMP)
         // At low depths, if the evaluation is far above beta, we assume that at least one move will fail high
@@ -480,10 +479,11 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
         // If our eval indicates a fail high is likely, we try NMP.
         // We do a reduced search after giving the opponent a free turn, and if that fails high,
         // it means our position is so good we don't even need to make a move. Thus, we return a fail high score.
-        if (   depth > nmpDepth()
-            && eval >= beta
-            && (ss - 1)->move != NOMOVE
-            && BoardHasNonPawns(pos, pos->side)) {
+        if (    depth > nmpDepth()
+            && !excludedMove
+            &&  eval >= beta
+            &&  (ss - 1)->move != NOMOVE
+            &&  BoardHasNonPawns(pos, pos->side)) {
 
             const int R = (nmpRedConst() + nmpRedDepthCoeff() * depth + nmpRedIirCoeff() * canIIR) / 1024
                         +  std::min(eval - beta, nmpRedEvalDiffMax()) / nmpRedEvalDiffDiv();
