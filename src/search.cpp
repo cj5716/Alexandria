@@ -290,6 +290,7 @@ int AspirationWindowSearch(int prev_eval, int depth, ThreadData* td) {
     for (int i = -4; i < MAXDEPTH; i++) {
         (ss + i)->staticEval = SCORE_NONE;
         (ss + i)->move = NOMOVE;
+        (ss + i)->history = 0;
     }
     for (int i = 0; i < MAXDEPTH; i++) {
         (ss + i)->ply = i;
@@ -484,6 +485,9 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
             // so we prune more aggressively.
             if (doIIR) margin -= rfpIirCoeff();
 
+            // Scale the margin based on the previous move's history score
+            margin += (ss - 1)->history / rfpHistoryDiv();
+
             // Don't let the margin go negative
             margin = std::max(margin, 0);
 
@@ -542,9 +546,9 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
         if (move == excludedMove || !IsLegal(pos, move))
             continue;
 
+        bool isQuiet = !isTactical(move);
         totalMoves++;
-        bool isQuiet    = !isTactical(move);
-        int moveHistory = GetHistoryScore(pos, ss, sd, move);
+        ss->history = GetHistoryScore(pos, ss, sd, move);
 
         if (bestScore > -MATE_FOUND) {
 
@@ -649,7 +653,7 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
             if (predictedCutNode) depthReductionGranular += predictedCutNodeReduction();
 
             // Use move history to adjust LMR reduction (reduce less if good history, more if bad history)
-            depthReductionGranular -= moveHistory * histReductionMul() / 64;
+            depthReductionGranular -= ss->history * histReductionMul() / 64;
 
             // Divide by 1024 once all the adjustments have been applied
             const int depthReduction = depthReductionGranular / LMR_GRAIN;

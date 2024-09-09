@@ -17,6 +17,7 @@ inline int lmpMargins[2][64];
 struct SearchStack {
     int ply;
     int staticEval;
+    int history;
     Move move;
 };
 
