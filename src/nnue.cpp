@@ -83,21 +83,11 @@ void NNUE::update(Accumulator *acc, Position *pos) {
     for (int pov = WHITE; pov <= BLACK; ++pov) {
 
         // Check if we are able to perform UE
-        bool canUE = efficientlyUpdatePov(acc, pos, pov);
+        bool didUE = efficientlyUpdatePov(acc, pos, pov);
 
         // We could not perform efficient updates, so we refresh the accumulator from scratch
-        if (!canUE) {
-            // Recalculate the accumulator
-            NNUE::Pov_Accumulator &povAccumulator = acc->perspective[pov];
-            povAccumulator.accumulate(pos);
-
-            // Reset the add and sub vectors for this accumulator, this will make it "clean" for future updates
-            povAccumulator.NNUEAdd.clear();
-            povAccumulator.NNUESub.clear();
-
-            // Mark the accumulator as refreshed
-            povAccumulator.needsRefresh = false;
-        }
+        if (!didUE)
+            acc->perspective[pov].refresh(pos);
     }
 }
 
@@ -184,6 +174,18 @@ void NNUE::Pov_Accumulator::addSubSub(NNUE::Pov_Accumulator &prev_acc, std::size
     for (int i = 0; i < L1_SIZE; i++) {
         this->values[i] =  prev_acc.values[i] - Sub1[i] - Sub2[i] + Add[i];
     }
+}
+
+void NNUE::Pov_Accumulator::refresh(Position *pos) {
+    // Recalculate the accumulator
+    this->accumulate(pos);
+
+    // Reset the add and sub vectors for this accumulator, this will make it "clean" for future updates
+    this->NNUEAdd.clear();
+    this->NNUESub.clear();
+
+    // Mark the accumulator as refreshed
+    this->needsRefresh = false;
 }
 
 void NNUE::Pov_Accumulator::accumulate(Position *pos) {
