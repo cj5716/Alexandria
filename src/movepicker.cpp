@@ -80,6 +80,14 @@ Move NextMove(Movepicker* mp, const bool skip) {
 
         return mp->ttMove;
 
+    case PICK_SECOND:
+        ++mp->stage;
+
+        // Don't pick second move if it doesn't exist
+        if (mp->secondMove == NOMOVE) goto top;
+
+        return mp->secondMove;
+
     case GEN_TACTICAL:
         GenerateMoves(&mp->moveList, mp->pos, MOVEGEN_NOISY);
         ScoreMoves(mp);
@@ -92,7 +100,7 @@ Move NextMove(Movepicker* mp, const bool skip) {
             const Move move = mp->moveList.moves[mp->idx].move;
             const int score = mp->moveList.moves[mp->idx].score;
             ++mp->idx;
-            if (move == mp->ttMove)
+            if (move == mp->ttMove || move == mp->secondMove)
                 continue;
 
             assert(isTactical(move));
@@ -118,7 +126,7 @@ Move NextMove(Movepicker* mp, const bool skip) {
             partialInsertionSort(&mp->moveList, mp->idx);
             const Move move = mp->moveList.moves[mp->idx].move;
             ++mp->idx;
-            if (move == mp->ttMove)
+            if (move == mp->ttMove || move == mp->secondMove)
                 continue;
 
             assert(!isTactical(move));
@@ -138,7 +146,7 @@ Move NextMove(Movepicker* mp, const bool skip) {
             partialInsertionSort(&mp->badCaptureList, mp->idx);
             const Move move = mp->badCaptureList.moves[mp->idx].move;
             ++mp->idx;
-            if (move == mp->ttMove)
+            if (move == mp->ttMove || move == mp->secondMove)
                 continue;
 
             assert(isTactical(move));

@@ -590,7 +590,12 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
             const int singularBeta  = singularAlpha + 1;
             const int singularDepth = std::max((depth - 1) / 2, 1);
 
+            ss->move = NOMOVE;
             const int singularScore = Negamax<false>(singularAlpha, singularBeta, singularDepth, predictedCutNode, td, ss, ttMove);
+
+            // If the singular search produced a best move, use it to improve move ordering
+            if (ss->move != NOMOVE) mp.secondMove = ss->move;
+
             if (singularScore <= singularAlpha) {
                 // If we fail low by a lot, we extend the search by more than one ply
                 // (TT move is very singular; there are no close alternatives)

@@ -6,6 +6,7 @@ struct MoveList;
 
 enum {
     PICK_TT,
+    PICK_SECOND,
     GEN_TACTICAL,
     PICK_GOOD_TACTICAL,
     GEN_QUIETS,
@@ -27,6 +28,7 @@ struct Movepicker {
     MoveList moveList;
     MoveList badCaptureList;
     Move ttMove;
+    Move secondMove = NOMOVE;
     int idx;
     int stage;
 };
