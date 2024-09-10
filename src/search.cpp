@@ -523,6 +523,9 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
             &&  predictedCutNode
             &&  depth >= pcMinDepth()
             &&  std::abs(beta) < MATE_FOUND
+            // Only try ProbCut if the TT move is tactical (suggests the best moves are more likely to be tactical, and hence
+            // ProbCut is more likely to succeed)
+            && (ttMove == NOMOVE || isTactical(ttMove))
             //  If the position has been searched before at a depth >= the depth we are searching and did not beat the raised beta,
             //  the chances are that it won't beat beta here either, so skip attempting probcut in this case.
             && !(ttDepth >= pcSearchDepth && ttScore < pcBeta)) {
@@ -560,7 +563,6 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
 
                 // We failed high, and our prediction came true, so we cutoff
                 if (pcScore >= pcBeta) {
-                    StoreTTEntry(pos->posKey, MoveToTT(move), ScoreToTT(pcScore, ss->ply), rawEval, HFLOWER, pcSearchDepth, pvNode, ttPv);
                     return pcScore;
                 }
             }
