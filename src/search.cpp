@@ -496,10 +496,12 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
         // If our eval indicates a fail high is likely, we try NMP.
         // We do a reduced search after giving the opponent a free turn, and if that fails high,
         // it means our position is so good we don't even need to make a move. Thus, we return a fail high score.
-        if (   depth > nmpDepth()
-            && eval >= beta
+        if (    depth > nmpDepth()
+            &&  eval >= beta
+            && (ttBound == HFNONE || ttBound == HFLOWER || ttBound == HFEXACT)
+            &&  ss->staticEval >= beta - 30 * depth + 170
             && (ss - 1)->move != NOMOVE
-            && BoardHasNonPawns(pos, pos->side)) {
+            &&  BoardHasNonPawns(pos, pos->side)) {
 
             const int R = (nmpRedConst() + nmpRedDepthCoeff() * depth + nmpRedIirCoeff() * doIIR) / 1024
                         +  std::min(eval - beta, nmpRedEvalDiffMax()) / nmpRedEvalDiffDiv();

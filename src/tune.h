@@ -92,6 +92,8 @@ TUNE_PARAM(rfpImprCoeff, 70, 20, 200, 10.0, 0.002)
 TUNE_PARAM(rfpIirCoeff, 70, 20, 200, 10.0, 0.002)
 
 TUNE_PARAM(nmpDepth, 3, 1, 5, 0.5, 0.002)
+TUNE_PARAM(nmpMarginDepthCoeff, 30, 0, 60, 1.2, 0.002)
+TUNE_PARAM(nmpMarginConst, 170, 70, 270, 15.0, 0.002)
 TUNE_PARAM(nmpRedConst, 3072, 1024, 5120, 400.0, 0.002)
 TUNE_PARAM(nmpRedDepthCoeff, 341, 170, 480, 34.0, 0.002)
 TUNE_PARAM(nmpRedIirCoeff, 1024, 341, 1706, 68.0, 0.002)
