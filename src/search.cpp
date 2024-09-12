@@ -513,6 +513,16 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
             if (nmpScore >= beta)
                 return abs(nmpScore) > MATE_FOUND ? beta : nmpScore;
         }
+
+        // Razoring
+        // At low depths, if our eval is so far below alpha that the position is hopeless,
+        // we verify with quiescence search if that is the case. If it is so, we return a fail low early.
+        if (   depth <= razorMaxDepth()
+            && eval + razorDepthCoeff() * depth + razorBase() <= alpha) {
+            const int razorScore = Quiescence<false>(alpha, alpha + 1, td, ss);
+            if (razorScore <= alpha)
+                return alpha;
+        }
     }
 
     // IIR by Ed Schroder (That i found out about in Berserk source code)

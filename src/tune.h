@@ -98,6 +98,10 @@ TUNE_PARAM(nmpRedIirCoeff, 1024, 341, 1706, 68.0, 0.002)
 TUNE_PARAM(nmpRedEvalDiffMax, 896, 384, 1280, 54.0, 0.002)
 TUNE_PARAM(nmpRedEvalDiffDiv, 256, 128, 512, 20.0, 0.002)
 
+TUNE_PARAM(razorMaxDepth, 5, 3, 7, 0.5, 0.002)
+TUNE_PARAM(razorDepthCoeff, 256, 128, 384, 20.0, 0.002)
+TUNE_PARAM(razorBase, 512, 0, 1024, 51.2, 0.002)
+
 TUNE_PARAM(quietPruningBase, 1690, 0, 2535, 128.0, 0.002)
 TUNE_PARAM(quietPruningMult, 366, 244, 549, 32.0, 0.002)
 
