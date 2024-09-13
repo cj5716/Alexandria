@@ -569,6 +569,12 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
             if (    depth <= seePruneDepth()
                 && !SEE(pos, move, seeMargins[isQuiet][std::min(depth, 63)]))
                 continue;
+
+            // History pruning. At low depths, skip quiet moves whose history is too low
+            if (   depth <= 5
+                && isQuiet
+                && moveHistory < -6144 * depth + 6144)
+                continue;
         }
 
         int extension = 0;
