@@ -548,9 +548,8 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
 
         if (bestScore > -MATE_FOUND) {
 
-            const int pruningReduction = pruningReductions[isQuiet][std::min(depth, 63)][std::min(totalMoves, 63)] / PRUNING_GRAIN;
-
             // pruningDepth is the current depth minus a penalty for late moves, this is helpful because it helps us discriminate the bad moves with more accuracy
+            const int pruningReduction = pruningReductions[isQuiet][std::min(depth, 63)][std::min(totalMoves, 63)] / PRUNING_GRAIN;
             const int pruningDepth = std::max(depth - pruningReduction, 0);
 
             // Late Move Pruning. If we have searched many moves, but no beta cutoff has occurred,
@@ -849,9 +848,18 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
 
         totalMoves++;
 
+        if (bestScore > -MATE_FOUND) {
+            // Delta Pruning. If the SEE score of the move is unable to get close to alpha, and
+            // the move does not gain material, we skip searching it as it is unlikely to raise alpha.
+            if (   !inCheck
+                && !SEE(pos, move, std::max(alpha - ss->staticEval - 500, 1)))
+                continue;
+        }
+
         // Speculative prefetch of the TT entry
         TTPrefetch(keyAfter(pos, move));
         ss->move = move;
+
         // Play the move
         MakeMove<true>(move, pos);
         // increment nodes count
