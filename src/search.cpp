@@ -474,17 +474,17 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
         if (   depth <= rfpMaxDepth()
             && std::abs(eval) < MATE_FOUND) {
             // We scale the RFP margin based on depth (we prune more safely at higher depths)
-            int margin = rfpDepthCoeff() * depth;
+            int margin = rfpDepthCoeff() * depth - 35;
 
-            // If the search is trending upwards, chances that a fail high will occur is even more likely,
-            // so we prune more aggressively.
-            if (improving) margin -= rfpImprCoeff();
+            // Scale the RFP margin based on search trend; If we are improving it is more likely that
+            // we are actually failing high, so prune more, and vice versa if we are not improving
+            margin -= 140 * improvement / (std::abs(improvement) + 720);
 
             // If we are going to carry out IIR, it shows that the node is not very promising,
             // so we prune more aggressively.
             if (doIIR) margin -= rfpIirCoeff();
 
-            // Don't let the margin go negative
+            // Don't let the margin go negative (we don't want to return fail lows from fail-high pruning)
             margin = std::max(margin, 0);
 
             // If the eval exceeds beta by the margin or more, we fail high.
