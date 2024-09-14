@@ -79,7 +79,7 @@ void UpdateAllHistories(const Position *pos, const SearchStack *ss, SearchData *
                         const SearchedMoveList &quietMoves, const SearchedMoveList &tacticalMoves, const int eval, const int alpha, const int beta) {
 
     auto getBonus = [&](const SearchedMove move) {
-        int bonusDepth = depth;
+        int bonusDepth = depth + depth - (move.lowestDepth + 1);
 
         // Increase bonus if our eval suggested we were failing low (result was against expectations)
         if (eval <= alpha) bonusDepth += 1;
@@ -94,7 +94,7 @@ void UpdateAllHistories(const Position *pos, const SearchStack *ss, SearchData *
     };
 
     auto getMalus = [&](const SearchedMove move) {
-        int malusDepth = depth;
+        int malusDepth = (move.highestDepth + 1);
 
         // Decrease malus if our eval suggested we were failing low (result was expected outcome for this move)
         if (eval <= alpha) malusDepth -= 1;

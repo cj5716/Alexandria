@@ -23,12 +23,16 @@ struct SearchedMove {
     Move move;
     SearchStage earliestSearchStage;
     SearchStage latestSearchStage;
+    int lowestDepth;
+    int highestDepth;
     SearchedMove() {};
 
-    SearchedMove(Move m, SearchStage ESS, SearchStage LSS) {
+    SearchedMove(Move m, SearchStage ESS, SearchStage LSS, int LD, int HD) {
         move = m;
         earliestSearchStage = ESS;
         latestSearchStage = LSS;
+        lowestDepth = LD;
+        highestDepth = HD;
     };
 
     [[nodiscard]] int bonusScale() const {
