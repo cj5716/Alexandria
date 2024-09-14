@@ -849,10 +849,10 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
         totalMoves++;
 
         if (bestScore > -MATE_FOUND) {
-            // Delta Pruning. If the SEE score of the move is unable to get close to alpha, and
-            // the move does not gain material, we skip searching it as it is unlikely to raise alpha.
+            // Futility pruning. If static eval is far below alpha, only search moves that win material.
             if (   !inCheck
-                && !SEE(pos, move, std::max(alpha - ss->staticEval - 500, 1)))
+                &&  ss->staticEval + 500 <= alpha
+                && !SEE(pos, move, 1))
                 continue;
         }
 
