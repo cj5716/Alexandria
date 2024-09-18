@@ -528,14 +528,13 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
     if (doIIR)
         depth -= 1;
 
-    // old value of alpha
-    const int old_alpha = alpha;
     int bestScore = -MAXSCORE;
     Move move;
     Move bestMove = NOMOVE;
 
     int totalMoves = 0;
     bool skipQuiets = false;
+    int numAlphaRaises = 0;
 
     Movepicker mp;
     InitMP(&mp, pos, sd, ss, ttMove, SEARCH);
@@ -661,6 +660,10 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
             // Reduce more if we are predicted to fail high (i.e. we stem from an LMR search earlier in the tree)
             if (predictedCutNode) depthReductionGranular += predictedCutNodeReduction();
 
+            // Scale reduction on the number of times we have raised alpha. We reduce less for more alpha raises because
+            // it suggests our move ordering is not as good so we should reduce less aggressively.
+            depthReductionGranular -= std::min(numAlphaRaises * alphaRaiseReductionCoeff(), alphaRaiseReductionMax());
+
             // Use improvement to adjust LMR reduction (reduce less if improved, reduce more if did not improve)
             depthReductionGranular -= improvementReductionScale() * improvement / (std::abs(improvement) + improvementReductionStretch());
 
@@ -734,6 +737,7 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
             // Found a better move that raised alpha
             if (score > alpha) {
                 bestMove = move;
+                numAlphaRaises++;
 
                 if (pvNode) {
                     // Update the pv table
@@ -767,7 +771,7 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
     // Do not save to the TT during singular search
     if (!excludedMove) {
         // Set the TT bound based on whether we failed high or raised alpha
-        int bound = bestScore >= beta ? HFLOWER : alpha != old_alpha ? HFEXACT : HFUPPER;
+        int bound = bestScore >= beta ? HFLOWER : numAlphaRaises > 0 ? HFEXACT : HFUPPER;
         StoreTTEntry(pos->posKey, MoveToTT(bestMove), ScoreToTT(bestScore, ss->ply), rawEval, bound, depth, pvNode, ttPv);
         sd->correctionHistory.update(pos, bestMove, depth, bound, bestScore, rawEval);
     }
