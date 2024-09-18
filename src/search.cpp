@@ -570,10 +570,11 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
                 && ss->staticEval + futilityMargins[improving][std::min(pruningDepth, 63)] <= alpha)
                 skipQuiets = true;
 
-            // History pruning. At low depths, skip quiet moves whose history is too low,
-            // as it is unlikely for the move to be any good.
+            // History pruning. At low depths, if the static eval suggests we are failing low,
+            // do not search quiet moves whose history is too low as they are unlikely to be good.
             if (   depth <= hpDepth()
                 && isQuiet
+                && ss->staticEval <= alpha
                 && ss->history < historyMargins[improving][std::min(depth, 63)])
                 continue;
 
