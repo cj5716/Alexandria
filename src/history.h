@@ -184,7 +184,7 @@ struct CorrectionHistoryTable {
         std::memset(table, 0, sizeof(table));
     };
 
-    void update(const Position *pos, const Move bestMove, const int depth, const uint8_t bound, const int bestScore, const int rawEval);
+    void update(const Position *pos, const Move bestMove, const int depth, const uint8_t bound, const int bestScore, const int correctedEval);
     int16_t adjust(const Position *pos, const int eval) const;
 };
 

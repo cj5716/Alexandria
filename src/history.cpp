@@ -55,14 +55,14 @@ int ContinuationHistoryTable::getScore(const Position *pos, const SearchStack *s
 }
 
 // CorrectionHistoryTable is a history table indexed by [side-to-move][pawn-key-index]. It is used to correct eval
-void CorrectionHistoryTable::update(const Position *pos, const Move bestMove, const int depth, const uint8_t bound, const int bestScore, const int rawEval) {
+void CorrectionHistoryTable::update(const Position *pos, const Move bestMove, const int depth, const uint8_t bound, const int bestScore, const int correctedEval) {
     if (pos->getCheckers()) return; // Don't update correction history if in check
     if (bestMove != NOMOVE && isTactical(bestMove)) return; // Don't update correction history for tactical best moves
-    if (bound == HFUPPER && rawEval < bestScore) return; // Don't update correction history if the raw eval is a better upper bound
-    if (bound == HFLOWER && rawEval > bestScore) return; // Don't update correction history if the raw eval is a better lower bound
+    if (bound == HFUPPER && correctedEval < bestScore) return; // Don't update correction history if the corrected eval is a better upper bound than the search score
+    if (bound == HFLOWER && correctedEval > bestScore) return; // Don't update correction history if the corrected eval is a better lower bound than the search score
 
     int16_t &entry = getEntryRef(pos);
-    const int scaledDiff = std::clamp((bestScore - rawEval) * Grain, -corrHistMaxAdjust(), corrHistMaxAdjust());
+    const int scaledDiff = std::clamp((bestScore - correctedEval) * Grain, -corrHistMaxAdjust(), corrHistMaxAdjust());
     const int newWeight = weight(depth);
     assert(newWeight <= MaxWeight);
 

@@ -769,7 +769,7 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
         // Set the TT bound based on whether we failed high or raised alpha
         int bound = bestScore >= beta ? HFLOWER : alpha != old_alpha ? HFEXACT : HFUPPER;
         StoreTTEntry(pos->posKey, MoveToTT(bestMove), ScoreToTT(bestScore, ss->ply), rawEval, bound, depth, pvNode, ttPv);
-        sd->correctionHistory.update(pos, bestMove, depth, bound, bestScore, rawEval);
+        sd->correctionHistory.update(pos, bestMove, depth, bound, bestScore, ss->staticEval);
     }
 
     return bestScore;
