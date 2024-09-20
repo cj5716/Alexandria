@@ -66,7 +66,7 @@ void CorrectionHistoryTable::update(const Position *pos, const Move bestMove, co
     const int newWeight = weight(depth);
     assert(newWeight <= MaxWeight);
 
-    entry = (entry * (MaxWeight - newWeight) + scaledDiff * newWeight) / MaxWeight;
+    entry += scaledDiff * newWeight / MaxWeight;
 }
 
 int16_t CorrectionHistoryTable::adjust(const Position *pos, const int eval) const {
