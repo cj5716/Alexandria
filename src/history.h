@@ -162,7 +162,7 @@ struct CorrectionHistoryTable {
     static_assert((Size & Mask) == 0);
 
     static constexpr int Grain = 256;
-    static constexpr int MaxWeight = 1024;
+    static constexpr int MaxWeight = 2048;
 
     int16_t table[2][Size];
 
