@@ -464,6 +464,7 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
         // Base case - if we can't get a close eval we can't see if we have improved
         return 0;
     }();
+
     const bool improving = improvement > 0;
     const bool doIIR = depth >= iirMinDepth() && ttBound == HFNONE;
 
@@ -531,6 +532,7 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
     // old value of alpha
     const int old_alpha = alpha;
     int bestScore = -MAXSCORE;
+    int failLowCount = 0;
     Move move;
     Move bestMove = NOMOVE;
 
@@ -556,7 +558,7 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
         if (bestScore > -MATE_FOUND) {
 
             // pruningDepth is the current depth minus a penalty for late moves, this is helpful because it helps us discriminate the bad moves with more accuracy
-            const int pruningReduction = pruningReductions[isQuiet][std::min(depth, 63)][std::min(totalMoves, 63)] / PRUNING_GRAIN;
+            const int pruningReduction = pruningReductions[isQuiet][std::min(depth, 63)][std::min(failLowCount, 63)] / PRUNING_GRAIN;
             const int pruningDepth = std::max(depth - pruningReduction, 0);
 
             // Late Move Pruning. If we have searched many moves, but no beta cutoff has occurred,
@@ -650,7 +652,7 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
             && (isQuiet || !ttPv)) {
 
             // Get base reduction value (multiplied by 1024)
-            int depthReductionGranular = lmrReductions[isQuiet][std::min(depth, 63)][std::min(totalMoves, 63)];
+            int depthReductionGranular = lmrReductions[isQuiet][std::min(depth, 63)][std::min(failLowCount, 63)];
 
             // Reduce less if we are on or have been on the PV
             if (ttPv) depthReductionGranular -= ttPvReduction();
@@ -725,6 +727,9 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
 
         if (info->stopped)
             return 0;
+
+        // Increment the counter if we fail low
+        failLowCount += score <= alpha;
 
         // If the score of the current move is the best we've found until now
         if (score > bestScore) {
