@@ -97,7 +97,7 @@ Move NextMove(Movepicker* mp, const bool skip) {
 
             assert(isTactical(move));
 
-            const int seeThreshold = -score / 32 + 236;
+            const int seeThreshold = -score * seeOrderScoreMult() / 1024 + seeOrderBase();
             if (!SEE(mp->pos, move, seeThreshold)) {
                 AddMove(move, score, &mp->badCaptureList);
                 continue;
