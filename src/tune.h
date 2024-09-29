@@ -101,6 +101,9 @@ TUNE_PARAM(nmpRedIirCoeff, 1024, 341, 1706, 68.0, 0.002)
 TUNE_PARAM(nmpRedEvalDiffMax, 896, 384, 1280, 54.0, 0.002)
 TUNE_PARAM(nmpRedEvalDiffDiv, 256, 128, 512, 20.0, 0.002)
 
+TUNE_PARAM(seeOrderScoreMult, 32, 16, 64, 2.4, 0.002)
+TUNE_PARAM(seeOrderBase, 236, 118, 472, 17.7, 0.002)
+
 TUNE_PARAM(quietPruningBase, 1690, 0, 2535, 128.0, 0.002)
 TUNE_PARAM(quietPruningMult, 366, 244, 549, 32.0, 0.002)
 
