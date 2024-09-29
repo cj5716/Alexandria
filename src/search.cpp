@@ -582,7 +582,7 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
             // SEE Pruning. At low depths, if the SEE (Static Exchange Evaluation) of the move
             // is extremely low, skip considering it in our search.
             if (    depth <= seePruneDepth()
-                && !SEE(pos, move, seeMargins[isQuiet][std::min(depth, 63)]))
+                && !SEE(pos, move, std::min(seeMargins[isQuiet][std::min(depth, 63)], alpha - ss->staticEval - 128 * depth)))
                 continue;
         }
 
