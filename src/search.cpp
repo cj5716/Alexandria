@@ -601,6 +601,9 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
             &&  abs(ttScore) < MATE_FOUND
             &&  ttDepth >= depth - seMinQuality()
             &&  ttDepth * 2 >= depth) {
+
+            predictedCutNode |= ttScore >= beta;
+
             const int singularAlpha = std::max(ttScore - depth * seMarginMult() / 16, -MATE_FOUND);
             const int singularBeta  = singularAlpha + 1;
             const int singularDepth = std::max((depth - 1) / 2, 1);
