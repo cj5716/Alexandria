@@ -663,6 +663,9 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
             // Reduce more if we are predicted to fail high (i.e. we stem from an LMR search earlier in the tree)
             if (predictedCutNode) depthReductionGranular += predictedCutNodeReduction();
 
+            // Reduce less if the move is a good tactical (as proven by SEE and move ordering)
+            if (mp.stage == PICK_GOOD_TACTICAL) depthReductionGranular -= 512;
+
             // Use improvement to adjust LMR reduction (reduce less if improved, reduce more if did not improve)
             depthReductionGranular -= improvementReductionScale() * improvement / (std::abs(improvement) + improvementReductionStretch());
 
