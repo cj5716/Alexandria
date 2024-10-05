@@ -648,8 +648,7 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
         // After a certain depth and total moves searched, we search the rest first at a reduced depth and zero window.
         // Here we calulate the reduction that we are going to reduce for this move.
         if (   depth >= lmrMinDepth()
-            && totalMoves > (pvNode ? lmrMinMovesPv() : lmrMinMovesNonPv())
-            && (isQuiet || !ttPv)) {
+            && totalMoves > (pvNode ? lmrMinMovesPv() : lmrMinMovesNonPv())) {
 
             // Get base reduction value (multiplied by 1024)
             int depthReductionGranular = lmrReductions[isQuiet][std::min(depth, 63)][std::min(failLowCount, 63)];
