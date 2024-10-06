@@ -561,9 +561,9 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
             const int pruningReduction = pruningReductions[isQuiet][std::min(depth, 63)][std::min(failLowCount, 63)] / PRUNING_GRAIN;
             const int pruningDepth = std::max(depth - pruningReduction, 0);
 
-            // Late Move Pruning. If we have searched many moves, but no beta cutoff has occurred,
-            // assume that there are no better quiet moves and skip the rest.
-            if (totalMoves >= lmpMargins[improving][std::min(depth, 63)])
+            // Late Move Pruning. If many of the tacticals and quiets before the current move failed low,
+            // assume that there is no quiet that will fare better and skip the rest.
+            if (failLowCount >= lmpMargins[improving][std::min(depth, 63)])
                 skipQuiets = true;
 
             // Futility Pruning. At low depths, if the eval is far below alpha,

@@ -110,10 +110,10 @@ TUNE_PARAM(quietPruningMult, 366, 244, 549, 32.0, 0.002)
 TUNE_PARAM(tacticalPruningBase, 338, 244, 549, 32.0, 0.002)
 TUNE_PARAM(tacticalPruningMult, 320, 244, 549, 32.0, 0.002)
 
-TUNE_PARAM(lmpImpMarginConst, 300, 100, 500, 50.0, 0.002)
+TUNE_PARAM(lmpImpMarginConst, 200, 100, 500, 50.0, 0.002)
 TUNE_PARAM(lmpImpMarginMult, 100, 60, 140, 7.0, 0.002)
 TUNE_PARAM(lmpImpMarginPower, 200, 150, 250, 10.0, 0.002)
-TUNE_PARAM(lmpNonImpMarginConst, 300, 100, 500, 50.0, 0.002)
+TUNE_PARAM(lmpNonImpMarginConst, 200, 100, 500, 50.0, 0.002)
 TUNE_PARAM(lmpNonImpMarginMult, 100, 60, 140, 7.0, 0.002)
 TUNE_PARAM(lmpNonImpMarginPower, 200, 150, 250, 10.0, 0.002)
 
