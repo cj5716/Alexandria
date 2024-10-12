@@ -108,7 +108,7 @@ void UpdateAllHistories(const Position *pos, const SearchStack *ss, SearchData *
 
         // Scale the malus depending on how hard we searched it in terms of nodes
         const uint64_t currNodes = move.nodesSpent;
-        scaledMalus = std::clamp<int64_t>(scaledMalus * int64_t(currNodes + 1) / int64_t(bestNodes * 104ULL / 128ULL + 1),
+        scaledMalus = std::clamp<int64_t>(int64_t(scaledMalus) * int64_t(currNodes + 1) / int64_t(bestNodes * 104ULL / 128ULL + 1),
                                           int64_t(scaledMalus * 64 / 128),
                                           int64_t(scaledMalus * 192 / 128));
 
