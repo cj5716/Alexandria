@@ -714,7 +714,8 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
         }
 
         // Add the move to the corresponding list, along with the data on its search
-        SearchedMove moveData(move, earliestSearchStage, latestSearchStage);
+        const uint64_t nodesSpent = info->nodes - nodesBeforeSearch;
+        SearchedMove moveData(move, earliestSearchStage, latestSearchStage, nodesSpent);
         if (isQuiet) quietMoves.add(moveData);
         else tacticalMoves.add(moveData);
 
@@ -723,7 +724,7 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
 
         if (   td->id == 0
             && rootNode)
-            td->nodeSpentTable[FromTo(move)] += info->nodes - nodesBeforeSearch;
+            td->nodeSpentTable[FromTo(move)] += nodesSpent;
 
         if (info->stopped)
             return 0;
@@ -751,7 +752,7 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
 
                 // node (move) fails high
                 if (score >= beta) {
-                    UpdateAllHistories(pos, ss, sd, depth, move, quietMoves, tacticalMoves, eval, alpha, beta);
+                    UpdateAllHistories(pos, ss, sd, depth, move, nodesSpent, quietMoves, tacticalMoves, eval, alpha, beta);
                     break;
                 }
                 // Update alpha iff alpha < beta

@@ -3,6 +3,7 @@
 #include <cstring>
 #include "position.h"
 #include "move.h"
+#include "misc.h"
 #include "search.h"
 
 // Quiet history is a history table for quiet moves
@@ -75,7 +76,7 @@ int16_t CorrectionHistoryTable::adjust(const Position *pos, const int eval) cons
 }
 
 // Use this function to update all quiet histories
-void UpdateAllHistories(const Position *pos, const SearchStack *ss, SearchData *sd, const int depth, const Move bestMove,
+void UpdateAllHistories(const Position *pos, const SearchStack *ss, SearchData *sd, const int depth, const Move bestMove, const uint64_t bestNodes,
                         const SearchedMoveList &quietMoves, const SearchedMoveList &tacticalMoves, const int eval, const int alpha, const int beta) {
 
     auto getBonus = [&](const SearchedMove move) {
@@ -88,9 +89,9 @@ void UpdateAllHistories(const Position *pos, const SearchStack *ss, SearchData *
         if (eval >= beta) bonusDepth -= 1;
 
         // Scale bonus higher based on our earliest stage (ie, how underestimated the move was)
-        const int bonusMultiplier = move.bonusScale();
+        const int scaledBonus = HistoryBonus(bonusDepth) * move.bonusScale();
 
-        return HistoryBonus(bonusDepth) * bonusMultiplier;
+        return scaledBonus;
     };
 
     auto getMalus = [&](const SearchedMove move) {
@@ -103,9 +104,15 @@ void UpdateAllHistories(const Position *pos, const SearchStack *ss, SearchData *
         if (eval >= beta) malusDepth += 1;
 
         // Scale it higher based on how far we searched before failing low
-        const int malusMultiplier = move.malusScale();
+        int scaledMalus = -HistoryBonus(malusDepth) * move.malusScale();
 
-        return -HistoryBonus(malusDepth) * malusMultiplier;
+        // Scale the malus depending on how hard we searched it in terms of nodes
+        const uint64_t currNodes = move.nodesSpent;
+        scaledMalus = std::clamp<int64_t>(scaledMalus * int64_t(currNodes + 1) / int64_t(bestNodes * 104ULL / 128ULL + 1),
+                                          int64_t(scaledMalus * 64 / 128),
+                                          int64_t(scaledMalus * 192 / 128));
+
+        return scaledMalus;
     };
 
     if (!isTactical(bestMove)) {

@@ -23,12 +23,14 @@ struct SearchedMove {
     Move move;
     SearchStage earliestSearchStage;
     SearchStage latestSearchStage;
+    uint64_t nodesSpent;
     SearchedMove() {};
 
-    SearchedMove(Move m, SearchStage ESS, SearchStage LSS) {
+    SearchedMove(Move m, SearchStage ESS, SearchStage LSS, uint64_t NS) {
         move = m;
         earliestSearchStage = ESS;
         latestSearchStage = LSS;
+        nodesSpent = NS;
     };
 
     [[nodiscard]] int bonusScale() const {
@@ -189,7 +191,7 @@ struct CorrectionHistoryTable {
 };
 
 // Update all histories after a beta cutoff
-void UpdateAllHistories(const Position *pos, const SearchStack *ss, SearchData *sd, const int depth, const Move bestMove,
+void UpdateAllHistories(const Position *pos, const SearchStack *ss, SearchData *sd, const int depth, const Move bestMove, const uint64_t bestNodes,
                         const SearchedMoveList &quietMoves, const SearchedMoveList &tacticalMoves, const int eval, const int alpha, const int beta);
 
 // Get history score for a given move
