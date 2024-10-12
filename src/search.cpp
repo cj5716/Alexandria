@@ -465,6 +465,13 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
         return 0;
     }();
 
+    const int complexity = [&]() {
+        if (eval == 0 || rawEval == 0)
+            return 0;
+        else
+            return 1024 * std::abs(eval - rawEval) / std::abs(eval);
+    }();
+
     const bool improving = improvement > 0;
     const bool doIIR = depth >= iirMinDepth() && ttBound == HFNONE;
 
@@ -662,6 +669,9 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
 
             // Reduce more if we are predicted to fail high (i.e. we stem from an LMR search earlier in the tree)
             if (predictedCutNode) depthReductionGranular += predictedCutNodeReduction();
+
+            // Use (approximated) positional complexity to adjust LMR reduction. (reduce more for clear pos, less for unclear)
+            depthReductionGranular -= complexity - 512;
 
             // Use improvement to adjust LMR reduction (reduce less if improved, reduce more if did not improve)
             depthReductionGranular -= improvementReductionScale() * improvement / (std::abs(improvement) + improvementReductionStretch());
