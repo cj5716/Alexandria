@@ -27,7 +27,7 @@ using NNUEIndices = std::array<std::size_t, 2>;
 struct Network {
     int16_t FTWeights[NUM_INPUTS * L1_SIZE];
     int16_t FTBiases [L1_SIZE];
-    int16_t L1Weights[L1_SIZE * 2 * OUTPUT_BUCKETS];
+    int16_t L1Weights[L1_SIZE * OUTPUT_BUCKETS];
     int16_t L1Biases [OUTPUT_BUCKETS];
 };
 

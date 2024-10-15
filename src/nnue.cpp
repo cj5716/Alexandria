@@ -41,7 +41,7 @@ void NNUE::init(const char *file) {
 
         read += fread(net.FTWeights, sizeof(int16_t), NUM_INPUTS * L1_SIZE, nn);
         read += fread(net.FTBiases, sizeof(int16_t), L1_SIZE, nn);
-        read += fread(net.L1Weights, sizeof(int16_t), L1_SIZE * 2 * OUTPUT_BUCKETS, nn);
+        read += fread(net.L1Weights, sizeof(int16_t), L1_SIZE * OUTPUT_BUCKETS, nn);
         read += fread(net.L1Biases, sizeof(int16_t), OUTPUT_BUCKETS, nn);
 
         if (read != objectsExpected) {
@@ -60,22 +60,22 @@ void NNUE::init(const char *file) {
         std::memcpy(net.FTBiases, &gEVALData[memoryIndex], L1_SIZE * sizeof(int16_t));
         memoryIndex += L1_SIZE * sizeof(int16_t);
 
-        std::memcpy(net.L1Weights, &gEVALData[memoryIndex], L1_SIZE * 2 * OUTPUT_BUCKETS * sizeof(int16_t));
-        memoryIndex += L1_SIZE * 2 * OUTPUT_BUCKETS * sizeof(int16_t);
+        std::memcpy(net.L1Weights, &gEVALData[memoryIndex], L1_SIZE * OUTPUT_BUCKETS * sizeof(int16_t));
+        memoryIndex += L1_SIZE * OUTPUT_BUCKETS * sizeof(int16_t);
         std::memcpy(net.L1Biases, &gEVALData[memoryIndex], OUTPUT_BUCKETS * sizeof(int16_t));
     }
 
-    int16_t transposedL1Weights[L1_SIZE * 2 * OUTPUT_BUCKETS];
-    for (int weight = 0; weight < 2 * L1_SIZE; ++weight)
+    int16_t transposedL1Weights[L1_SIZE * OUTPUT_BUCKETS];
+    for (int weight = 0; weight < L1_SIZE; ++weight)
     {
         for (int bucket = 0; bucket < OUTPUT_BUCKETS; ++bucket)
         {
             const int srcIdx = weight * OUTPUT_BUCKETS + bucket;
-            const int dstIdx = bucket * 2 * L1_SIZE + weight;
+            const int dstIdx = bucket * L1_SIZE + weight;
             transposedL1Weights[dstIdx] = net.L1Weights[srcIdx];
         }
     }
-    std::memcpy(net.L1Weights, transposedL1Weights, L1_SIZE * sizeof(int16_t) * 2 * OUTPUT_BUCKETS);
+    std::memcpy(net.L1Weights, transposedL1Weights, L1_SIZE * sizeof(int16_t) * OUTPUT_BUCKETS);
 }
 
 void NNUE::update(Accumulator *acc, Position *pos) {
@@ -154,18 +154,20 @@ int32_t NNUE::ActivateFTAndAffineL1(const int16_t *us, const int16_t *them, cons
     const vepi16 One  = vec_set1_epi16(FT_QUANT);
     int weightOffset = 0;
     for (const int16_t *acc : {us, them}) {
-        for (int i = 0; i < L1_SIZE; i += CHUNK_SIZE) {
-            const vepi16 input   = vec_loadu_epi(reinterpret_cast<const vepi16*>(&acc[i]));
-            const vepi16 weight  = vec_loadu_epi(reinterpret_cast<const vepi16*>(&weights[i + weightOffset]));
-            const vepi16 clipped = vec_min_epi16(vec_max_epi16(input, Zero), One);
+        for (int i = 0; i < L1_SIZE / 2; i += CHUNK_SIZE) {
+            const vepi16 inputA  = vec_loadu_epi(reinterpret_cast<const vepi16*>(&acc[i]));
+            const vepi16 inputB  = vec_loadu_epi(reinterpret_cast<const vepi16*>(&acc[i + L1_SIZE / 2]));
+            const vepi16 clipA   = vec_min_epi16(vec_max_epi16(inputA, Zero), One);
+            const vepi16 clipB   = vec_min_epi16(vec_max_epi16(inputB, Zero), One);
 
-            // In squared clipped relu, we want to do (clipped * clipped) * weight.
-            // However, as clipped * clipped does not fit in an int16 while clipped * weight does,
-            // we instead do mullo(clipped, weight) and then madd by clipped.
-            const vepi32 product = vec_madd_epi16(vec_mullo_epi16(clipped, weight), clipped);
+            // In conventional pariwise + clipped relu, we want to do (clipA * clipB) * weight.
+            // However, as clipA * clipB does not fit in an int16 while clipA * weight does,
+            // we instead do mullo(clipA, weight) and madd by clipB.
+            const vepi16 weight  = vec_loadu_epi(reinterpret_cast<const vepi16*>(&weights[i + weightOffset]));
+            const vepi32 product = vec_madd_epi16(vec_mullo_epi16(clipA, weight), clipB);
             sum = vec_add_epi32(sum, product);
         }
-        weightOffset += L1_SIZE;
+        weightOffset += L1_SIZE / 2;
     }
 
     return (vec_reduce_add_epi32(sum) / FT_QUANT + bias) * NET_SCALE / (FT_QUANT * L1_QUANT);
@@ -174,14 +176,16 @@ int32_t NNUE::ActivateFTAndAffineL1(const int16_t *us, const int16_t *them, cons
     int sum = 0;
     int weightOffset = 0;
     for (const int16_t *acc : {us, them}) {
-        for (int i = 0; i < L1_SIZE; ++i) {
-            const int16_t input   = acc[i];
+        for (int i = 0; i < L1_SIZE / 2; ++i) {
+            const int16_t inputA  = acc[i];
+            const int16_t inputB  = acc[i + L1_SIZE / 2];
             const int16_t weight  = weights[i + weightOffset];
-            const int16_t clipped = std::clamp(input, int16_t(0), int16_t(FT_QUANT));
-            sum += static_cast<int16_t>(clipped * weight) * clipped;
+            const int16_t clipA   = std::clamp(inputA, int16_t(0), int16_t(FT_QUANT));
+            const int16_t clipB   = std::clamp(inputB, int16_t(0), int16_t(FT_QUANT));
+            sum += static_cast<int16_t>(clipA * weight) * clipB;
         }
 
-        weightOffset += L1_SIZE;
+        weightOffset += L1_SIZE / 2;
     }
 
     return (sum / FT_QUANT + bias) * NET_SCALE / (FT_QUANT * L1_QUANT);
@@ -197,7 +201,7 @@ int32_t NNUE::output(const NNUE::Accumulator& board_accumulator, const int stm, 
     us = board_accumulator.perspective[stm].values.data();
     them = board_accumulator.perspective[stm ^ 1].values.data();
 
-    const int32_t bucketOffset = 2 * L1_SIZE * outputBucket;
+    const int32_t bucketOffset = L1_SIZE * outputBucket;
     return ActivateFTAndAffineL1(us, them, &net.L1Weights[bucketOffset], net.L1Biases[outputBucket]);
 }
 
