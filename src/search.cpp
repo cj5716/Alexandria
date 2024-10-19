@@ -651,7 +651,7 @@ int Negamax(int alpha, int beta, int depth, bool predictedCutNode, ThreadData* t
             && totalMoves > (pvNode ? lmrMinMovesPv() : lmrMinMovesNonPv())
             && (isQuiet || !ttPv)) {
 
-            // Get base reduction value (multiplied by 1024)
+            // Get base reduction value (multiplied by LMR_GRAIN)
             int depthReductionGranular = lmrReductions[isQuiet][std::min(depth, 63)][std::min(failLowCount, 63)];
 
             // Reduce less if we are on or have been on the PV
