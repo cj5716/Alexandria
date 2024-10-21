@@ -29,9 +29,8 @@ struct Movepicker {
     Move ttMove;
     int idx;
     int stage;
-    bool rootNode;
 };
 
-void InitMP(Movepicker* mp, Position* pos, SearchData* sd, SearchStack* ss, const Move ttMove, const MovepickerType movepickerType, const bool rootNode);
+void InitMP(Movepicker* mp, Position* pos, SearchData* sd, SearchStack* ss, const Move ttMove, const MovepickerType movepickerType);
 Move NextMove(Movepicker* mp, const bool skip);
 
