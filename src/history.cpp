@@ -6,18 +6,18 @@
 #include "search.h"
 
 // Quiet history is a history table for quiet moves
-void QuietHistoryTable::update(const Position *pos, const Move move, const int16_t bonus) {
+void QuietHistoryTable::update(const Position *pos, const SearchStack *ss, const Move move, const int16_t bonus) {
     QuietHistoryEntry &entry = getEntryRef(pos, move);
-    const int factoriserScale = quietHistFactoriserScale();
-    const int bucketScale = 64 - factoriserScale;
-    UpdateHistoryEntry(entry.factoriser, bonus * factoriserScale / 64, quietHistFactoriserMax());
-    UpdateHistoryEntry(entry.bucketRef(pos, move), bonus * bucketScale / 64, quietHistBucketMax());
+    UpdateHistoryEntry(entry.factoriser, bonus * quietHistFactoriserScale() / 64, quietHistFactoriserMax());
+    UpdateHistoryEntry(entry.threatBucketRef(pos, move), bonus * quietHistThreatBucketScale() / 64, quietHistThreatBucketMax());
+    UpdateHistoryEntry(entry.plyBucketRef(ss->ply), bonus * quietHistPlyBucketScale() / 64, quietHistPlyBucketMax());
 }
 
-int QuietHistoryTable::getScore(const Position *pos, const Move move) const {
+int QuietHistoryTable::getScore(const Position *pos, const SearchStack *ss, const Move move) const {
     QuietHistoryEntry entry = getEntry(pos, move);
     return   entry.factoriser
-           + entry.bucket(pos, move);
+           + entry.threatBucket(pos, move)
+           + entry.plyBucket(ss->ply);
 }
 
 // Tactical history is a history table for tactical moves
@@ -115,7 +115,7 @@ void UpdateAllHistories(const Position *pos, const SearchStack *ss, SearchData *
             SearchedMove quietData = quietMoves.moves[i];
             Move quiet = quietData.move;
             int update = quiet == bestMove ? getBonus(quietData) : getMalus(quietData);
-            sd->quietHistory.update(pos, quiet, update);
+            sd->quietHistory.update(pos, ss, quiet, update);
             sd->continuationHistory.update(pos, ss, quiet, update);
         }
     }
@@ -137,7 +137,7 @@ int GetHistoryScore(const Position *pos, const SearchStack *ss, const SearchData
                + sd->continuationHistory.getScore(pos, ss, move);
     }
     else {
-        return   sd->quietHistory.getScore(pos, move)
+        return   sd->quietHistory.getScore(pos, ss, move)
                + sd->continuationHistory.getScore(pos, ss, move);
     }
 }

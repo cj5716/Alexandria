@@ -65,14 +65,23 @@ inline void UpdateHistoryEntry(int16_t &entry, const int16_t bonus, const int16_
 struct QuietHistoryTable {
     struct QuietHistoryEntry {
         int16_t factoriser;
-        int16_t buckets[2][2]; // Buckets indexed by [from-sq-is-attacked][to-sq-is-attacked]
+        int16_t threatBuckets[2][2]; // Buckets indexed by [from-sq-is-attacked][to-sq-is-attacked]
+        int16_t plyBuckets[6];
 
-        inline int16_t &bucketRef(const Position *pos, const Move move) {
-            return buckets[IsAttackedByOpp(pos, From(move))][IsAttackedByOpp(pos, To(move))];
+        inline int16_t &threatBucketRef(const Position *pos, const Move move) {
+            return threatBuckets[IsAttackedByOpp(pos, From(move))][IsAttackedByOpp(pos, To(move))];
         };
 
-        inline int16_t bucket(const Position *pos, const Move move) const {
-            return buckets[IsAttackedByOpp(pos, From(move))][IsAttackedByOpp(pos, To(move))];
+        inline int16_t threatBucket(const Position *pos, const Move move) const {
+            return threatBuckets[IsAttackedByOpp(pos, From(move))][IsAttackedByOpp(pos, To(move))];
+        };
+
+        inline int16_t &plyBucketRef(const int ply) {
+            return plyBuckets[std::min(ply / 4, 5)];
+        };
+
+        inline int16_t plyBucket(const int ply) const {
+            return plyBuckets[std::min(ply / 4, 5)];
         };
     };
 
@@ -91,8 +100,8 @@ struct QuietHistoryTable {
         std::memset(table, 0, sizeof(table));
     };
 
-    void update(const Position *pos, const Move move, const int16_t bonus);
-    int getScore(const Position *pos, const Move move) const;
+    void update(const Position *pos, const SearchStack *ss, const Move move, const int16_t bonus);
+    int getScore(const Position *pos, const SearchStack *ss, const Move move) const;
 };
 
 // Tactical history is a history table for tactical moves
