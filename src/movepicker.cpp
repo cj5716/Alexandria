@@ -12,13 +12,7 @@ void ScoreMoves(Movepicker* mp) {
     // Loop through all the move in the movelist
     for (int i = mp->idx; i < moveList->count; i++) {
         const Move move = moveList->moves[i].move;
-        const int history = GetHistoryScore(pos, ss, sd, move);
-        if (isTactical(move)) {
-            moveList->moves[i].score = history;
-        }
-        else {
-            moveList->moves[i].score = history;
-        }
+        moveList->moves[i].score = GetHistoryScore(pos, ss, sd, move);
     }
 }
 
