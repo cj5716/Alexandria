@@ -66,7 +66,7 @@ struct QuietHistoryTable {
     struct QuietHistoryEntry {
         int16_t factoriser;
         int16_t threatBuckets[2][2]; // Buckets indexed by [from-sq-is-attacked][to-sq-is-attacked]
-        int16_t plyBuckets[6];
+        int16_t plyBuckets[2];
 
         inline int16_t &threatBucketRef(const Position *pos, const Move move) {
             return threatBuckets[IsAttackedByOpp(pos, From(move))][IsAttackedByOpp(pos, To(move))];
@@ -77,11 +77,11 @@ struct QuietHistoryTable {
         };
 
         inline int16_t &plyBucketRef(const int ply) {
-            return plyBuckets[std::min(ply / 4, 5)];
+            return plyBuckets[ply <= 4];
         };
 
         inline int16_t plyBucket(const int ply) const {
-            return plyBuckets[std::min(ply / 4, 5)];
+            return plyBuckets[ply <= 4];
         };
     };
 
