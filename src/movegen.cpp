@@ -300,6 +300,9 @@ bool IsPseudoLegal(Position* pos, Move move) {
     if ((CountBits(pos->getCheckers()) >= 2) && pieceType != KING)
         return false;
 
+    if (pieceType != KING && !isEnpassant(move) && !((1ULL << to) & pos->getCheckmask()))
+        return false;
+
     const int NORTH = pos->side == WHITE ? -8 : 8;
 
     switch (pieceType) {
@@ -458,9 +461,6 @@ bool IsLegal(Position* pos, Move move) {
     }
     else if (pos->getPinnedMask() & (1ULL << from)) {
         return !pos->getCheckers() && (((1ULL << to) & RayBetween(ksq, from)) || ((1ULL << from) & RayBetween(ksq, to)));
-    }
-    else if (pos->getCheckers()) {
-        return (1ULL << to) & pos->getCheckmask();
     }
     else
         return true;
