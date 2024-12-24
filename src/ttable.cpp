@@ -94,11 +94,11 @@ void StoreTTEntry(const ZobristKey key, const PackedMove move, int score, int ev
     TTBucket *bucket = &TT.pTable[index];
     TTEntry *replace = &bucket->entries[0];
 
-    const auto valueOfEntry = [&](const TTEntry *tte) {
-        return (tte->depth - ((MAX_AGE + TTAge - AgeFromTT(tte->ageBoundPV)) & AGE_MASK) * 4) * (1 + (BoundFromTT(tte->ageBoundPV) == HFEXACT));
+    const auto valueOfEntry = [&](const int tteDepth, const int tteAge) {
+        return tteDepth - ((MAX_AGE + TTAge - tteAge) & AGE_MASK) * 4;
     };
 
-    int replaceValue = valueOfEntry(replace);
+    int replaceValue = valueOfEntry(replace->depth, AgeFromTT(replace->ageBoundPV));
 
     for (int i = 0; i < ENTRIES_PER_BUCKET; i++) {
         TTEntry* curr = &bucket->entries[i];
@@ -108,7 +108,7 @@ void StoreTTEntry(const ZobristKey key, const PackedMove move, int score, int ev
             break;
         }
 
-        const int currValue = valueOfEntry(curr);
+        const int currValue = valueOfEntry(curr->depth, AgeFromTT(curr->ageBoundPV));
         if (replaceValue > currValue) replace = curr;
     }
 
@@ -121,7 +121,7 @@ void StoreTTEntry(const ZobristKey key, const PackedMove move, int score, int ev
     if (   bound == HFEXACT
         || key16 != replace->ttKey
         || depth + 5 + 2 * pv > replace->depth
-        || AgeFromTT(replace->ageBoundPV) != TTAge) {
+        || valueOfEntry(depth, 0) > replaceValue) {
         replace->ttKey = key16;
         replace->ageBoundPV = PackToTT(bound, wasPV, TTAge);
         replace->score = static_cast<int16_t>(score);
