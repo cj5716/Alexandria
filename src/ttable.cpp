@@ -91,37 +91,42 @@ void StoreTTEntry(const ZobristKey key, const PackedMove move, int score, int ev
     const uint64_t index = Index(key);
     const TTKey key16 = static_cast<TTKey>(key);
     const uint8_t TTAge = TT.age;
-    TTBucket* bucket = &TT.pTable[index];
-    TTEntry* tte = &bucket->entries[0];
-    for (int i = 0; i < ENTRIES_PER_BUCKET; i++) {
-        TTEntry* entry = &bucket->entries[i];
+    TTBucket *bucket = &TT.pTable[index];
+    TTEntry *replace = &bucket->entries[0];
 
-        if (entry->ttKey == key16) {
-            tte = entry;
+    const auto valueOfEntry = [&](const TTEntry *tte) {
+        return (tte->depth - ((MAX_AGE + TTAge - AgeFromTT(tte->ageBoundPV)) & AGE_MASK) * 4) * (1 + (BoundFromTT(tte->ageBoundPV) == HFEXACT));
+    };
+
+    int replaceValue = valueOfEntry(replace);
+
+    for (int i = 0; i < ENTRIES_PER_BUCKET; i++) {
+        TTEntry* curr = &bucket->entries[i];
+
+        if (curr->ttKey == key16) {
+            replace = curr;
             break;
         }
 
-        if (tte->depth - ((MAX_AGE + TTAge - AgeFromTT(tte->ageBoundPV)) & AGE_MASK) * 4
-            > entry->depth - ((MAX_AGE + TTAge - AgeFromTT(entry->ageBoundPV)) & AGE_MASK) * 4) {
-            tte = entry;
-        }
+        const int currValue = valueOfEntry(curr);
+        if (replaceValue > currValue) replace = curr;
     }
 
     // Replacement strategy taken from Stockfish
     // Preserve any existing move for the same position
-    if (move || key16 != tte->ttKey)
-        tte->move = move;
+    if (move || key16 != replace->ttKey)
+        replace->move = move;
 
     // Overwrite less valuable entries (cheapest checks first)
     if (   bound == HFEXACT
-        || key16 != tte->ttKey
-        || depth + 5 + 2 * pv > tte->depth
-        || AgeFromTT(tte->ageBoundPV) != TTAge) {
-        tte->ttKey = key16;
-        tte->ageBoundPV = PackToTT(bound, wasPV, TTAge);
-        tte->score = static_cast<int16_t>(score);
-        tte->eval = static_cast<int16_t>(eval);
-        tte->depth = static_cast<uint8_t>(depth);
+        || key16 != replace->ttKey
+        || depth + 5 + 2 * pv > replace->depth
+        || AgeFromTT(replace->ageBoundPV) != TTAge) {
+        replace->ttKey = key16;
+        replace->ageBoundPV = PackToTT(bound, wasPV, TTAge);
+        replace->score = static_cast<int16_t>(score);
+        replace->eval = static_cast<int16_t>(eval);
+        replace->depth = static_cast<uint8_t>(depth);
     }
 }
 
