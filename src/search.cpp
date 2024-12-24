@@ -750,7 +750,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
 
                 // Reduce less if we have been on the PV
                 if (ttPv)
-                    depthReduction -= 1 + cutNode;
+                    depthReduction -= 1 + !pvNode;
 
                 if(complexity > 50)
                     depthReduction -= 1;
