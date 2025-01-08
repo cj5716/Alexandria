@@ -503,10 +503,13 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
     const bool improving = [&] {
         if (inCheck)
             return false;
+
         else if ((ss - 2)->staticEval != SCORE_NONE)
             return ss->staticEval > (ss - 2)->staticEval;
+
         else if ((ss - 4)->staticEval != SCORE_NONE)
             return ss->staticEval > (ss - 4)->staticEval;
+
         return true;
     }();
 
@@ -516,9 +519,12 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
         // Reverse futility pruning
         if (   depth < 10
             && abs(eval) < MATE_FOUND
-            && (ttMove == NOMOVE || isTactical(ttMove))
-            && eval - 91 * (depth - improving - canIIR) >= beta)
-            return eval - 91 * (depth - improving - canIIR);
+            && (ttMove == NOMOVE || isTactical(ttMove))) {
+
+            const int margin = std::max(34 + 91 * depth - 91 * improving - 91 * canIIR - 69 * cutNode, 0);
+            if (eval - margin >= beta)
+                return eval - margin;
+        }
 
         // Null move pruning: If our position is so good that we can give the opponent a free move and still fail high,
         // return early. At higher depth we do a reduced search with null move pruning disabled (ie verification search)
