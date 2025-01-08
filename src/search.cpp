@@ -536,11 +536,13 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
             ss->contHistEntry = &sd->contHist[PieceTo(NOMOVE)];
 
             MakeNullMove(pos);
+            td->inNmSearch = true;
 
             // Search moves at a reduced depth to find beta cutoffs.
             int nmpScore = -Negamax<false>(-beta, -beta + 1, depth - R - canIIR, !cutNode, td, ss + 1);
 
             TakeNullMove(pos);
+            td->inNmSearch = false;
 
             // fail-soft beta cutoff
             if (nmpScore >= beta) {
@@ -750,7 +752,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
 
                 // Reduce more if we are in an NMP search (if we were gifted a good position,
                 // we should expect to take few moves to disprove the fail low)
-                if (!rootNode && (ss - 1)->move == NOMOVE)
+                if (td->inNmSearch)
                     depthReduction += 1;
 
                 // Reduce less if the move is a refutation

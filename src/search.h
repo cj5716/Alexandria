@@ -45,6 +45,7 @@ struct ThreadData {
     SearchInfo info;
     int RootDepth;
     int nmpPlies;
+    bool inNmSearch;
 };
 
 // ClearForSearch handles the cleaning of the thread data from a clean state
