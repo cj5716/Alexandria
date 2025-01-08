@@ -748,6 +748,11 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
                 if (!improving)
                     depthReduction += 1;
 
+                // Reduce more if we are in an NMP search (if we were gifted a good position,
+                // we should expect to take few moves to disprove the fail low)
+                if (!rootNode && (ss - 1)->move == NOMOVE)
+                    depthReduction += 1;
+
                 // Reduce less if the move is a refutation
                 if (move == mp.killer || move == mp.counter)
                     depthReduction -= 1;
@@ -760,7 +765,7 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
                 if (ttPv)
                     depthReduction -= 1 + cutNode;
 
-                if(complexity > 50)
+                if (complexity > 50)
                     depthReduction -= 1;
 
                 // Decrease the reduction for moves that have a good history score and increase it for moves with a bad score
