@@ -5,7 +5,7 @@
 #include "misc.h"
 
 // Calculate how much time to spend on searching a move
-void Optimum(SearchInfo* info, int time, int inc) {
+void Optimum(SearchInfo* info, int time, int inc, Position *pos) {
     // If ccrl sent us a negative time just assume we have a workable amount of time to search for a move
     if (time < 0) time = 1000;
     // Reserve some time overhead to avoid timing out in the engine-gui communication process
@@ -32,11 +32,17 @@ void Optimum(SearchInfo* info, int time, int inc) {
     }
     // else if we received wtime/btime we calculate an over and upper bound for the time usage based on fixed coefficients
     else if (info->timeset) {
-        int basetime = time * 0.054 + inc * 0.85;
+
+        // Determine the likely number of moves to go based on ply played
+        const double p = static_cast<double>(pos->hisPly);
+        const int basetime = static_cast<double>(time) * (p * p + 10 * p + 4544) / (22 * p * p - 1333 * p + 148521) + inc * 0.85;
+
         // Never use more than 76% of the total time left for a single move
         const auto maxtimeBound = 0.76 * time;
+
         // optime is the time we use to stop if we just cleared a depth
         const auto optime = std::min(0.76 * basetime, maxtimeBound);
+
         // maxtime is the absolute maximum time we can spend on a search (unless it is bigger than the bound)
         const auto maxtime = std::min(3.04 * basetime, maxtimeBound);
         info->stoptimeMax = info->starttime + maxtime;

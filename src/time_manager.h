@@ -1,9 +1,10 @@
 #pragma once
 
+struct Position;
 struct SearchInfo;
 struct ThreadData;
 
-void Optimum(SearchInfo* info, int time, int inc);
+void Optimum(SearchInfo* info, int time, int inc, Position *pos);
 [[nodiscard]] bool StopEarly(const SearchInfo* info);
 [[nodiscard]] bool TimeOver(const SearchInfo* info);
 [[nodiscard]] bool NodesOver(const SearchInfo* info);

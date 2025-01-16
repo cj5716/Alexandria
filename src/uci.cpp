@@ -167,7 +167,7 @@ bool ParseGo(const std::string& line, SearchInfo* info, Position* pos) {
     info->starttime = GetTimeMs();
     info->depth = depth;
     // calculate time allocation for the move
-    Optimum(info, time, inc);
+    Optimum(info, time, inc, pos);
 
     if (depth == -1) {
         info->depth = MAXDEPTH;
