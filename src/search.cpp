@@ -697,11 +697,13 @@ int Negamax(int alpha, int beta, int depth, const bool cutNode, ThreadData* td, 
                 if (singularScore < singularBeta) {
                     extension = 1;
 
-                    if (   !pvNode
-                        &&  singularScore < singularBeta - 10) {
-                        extension = 2 + (!isTactical(ttMove) && singularScore < singularBeta - 75);
-                        depth += depth < 10;
-                    }
+                    const int doubleMargin =  10 + 369 * pvNode -  69 * isQuiet;
+                    const int tripleMargin = 368 + 690 * pvNode - 269 * isQuiet;
+
+                    if (singularScore + doubleMargin < singularBeta) extension = 2;
+                    if (singularScore + tripleMargin < singularBeta) extension = 3;
+
+                    depth += !pvNode && depth < 10;
                 }
                 else if (singularScore >= beta)
                     return singularScore;
