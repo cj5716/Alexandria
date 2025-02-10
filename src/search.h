@@ -21,7 +21,8 @@ struct SearchData {
     int captHist[12 * 64][6] = {};
     int counterMoves[64 * 64] = {};
     int contHist[12 * 64][12 * 64] = {};
-    int pawnCorrHist[2][CORRHIST_SIZE] = {};
+    int whitePawnCorrHist[2][CORRHIST_SIZE] = {};
+    int blackPawnCorrHist[2][CORRHIST_SIZE] = {};
     int whiteNonPawnCorrHist[2][CORRHIST_SIZE] = {};
     int blackNonPawnCorrHist[2][CORRHIST_SIZE] = {};
     int contCorrHist[2][6 * 64][6 * 64] = {};

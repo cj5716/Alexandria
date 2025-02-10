@@ -43,7 +43,8 @@ public:
     int hisPly = 0; // total number of halfmoves
     // unique  hashkey  that encodes a board position
     ZobristKey posKey = 0ULL;
-    ZobristKey pawnKey = 0ULL;
+    ZobristKey whitePawnKey = 0ULL;
+    ZobristKey blackPawnKey = 0ULL;
     ZobristKey whiteNonPawnKey = 0ULL;
     ZobristKey blackNonPawnKey = 0ULL;
     // stores the state of the board  rollback purposes
@@ -183,7 +184,9 @@ constexpr char ascii_pieces[13] = "PNBRQKpnbrqk";
 extern NNUE nnue;
 
 [[nodiscard]] ZobristKey GeneratePosKey(const Position* pos);
-[[nodiscard]] ZobristKey GeneratePawnKey(const Position* pos);
+[[nodiscard]] ZobristKey GeneratePawnKey(const Position* pos, int side);
+[[nodiscard]] ZobristKey GenerateNonPawnKey(const Position* pos, int side);
+
 // parse FEN string
 void ParseFen(const std::string& command, Position* pos);
 // Get fen string from board

@@ -28,8 +28,10 @@ void ClearPiece(const int piece, const int from, Position* pos) {
     pop_bit(pos->occupancies[color], from);
     pos->pieces[from] = EMPTY;
     HashKey(pos->posKey, PieceKeys[piece][from]);
-    if(GetPieceType(piece) == PAWN)
-        HashKey(pos->pawnKey, PieceKeys[piece][from]);
+    if(piece == WP)
+        HashKey(pos->whitePawnKey, PieceKeys[piece][from]);
+    else if(piece == BP)
+        HashKey(pos->blackPawnKey, PieceKeys[piece][from]);
     else if(Color[piece] == WHITE)
         HashKey(pos->whiteNonPawnKey, PieceKeys[piece][from]);
     else
@@ -48,8 +50,10 @@ void AddPiece(const int piece, const int to, Position* pos) {
     set_bit(pos->occupancies[color], to);
     pos->pieces[to] = piece;
     HashKey(pos->posKey, PieceKeys[piece][to]);
-    if(GetPieceType(piece) == PAWN)
-        HashKey(pos->pawnKey, PieceKeys[piece][to]);
+    if(piece == WP)
+        HashKey(pos->whitePawnKey, PieceKeys[piece][to]);
+    else if(piece == BP)
+        HashKey(pos->blackPawnKey, PieceKeys[piece][to]);
     else if(Color[piece] == WHITE)
         HashKey(pos->whiteNonPawnKey, PieceKeys[piece][to]);
     else
@@ -345,7 +349,10 @@ void MakeMove(const Move move, Position* pos) {
     }
     // Make sure a freshly generated zobrist key matches the one we are incrementally updating
     assert(pos->posKey == GeneratePosKey(pos));
-    assert(pos->pawnKey == GeneratePawnKey(pos));
+    assert(pos->whitePawnKey == GeneratePawnKey(pos, WHITE));
+    assert(pos->blackPawnKey == GeneratePawnKey(pos, BLACK));
+    assert(pos->whiteNonPawnKey == GenerateNonPawnKey(pos, WHITE));
+    assert(pos->blackNonPawnKey == GenerateNonPawnKey(pos, BLACK));
 }
 
 void UnmakeMove(const Move move, Position* pos) {

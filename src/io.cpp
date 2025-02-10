@@ -87,7 +87,13 @@ void PrintBoard(const Position* pos) {
 
     std::cout << "position key: " << pos->posKey << std::endl;
 
-    std::cout << "pawn key: " << pos->pawnKey << std::endl;
+    std::cout << "white pawn key: " << pos->whitePawnKey << std::endl;
+
+    std::cout << "black pawn key: " << pos->blackPawnKey << std::endl;
+
+    std::cout << "white non-pawn key: " << pos->whiteNonPawnKey << std::endl;
+
+    std::cout << "black non-pawn key: " << pos->blackNonPawnKey << std::endl;
 
     std::cout << "Fen: " << GetFen(pos) << "\n\n";
 }

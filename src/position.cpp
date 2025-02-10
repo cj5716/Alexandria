@@ -69,12 +69,12 @@ ZobristKey GeneratePosKey(const Position* pos) {
 }
 
 // Generates zobrist key (for only the pawns) from scratch
-ZobristKey GeneratePawnKey(const Position* pos) {
+ZobristKey GeneratePawnKey(const Position* pos, int side) {
     Bitboard pawnKey = 0;
     for (int sq = 0; sq < 64; ++sq) {
         // get piece on that square
         const int piece = pos->PieceOn(sq);
-        if (piece == WP || piece == BP) {
+        if ((piece == WP || piece == BP) && Color[piece] == side) {
             pawnKey ^= PieceKeys[piece][sq];
         }
     }
@@ -220,7 +220,8 @@ void ParseFen(const std::string& command, Position* pos) {
         pos->occupancies[BLACK] |= pos->bitboards[piece];
 
     pos->posKey = GeneratePosKey(pos);
-    pos->pawnKey = GeneratePawnKey(pos);
+    pos->whitePawnKey = GeneratePawnKey(pos, WHITE);
+    pos->blackPawnKey = GeneratePawnKey(pos, BLACK);
     pos->whiteNonPawnKey = GenerateNonPawnKey(pos, WHITE);
     pos->blackNonPawnKey = GenerateNonPawnKey(pos, BLACK);
 
