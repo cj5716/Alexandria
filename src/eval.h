@@ -37,8 +37,14 @@
 [[nodiscard]] inline int EvalPositionRaw(Position* pos) {
     // Update accumulators to ensure we are up to date on the current board state
     nnue.update(&pos->AccumulatorTop(), pos);
-    const int pieceCount = pos->PieceCount();
-    const int outputBucket = std::min((63 - pieceCount) * (32 - pieceCount) / 225, 7);
+
+    const int pawns = CountBits(GetPieceBB(pos, PAWN));
+    const int nonPawns = pos->PieceCount() - pawns;
+
+    const int pawnBucket = (pawns - 1) / 4;
+    const int nonPawnBucket = (nonPawns - 1) / 4;
+
+    const int outputBucket = pawnBucket * 4 + nonPawnBucket;
     return nnue.output(pos->AccumulatorTop(), pos->side, outputBucket);
 }
 
