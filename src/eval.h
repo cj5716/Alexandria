@@ -42,7 +42,7 @@
     const int nonPawns = pos->PieceCount() - pawns;
 
     const int pawnBucket = (pawns - 1) / 4;
-    const int nonPawnBucket = (nonPawns - 1) / 4;
+    const int nonPawnBucket = std::min((nonPawns - 1) / 4, 3);
 
     const int outputBucket = pawnBucket * 4 + nonPawnBucket;
     return nnue.output(pos->AccumulatorTop(), pos->side, outputBucket);
