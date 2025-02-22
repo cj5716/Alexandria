@@ -46,7 +46,7 @@
 
     const int outputBucket = pawnBucket * 4 + nonPawnBucket;
     return nnue.output(pos->AccumulatorTop(), pos->side, outputBucket);
-}
+} //
 
 // position evaluation
 [[nodiscard]] inline int EvalPosition(Position* pos) {
