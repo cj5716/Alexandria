@@ -122,8 +122,8 @@ int NNUE::povActivateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer,  cons
     #if defined(USE_SIMD)
     for (int i = 0; i < L1_SIZE; i += TILE_SIZE) {
         vepi16 *entryVec = reinterpret_cast<vepi16*>(&cachedEntry.accumCache[i]);
-        for (int j = 0; j < NUM_REGI; ++j) {
-            regs[j] = vec_loadu_epi(&entryVec[j]);
+        for (int k = 0; k < NUM_REGI; ++k) {
+            regs[k] = vec_loadu_epi(&entryVec[k]);
         }
 
         size_t j = 0;
