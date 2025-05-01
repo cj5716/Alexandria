@@ -127,16 +127,18 @@ int NNUE::povActivateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer,  cons
         }
 
         size_t j = 0;
-        for (; j < addCnt - 3; j += 4) {
+        for (; j + 3 < addCnt; j += 4) {
             vepi16 *addedVec0 = reinterpret_cast<vepi16*>(&net.FTWeights[add[j + 0] * L1_SIZE + i]);
             vepi16 *addedVec1 = reinterpret_cast<vepi16*>(&net.FTWeights[add[j + 1] * L1_SIZE + i]);
             vepi16 *addedVec2 = reinterpret_cast<vepi16*>(&net.FTWeights[add[j + 2] * L1_SIZE + i]);
             vepi16 *addedVec3 = reinterpret_cast<vepi16*>(&net.FTWeights[add[j + 3] * L1_SIZE + i]);
             for (int k = 0; k < NUM_REGI; ++k) {
-                regs[k] = vec_add_epi16(regs[k], addedVec0[k]);
-                regs[k] = vec_add_epi16(regs[k], addedVec1[k]);
-                regs[k] = vec_add_epi16(regs[k], addedVec2[k]);
-                regs[k] = vec_add_epi16(regs[k], addedVec3[k]);
+                vepi16 sumVec = addedVec0[k];
+                sumVec = vec_add_epi16(sumVec, addedVec1[k]);
+                sumVec = vec_add_epi16(sumVec, addedVec2[k]);
+                sumVec = vec_add_epi16(sumVec, addedVec3[k]);
+
+                regs[k] = vec_add_epi16(regs[k], sumVec);
             }
         }
 
@@ -148,16 +150,18 @@ int NNUE::povActivateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer,  cons
         }
 
         j = 0;
-        for (; j < removeCnt - 3; j += 4) {
+        for (; j + 3 < removeCnt; j += 4) {
             vepi16 *removedVec0 = reinterpret_cast<vepi16*>(&net.FTWeights[remove[j + 0] * L1_SIZE + i]);
             vepi16 *removedVec1 = reinterpret_cast<vepi16*>(&net.FTWeights[remove[j + 1] * L1_SIZE + i]);
             vepi16 *removedVec2 = reinterpret_cast<vepi16*>(&net.FTWeights[remove[j + 2] * L1_SIZE + i]);
             vepi16 *removedVec3 = reinterpret_cast<vepi16*>(&net.FTWeights[remove[j + 3] * L1_SIZE + i]);
             for (int k = 0; k < NUM_REGI; ++k) {
-                regs[k] = vec_sub_epi16(regs[k], removedVec0[k]);
-                regs[k] = vec_sub_epi16(regs[k], removedVec1[k]);
-                regs[k] = vec_sub_epi16(regs[k], removedVec2[k]);
-                regs[k] = vec_sub_epi16(regs[k], removedVec3[k]);
+                vepi16 sumVec = removedVec0[k];
+                sumVec = vec_add_epi16(sumVec, removedVec1[k]);
+                sumVec = vec_add_epi16(sumVec, removedVec2[k]);
+                sumVec = vec_add_epi16(sumVec, removedVec3[k]);
+
+                regs[k] = vec_sub_epi16(regs[k], sumVec);
             }
         }
 
