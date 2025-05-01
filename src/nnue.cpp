@@ -168,24 +168,24 @@ int NNUE::povActivateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer,  cons
             }
         }
 
-        for (int j = 0; j < NUM_REGI; ++j) {
-            vec_storeu_epi(&entryVec[j], regs[j]);
+        for (int k = 0; k < NUM_REGI; ++k) {
+            vec_storeu_epi(&entryVec[k], regs[k]);
         }
 
         const vepi16 *l1weightVec = reinterpret_cast<const vepi16*>(&l1weights[i]);
-        for (int j = 0; j < NUM_REGI; ++j) {
+        for (int k = 0; k < NUM_REGI; ++k) {
 
             // We have Squared Clipped ReLU (SCReLU) as our activation function.
             // We first clip the input (the CReLU part)
-            regs[j] = vec_min_epi16(vec_max_epi16(regs[j], Zero), One);
+            regs[k] = vec_min_epi16(vec_max_epi16(regs[k], Zero), One);
 
             // Load the weight
-            const vepi16 weight = vec_loadu_epi(&l1weightVec[j]);
+            const vepi16 weight = vec_loadu_epi(&l1weightVec[k]);
 
-            // What we want to do here is square regs[j] (aka CReLU) to achieve SCReLU and then multiply by the weight.
-            // However, as regs[j] * regs[j] does not fit in an int16 while regs[j] * weight does,
-            // we instead do mullo(regs[j], weight) and then madd by regs[j].
-            const vepi32 product = vec_madd_epi16(vec_mullo_epi16(regs[j], weight), regs[j]);
+            // What we want to do here is square regs[k] (aka CReLU) to achieve SCReLU and then multiply by the weight.
+            // However, as regs[k] * regs[k] does not fit in an int16 while regs[k] * weight does,
+            // we instead do mullo(regs[k], weight) and then madd by regs[k].
+            const vepi32 product = vec_madd_epi16(vec_mullo_epi16(regs[k], weight), regs[k]);
             sum = vec_add_epi32(sum, product);
         }
     }
