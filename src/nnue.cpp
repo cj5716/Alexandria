@@ -81,7 +81,7 @@ void NNUE::init(const char *file) {
     std::memcpy(net.L1Weights, transposedL1Weights, L1_SIZE * sizeof(int16_t) * 2 * OUTPUT_BUCKETS);
 }
 
-int NNUE::povActivateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer,  const int side, const int16_t *l1weights) {
+int NNUE::povActivateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer, const int side, const int16_t *l1weights) {
 
     #if defined(USE_SIMD)
     constexpr int NUM_REGI = 8;
@@ -97,7 +97,9 @@ int NNUE::povActivateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer,  cons
     const int kingSq = KingSQ(pos, side);
     const bool flip = get_file[kingSq] > 3;
     const int kingBucket = getBucket(kingSq, side);
-    FinnyTableEntry &cachedEntry = (*FinnyPointer)[side][kingBucket][flip];
+    const int finnyBucket = (pos->PieceCount() - 1) / 8;
+
+    FinnyTableEntry &cachedEntry = (*FinnyPointer)[side][kingBucket][flip][finnyBucket];
 
 
     size_t add[32], remove[32]; // Max add or remove is 32 unless illegal position
