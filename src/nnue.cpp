@@ -97,7 +97,7 @@ int NNUE::povActivateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer,  cons
     const int kingSq = KingSQ(pos, side);
     const bool flip = get_file[kingSq] > 3;
     const int kingBucket = getBucket(kingSq, side);
-    const int finnyBucket = (pos->PieceCount() + 4) / 8;
+    const int finnyBucket = pos->PieceCount() % FINNY_BUCKETS;
     FinnyTableEntry &cachedEntry = (*FinnyPointer)[finnyBucket][side][kingBucket][flip];
 
 

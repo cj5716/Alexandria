@@ -13,7 +13,7 @@ constexpr int INPUT_BUCKETS = 16;
 constexpr int L1_SIZE = 1536;
 constexpr int OUTPUT_BUCKETS = 8;
 
-constexpr int FINNY_BUCKETS = 5;
+constexpr int FINNY_BUCKETS = 4;
 
 constexpr int FT_QUANT = 362;
 constexpr int L1_QUANT = 64;
