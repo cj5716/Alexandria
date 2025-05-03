@@ -4,6 +4,7 @@
 #include <array>
 #include <vector>
 #include <cassert>
+#include "bitboard.h"
 #include "simd.h"
 #include "types.h"
 
@@ -27,6 +28,8 @@ constexpr int buckets[64] = {
         14, 14, 15, 15, 15, 15, 14, 14,
         14, 14, 15, 15, 15, 15, 14, 14
 };
+
+constexpr int FINNY_BUCKETS = 4;
 
 [[nodiscard]] inline int getBucket(int kingSquare, int side) {
    const auto finalKingSq = side == WHITE ? (kingSquare ^ 56) : (kingSquare);
@@ -57,9 +60,17 @@ struct NNUE {
             for (int i = 0; i < L1_SIZE; ++i)
                 accumCache[i] = net.FTBiases[i];
         }
+
+        int cost(Bitboard *bitboards) const {
+            int total = 0;
+            for (int piece = WP; piece <= BK; piece++) {
+                total += CountBits(bitboards[piece] ^ occupancies[piece]);
+            }
+            return total;
+        }
     };
 
-    using FinnyTable = std::array<std::array<std::array<FinnyTableEntry, 2>, INPUT_BUCKETS>, 2>;
+    using FinnyTable = std::array<std::array<std::array<std::array<FinnyTableEntry, FINNY_BUCKETS>, 2>, INPUT_BUCKETS>, 2>;
 
     static int activateAffine(Position *pos, FinnyTable* FinnyPointer, const int16_t *weights, const int16_t bias);
     static int povActivateAffine(Position *pos, FinnyTable* FinnyPointer, const int side, const int16_t *l1weights);

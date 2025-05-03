@@ -97,8 +97,26 @@ int NNUE::povActivateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer,  cons
     const int kingSq = KingSQ(pos, side);
     const bool flip = get_file[kingSq] > 3;
     const int kingBucket = getBucket(kingSq, side);
-    FinnyTableEntry &cachedEntry = (*FinnyPointer)[side][kingBucket][flip];
 
+    auto &finnyBucket = (*FinnyPointer)[side][kingBucket][flip];
+    int bestIndex = 0, worstIndex = 0;
+    int maxCost, minCost;
+    maxCost = minCost = finnyBucket[0].cost(pos->state.bitboards);
+
+    for (int i = 1; i < FINNY_BUCKETS; ++i) {
+        int newCost = finnyBucket[i].cost(pos->state.bitboards);
+        if (newCost > maxCost) {
+            maxCost = newCost;
+            worstIndex = i;
+        }
+        else if (newCost < minCost) {
+            minCost = newCost;
+            bestIndex = i;
+        }
+    }
+
+    FinnyTableEntry &cachedEntry = finnyBucket[bestIndex];
+    FinnyTableEntry &replaceEntry = finnyBucket[worstIndex];
 
     size_t add[32], remove[32]; // Max add or remove is 32 unless illegal position
     size_t addCnt = 0, removeCnt = 0;
@@ -116,7 +134,7 @@ int NNUE::povActivateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer,  cons
             remove[removeCnt++] = getIndex(piece, square, side, kingBucket, flip);
         }
 
-        cachedEntry.occupancies[piece] = pos->state.bitboards[piece];
+        replaceEntry.occupancies[piece] = pos->state.bitboards[piece];
     }
 
     #if defined(USE_SIMD)
@@ -140,8 +158,9 @@ int NNUE::povActivateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer,  cons
             }
         }
 
+        vepi16 *replaceVec = reinterpret_cast<vepi16*>(&replaceEntry.accumCache[i]);
         for (int j = 0; j < NUM_REGI; ++j) {
-            vec_storeu_epi(&entryVec[j], regs[j]);
+            vec_storeu_epi(&replaceVec[j], regs[j]);
         }
 
         const vepi16 *l1weightVec = reinterpret_cast<const vepi16*>(&l1weights[i]);
@@ -166,23 +185,24 @@ int NNUE::povActivateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer,  cons
     #else
 
     NNUE::PovAccumulator &accumCache = cachedEntry.accumCache;
+    NNUE::PovAccumulator &replaceCache = replaceEntry.accumCache;
 
-      for (int i = 0; i < addCnt; i++) {
+      for (int i = 0; i < addCnt; ++i) {
         const auto added = add[i];
-        for (int i = 0; i < L1_SIZE; ++i) {
-            accumCache[i] += net.FTWeights[added * L1_SIZE + i];
+        for (int j = 0; j < L1_SIZE; ++j) {
+            replaceCache[j] = accumCache[j] + net.FTWeights[added * L1_SIZE + j];
         }
     }
 
-      for (int i = 0; i < removeCnt; i++) {
+      for (int i = 0; i < removeCnt; ++i) {
         const auto removed = remove[i];
-        for (int i = 0; i < L1_SIZE; ++i) {
-            accumCache[i] -= net.FTWeights[removed * L1_SIZE + i];
+        for (int j = 0; j < L1_SIZE; ++j) {
+            replaceCache[j] = accumCache[j] - net.FTWeights[removed * L1_SIZE + j];
         }
     }
 
     for (int i = 0; i < L1_SIZE; ++i) {
-        const int16_t input   = accumCache[i];
+        const int16_t input   = replaceCache[i];
         const int16_t weight  = l1weights[i];
         const int16_t clipped = std::clamp(input, int16_t(0), int16_t(FT_QUANT));
         sum += static_cast<int16_t>(clipped * weight) * clipped;
