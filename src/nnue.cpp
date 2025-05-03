@@ -101,10 +101,10 @@ int NNUE::povActivateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer,  cons
     auto &finnyBucket = (*FinnyPointer)[side][kingBucket][flip];
     int bestIndex = 0, worstIndex = 0;
     int maxCost, minCost;
-    maxCost = minCost = finnyEntry[0].cost(pos);
+    maxCost = minCost = finnyEntry[0].cost(pos->state.bitboards);
 
     for (int i = 1; i < FINNY_BUCKETS; ++i) {
-        int newCost = finnyBucket[i].cost(pos);
+        int newCost = finnyBucket[i].cost(pos->state.bitboards);
         if (newCost > maxCost) {
             maxCost = newCost;
             worstIndex = i;

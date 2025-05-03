@@ -60,10 +60,10 @@ struct NNUE {
                 accumCache[i] = net.FTBiases[i];
         }
 
-        int cost(Position *pos) const {
+        int cost(Bitboard *bitboards) const {
             int total = 0;
             for (int piece = WP; piece <= BK; piece++) {
-                total += CountBits(pos->state.bitboards[piece] ^ cachedEntry.occupancies[piece]);
+                total += CountBits(bitboards[piece] ^ occupancies[piece]);
             }
             return total;
         }
