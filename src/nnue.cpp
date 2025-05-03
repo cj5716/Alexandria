@@ -160,7 +160,7 @@ int NNUE::povActivateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer,  cons
 
         vepi16 *replaceVec = reinterpret_cast<vepi16*>(&replaceEntry.accumCache[i]);
         for (int j = 0; j < NUM_REGI; ++j) {
-            vec_storeu_epi(&entryVec[j], regs[j]);
+            vec_storeu_epi(&replaceVec[j], regs[j]);
         }
 
         const vepi16 *l1weightVec = reinterpret_cast<const vepi16*>(&l1weights[i]);
