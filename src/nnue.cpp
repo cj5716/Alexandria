@@ -100,7 +100,7 @@ int NNUE::povActivateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer,  cons
     FinnyTableEntry &cachedEntry = (*FinnyPointer)[side][kingBucket][flip];
 
 
-    size_t add[32], remove[32]; // Max add or remove is 32 unless illegal position
+    int16_t *add[32], *remove[32]; // Max add or remove is 32 unless illegal position
     size_t addCnt = 0, removeCnt = 0;
 
     for (int piece = WP; piece <= BK; piece++) {
@@ -108,12 +108,12 @@ int NNUE::povActivateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer,  cons
         Bitboard removed = cachedEntry.occupancies[piece] & ~pos->state.bitboards[piece];
         while (added) {
             int square = popLsb(added);
-            add[addCnt++] = getIndex(piece, square, side, kingBucket, flip);
+            add[addCnt++] = &net.FTWeights[getIndex(piece, square, side, kingBucket, flip)];
         }
 
         while (removed) {
             int square = popLsb(removed);
-            remove[removeCnt++] = getIndex(piece, square, side, kingBucket, flip);
+            remove[removeCnt++] = &net.FTWeights[getIndex(piece, square, side, kingBucket, flip)];
         }
 
         cachedEntry.occupancies[piece] = pos->state.bitboards[piece];
@@ -127,14 +127,14 @@ int NNUE::povActivateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer,  cons
         }
 
         for (size_t j = 0; j < addCnt; ++j) {
-            vepi16 *addedVec = reinterpret_cast<vepi16*>(&net.FTWeights[add[j] + i]);
+            vepi16 *addedVec = reinterpret_cast<vepi16*>(add[j] + i);
             for (int k = 0; k < NUM_REGI; ++k) {
                 regs[k] = vec_add_epi16(regs[k], addedVec[k]);
             }
         }
 
         for (size_t j = 0; j < removeCnt; ++j) {
-            vepi16 *removedVec = reinterpret_cast<vepi16*>(&net.FTWeights[remove[j] + i]);
+            vepi16 *removedVec = reinterpret_cast<vepi16*>(remove[j] + i);
             for (int k = 0; k < NUM_REGI; ++k) {
                 regs[k] = vec_sub_epi16(regs[k], removedVec[k]);
             }
@@ -167,17 +167,15 @@ int NNUE::povActivateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer,  cons
 
     NNUE::PovAccumulator &accumCache = cachedEntry.accumCache;
 
-      for (int i = 0; i < addCnt; i++) {
-        const auto added = add[i];
+      for (size_t i = 0; i < addCnt; ++i) {
         for (int j = 0; j < L1_SIZE; ++j) {
-            accumCache[j] += net.FTWeights[added + j];
+            accumCache[j] += add[i][j];
         }
     }
 
-      for (int i = 0; i < removeCnt; i++) {
-        const auto removed = remove[i];
+      for (size_t i = 0; i < removeCnt; ++i) {
         for (int j = 0; j < L1_SIZE; ++j) {
-            accumCache[j] -= net.FTWeights[removed + j];
+            accumCache[j] -= remove[i][j];
         }
     }
 
