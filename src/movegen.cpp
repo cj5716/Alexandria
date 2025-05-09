@@ -61,9 +61,8 @@ static inline Bitboard NORTH(const Bitboard in, const int color) {
 }
 
 static inline void PseudoLegalPawnMoves(Position* pos, int color, MoveList* list, MovegenType type) {
-    const Bitboard enemy = pos->Occupancy(color ^ 1);
+
     const Bitboard ourPawns = pos->GetPieceColorBB(PAWN, color);
-    const Bitboard rank4BB = color == WHITE ? 0x000000FF00000000ULL : 0x00000000FF000000ULL;
     const Bitboard freeSquares = ~pos->Occupancy(BOTH);
     const int pawnType = GetPiece(PAWN, pos->side);
     const int north = color == WHITE ? -8 : 8;
@@ -72,6 +71,8 @@ static inline void PseudoLegalPawnMoves(Position* pos, int color, MoveList* list
 
     // Quiet moves (ie push/double-push)
     if (genQuiet) {
+        const Bitboard rank4BB = color == WHITE ? 0x000000FF00000000ULL : 0x00000000FF000000ULL;
+
         Bitboard push = NORTH(ourPawns, color) & freeSquares & ~0xFF000000000000FFULL;
         Bitboard doublePush = NORTH(push, color) & freeSquares & rank4BB;
         while (push) {
@@ -85,6 +86,8 @@ static inline void PseudoLegalPawnMoves(Position* pos, int color, MoveList* list
     }
 
     if (genNoisy) {
+        const Bitboard enemy = pos->Occupancy(color ^ 1);
+
         // Push promotions
         Bitboard pushPromo = NORTH(ourPawns, color) & freeSquares & 0xFF000000000000FFULL;
         while (pushPromo) {
@@ -96,31 +99,22 @@ static inline void PseudoLegalPawnMoves(Position* pos, int color, MoveList* list
         }
 
         // Captures and capture-promotions
-        Bitboard captBB1 = (NORTH(ourPawns, color) >> 1) & ~0x8080808080808080ULL & enemy;
-        Bitboard captBB2 = (NORTH(ourPawns, color) << 1) & ~0x101010101010101ULL & enemy;
-        while (captBB1) {
-            const int to = popLsb(captBB1);
-            const int from = to - north + 1;
-            if (get_rank[to] != (color == WHITE ? 7 : 0))
-                AddMove(encode_move(from, to, pawnType, Movetype::Capture), list);
-            else {
-                AddMove(encode_move(from, to, pawnType, (Movetype::queenPromo | Movetype::Capture)), list);
-                AddMove(encode_move(from, to, pawnType, (Movetype::rookPromo | Movetype::Capture)), list); 
-                AddMove(encode_move(from, to, pawnType, (Movetype::bishopPromo | Movetype::Capture)), list);
-                AddMove(encode_move(from, to, pawnType, (Movetype::knightPromo | Movetype::Capture)), list);
-            }
-        }
-
-        while (captBB2) {
-            const int to = popLsb(captBB2);
-            const int from = to - north - 1;
-            if (get_rank[to] != (color == WHITE ? 7 : 0))
-                AddMove(encode_move(from, to, pawnType, Movetype::Capture), list);
-            else {
-                AddMove(encode_move(from, to, pawnType, (Movetype::queenPromo | Movetype::Capture)), list);
-                AddMove(encode_move(from, to, pawnType, (Movetype::rookPromo | Movetype::Capture)), list); 
-                AddMove(encode_move(from, to, pawnType, (Movetype::bishopPromo | Movetype::Capture)), list);
-                AddMove(encode_move(from, to, pawnType, (Movetype::knightPromo | Movetype::Capture)), list);
+        Bitboard srcBB = ourPawns;
+        while (srcBB) {
+            const int from = popLsb(srcBB);
+            Bitboard toBB = pawn_attacks[color][from] & enemy;
+            const bool promo = toBB & 0xFF000000000000FFULL;
+            while (toBB) {
+                const int to = popLsb(toBB);
+                if (promo) {
+                    AddMove(encode_move(from, to, pawnType, (Movetype::queenPromo | Movetype::Capture)), list);
+                    AddMove(encode_move(from, to, pawnType, (Movetype::rookPromo | Movetype::Capture)), list); 
+                    AddMove(encode_move(from, to, pawnType, (Movetype::bishopPromo | Movetype::Capture)), list);
+                    AddMove(encode_move(from, to, pawnType, (Movetype::knightPromo | Movetype::Capture)), list);
+                }
+                else {
+                    AddMove(encode_move(from, to, pawnType, Movetype::Capture), list);
+                }
             }
         }
 
