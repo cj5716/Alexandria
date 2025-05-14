@@ -898,11 +898,16 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
     Position* pos = &td->pos;
     SearchData* sd = &td->sd;
     SearchInfo* info = &td->info;
-    const bool inCheck = pos->getCheckers();
+
     // tte is an TT entry, it will store the values fetched from the TT
     TTEntry tte;
     int bestScore;
     int rawEval;
+
+    // If we are in check, extend the node and do a depth 1 search instead
+    if (pos->getCheckers()) {
+        return Negamax<pvNode>(alpha, beta, 1, false, td, ss);
+    }
 
     // check if more than Maxtime passed and we have to stop
     if (td->id == 0 && TimeOver(&td->info)) {
@@ -917,7 +922,7 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
 
     // If we reached maxdepth we return a static evaluation of the position
     if (ss->ply >= MAXDEPTH - 1)
-        return inCheck ? 0 : EvalPosition(pos,&td->FTable);
+        return EvalPosition(pos, &td->FTable);
 
     // Upcoming repetition detection
     if (alpha < 0 && hasGameCycle(pos,ss->ply))
@@ -942,12 +947,8 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
 
     const bool ttPv = pvNode || (ttHit && FormerPV(tte.ageBoundPV));
 
-    if (inCheck) {
-        rawEval = ss->staticEval = SCORE_NONE;
-        bestScore = -MAXSCORE;
-    }
     // If we have a ttHit with a valid eval use that
-    else if (ttHit) {
+    if (ttHit) {
 
         // If the value in the TT is valid we use that, otherwise we call the static evaluation function
         rawEval = tte.eval != SCORE_NONE ? tte.eval : EvalPosition(pos, &td->FTable);
@@ -984,7 +985,7 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
     int totalMoves = 0;
 
     // loop over moves within the movelist
-    while ((move = NextMove(&mp, !inCheck || bestScore > -MATE_FOUND)) != NOMOVE) {
+    while ((move = NextMove(&mp, bestScore > -MATE_FOUND)) != NOMOVE) {
 
         if (!IsLegal(pos, move))
             continue;
@@ -992,8 +993,7 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
         totalMoves++;
 
         // Futility pruning. If static eval is far below alpha, only search moves that win material.
-        if (    bestScore > -MATE_FOUND
-            && !inCheck) {
+        if (bestScore > -MATE_FOUND) {
             const int futilityBase = ss->staticEval + qsBaseFutility();
             if (futilityBase <= alpha && !SEE(pos, move, 1)) {
                 bestScore = std::max(futilityBase, bestScore);
@@ -1035,10 +1035,6 @@ int Quiescence(int alpha, int beta, ThreadData* td, SearchStack* ss) {
         }
     }
 
-    // return mate score (assuming closest distance to mating position)
-    if (totalMoves == 0 && inCheck) {
-        return -MATE_SCORE + ss->ply;
-    }
     // Set the TT bound based on whether we failed high, for qsearch we never use the exact bound
     int bound = bestScore >= beta ? HFLOWER : HFUPPER;
 
