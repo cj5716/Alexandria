@@ -126,6 +126,7 @@ int NNUE::povActivateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer,  cons
             regs[j] = vec_loadu_epi(&entryVec[j]);
         }
 
+        #pragma GCC unroll 3
         for (size_t j = 0; j < addCnt; ++j) {
             vepi16 *addedVec = reinterpret_cast<vepi16*>(&net.FTWeights[add[j] + i]);
             for (int k = 0; k < NUM_REGI; ++k) {
@@ -133,6 +134,7 @@ int NNUE::povActivateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer,  cons
             }
         }
 
+        #pragma GCC unroll 3
         for (size_t j = 0; j < removeCnt; ++j) {
             vepi16 *removedVec = reinterpret_cast<vepi16*>(&net.FTWeights[remove[j] + i]);
             for (int k = 0; k < NUM_REGI; ++k) {
