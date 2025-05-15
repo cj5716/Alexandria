@@ -120,6 +120,7 @@ int NNUE::povActivateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer,  cons
     }
 
     #if defined(USE_SIMD)
+    #pragma GCC unroll (L1_SIZE / TILE_SIZE)
     for (int i = 0; i < L1_SIZE; i += TILE_SIZE) {
         vepi16 *entryVec = reinterpret_cast<vepi16*>(&cachedEntry.accumCache[i]);
         for (int j = 0; j < NUM_REGI; ++j) {
@@ -128,6 +129,8 @@ int NNUE::povActivateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer,  cons
 
         for (size_t j = 0; j < addCnt; ++j) {
             vepi16 *addedVec = reinterpret_cast<vepi16*>(&net.FTWeights[add[j] + i]);
+
+            #pragma GCC unroll NUM_REGI
             for (int k = 0; k < NUM_REGI; ++k) {
                 regs[k] = vec_add_epi16(regs[k], addedVec[k]);
             }
@@ -135,16 +138,21 @@ int NNUE::povActivateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer,  cons
 
         for (size_t j = 0; j < removeCnt; ++j) {
             vepi16 *removedVec = reinterpret_cast<vepi16*>(&net.FTWeights[remove[j] + i]);
+
+            #pragma GCC unroll NUM_REGI
             for (int k = 0; k < NUM_REGI; ++k) {
                 regs[k] = vec_sub_epi16(regs[k], removedVec[k]);
             }
         }
 
+        #pragma GCC unroll NUM_REGI
         for (int j = 0; j < NUM_REGI; ++j) {
             vec_storeu_epi(&entryVec[j], regs[j]);
         }
 
         const vepi16 *l1weightVec = reinterpret_cast<const vepi16*>(&l1weights[i]);
+
+        #pragma GCC unroll NUM_REGI
         for (int j = 0; j < NUM_REGI; ++j) {
 
             // We have Squared Clipped ReLU (SCReLU) as our activation function.
@@ -169,6 +177,8 @@ int NNUE::povActivateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer,  cons
 
       for (int i = 0; i < addCnt; i++) {
         const auto added = add[i];
+
+        #pragma GCC unroll L1_SIZE
         for (int j = 0; j < L1_SIZE; ++j) {
             accumCache[j] += net.FTWeights[added + j];
         }
@@ -176,11 +186,14 @@ int NNUE::povActivateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer,  cons
 
       for (int i = 0; i < removeCnt; i++) {
         const auto removed = remove[i];
+
+        #pragma GCC unroll L1_SIZE
         for (int j = 0; j < L1_SIZE; ++j) {
             accumCache[j] -= net.FTWeights[removed + j];
         }
     }
 
+    #pragma GCC unroll L1_SIZE
     for (int i = 0; i < L1_SIZE; ++i) {
         const int16_t input   = accumCache[i];
         const int16_t weight  = l1weights[i];
