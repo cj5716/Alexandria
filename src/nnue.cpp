@@ -81,7 +81,8 @@ void NNUE::init(const char *file) {
     std::memcpy(net.L1Weights, transposedL1Weights, L1_SIZE * sizeof(int16_t) * 2 * OUTPUT_BUCKETS);
 }
 
-int NNUE::povActivateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer,  const int side, const int16_t *l1weights) {
+template<bool side>
+int NNUE::povActivateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer, const int16_t *l1weights) {
 
     #if defined(USE_SIMD)
     constexpr int NUM_REGI = 8;
@@ -193,8 +194,8 @@ int NNUE::povActivateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer,  cons
 }
 
 int NNUE::activateAffine(Position *pos, NNUE::FinnyTable* FinnyPointer, const int16_t *weights, const int16_t bias) {
-    int sum =    povActivateAffine(pos, FinnyPointer, pos->side    , &weights[0])
-               + povActivateAffine(pos, FinnyPointer, pos->side ^ 1, &weights[L1_SIZE]);
+    int sum =    povActivateAffine<WHITE>(pos, FinnyPointer, &weights[L1_SIZE *  pos->side])
+               + povActivateAffine<BLACK>(pos, FinnyPointer, &weights[L1_SIZE * (pos->side ^ 1)]);
 
     return (sum / FT_QUANT + bias) * NET_SCALE / (FT_QUANT * L1_QUANT);
 }
