@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cassert>
 #include <iostream>
+#include <cmath>
 #include "bitboard.h"
 #include "move.h"
 #include "search.h"
@@ -256,7 +257,7 @@ void SearchPosition(int startDepth, int finalDepth, ThreadData* td, UciOptions* 
     int prevScore = 0;
     int averageScore = SCORE_NONE;
     int bestMoveStabilityFactor = 0;
-    int evalStabilityFactor = 0;
+    double evalInstabilityFactor = 1.3;
     Move previousBestMove = NOMOVE;
 
     // Clean the position and the search info to start search from a clean state
@@ -284,17 +285,13 @@ void SearchPosition(int startDepth, int finalDepth, ThreadData* td, UciOptions* 
             }
 
             // Keep track of eval stability
-            if (score > averageScore - 10 && score < averageScore + 10) {
-                evalStabilityFactor = std::min(evalStabilityFactor + 1, 4);
-            }
-            else {
-                evalStabilityFactor = 0;
-            }
+            int diff = std::abs(score - averageScore);
+            evalInstabilityFactor = (3 * evalInstabilityFactor + std::pow(1.01, std::min(diff, 69))) / 4.0;
 
             // use the previous search to adjust some of the time management parameters, do not scale movetime time controls
             if (   td->RootDepth > 7
                 && td->info.timeset) {
-                ScaleTm(td, bestMoveStabilityFactor, evalStabilityFactor);
+                ScaleTm(td, bestMoveStabilityFactor, evalInstabilityFactor);
             }
 
             // check if we just cleared a depth and more than OptTime passed, or we used more than the give nodes
