@@ -75,17 +75,17 @@ Move NextMove(Movepicker* mp, const bool skip) {
 
         // In probcut, we only search captures that pass the threshold
         if (   mp->movepickerType == PROBCUT
-               && mp->stage > PICK_GOOD_NOISY) {
+            && mp->stage > PICK_GOOD_NOISY) {
             return NOMOVE;
         }
     }
     switch (mp->stage) {
     case PICK_TT:
         ++mp->stage;
-            // If we are in qsearch and not in check, or we are in probcut, skip quiet TT moves
-            if ((mp->movepickerType == PROBCUT || (mp->movepickerType == QSEARCH && skip))
-                && !isTactical(mp->ttMove))
-                goto top;
+        // If we are in qsearch and not in check, or we are in probcut, skip quiet TT moves
+        if ((mp->movepickerType == PROBCUT || (mp->movepickerType == QSEARCH && skip))
+            && !isTactical(mp->ttMove))
+            goto top;
 
         // If the TT move if not pseudo legal we skip it too
         if (!IsPseudoLegal(mp->pos, mp->ttMove))
@@ -114,7 +114,7 @@ Move NextMove(Movepicker* mp, const bool skip) {
                 continue;
 
             if (!SEE(mp->pos, move, SEEThreshold)) {
-                AddMove(move, score, &mp->badCaptureList);
+                if (mp->movepickerType == SEARCH || !skip) AddMove(move, score, &mp->badCaptureList);
                 continue;
             }
 
